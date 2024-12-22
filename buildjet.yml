@@ -1,0 +1,31 @@
+version: 2.1
+
+jobs:
+  build-android:
+    docker:
+      - image: cimg/android:2023.08
+    steps:
+      - checkout
+      - restore_cache:
+          key: npm-cache-{{ checksum "package-lock.json" }}
+      - run:
+          name: Install Dependencies
+          command: npm install
+      - save_cache:
+          key: npm-cache-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm
+      - run:
+          name: Build Android Release
+          command: |
+            cd android
+            ./gradlew assembleRelease
+      - store_artifacts:
+          path: android/app/build/outputs/apk/release/app-release.apk
+          destination: HelloHari.apk
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build-android
