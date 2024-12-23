@@ -11,6 +11,10 @@ workflows:
       - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
+      - name: Set Gradle permissions
+        script: |
+          cd android
+          chmod +x gradlew
       - name: Build Android release
         script: |
           cd android
