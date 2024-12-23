@@ -2,39 +2,30 @@ apply plugin: "com.android.application"
 
 android {
     namespace "com.hellohari"
-    compileSdkVersion 34    // Updated for Android 14
+    compileSdkVersion 34
     buildToolsVersion "34.0.0"
 
     defaultConfig {
         applicationId "com.hellohari"
         minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion 34  // Updated for Android 14
+        targetSdkVersion 34  // Targeting Android 14
         versionCode 1
         versionName "1.0"
     }
 
     signingConfigs {
         debug {
-            storeFile file("debug.keystore")
-            storePassword "android"
-            keyAlias "androiddebugkey"
-            keyPassword "android"
-        }
-        release {
-            storeFile file("debug.keystore")
-            storePassword "android"
-            keyAlias "androiddebugkey"
-            keyPassword "android"
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
         }
     }
 
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-            signingConfig signingConfigs.release
-        }
-        debug {
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.debug
         }
     }
