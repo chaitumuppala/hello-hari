@@ -8,6 +8,9 @@ workflows:
         KEY_PASSWORD: "android"
         KEY_ALIAS: "androiddebugkey"
     scripts:
+      - name: Install npm dependencies
+        script: |
+          npm install
       - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
@@ -22,7 +25,8 @@ workflows:
       - name: Build Android release
         script: |
           cd android
-          ./gradlew assembleRelease
+          ./gradlew bundleRelease
           
     artifacts:
-      - android/app/build/outputs/apk/release/*.apk
+      - android/app/build/outputs/**/*.apk
+      - android/app/build/outputs/**/*.aab
