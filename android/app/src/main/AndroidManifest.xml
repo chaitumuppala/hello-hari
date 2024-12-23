@@ -1,28 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.hellohari">
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Basic Permissions -->
+    <!-- Declare that the app requires phone features -->
     <uses-feature android:name="android.hardware.telephony" android:required="true" />
-    <uses-permission android:name="android.permission.CALL_PHONE" android:required="true" />
     
-    <!-- Additional Permissions -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <uses-permission android:name="android.permission.READ_CALL_LOG" />
-    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" />
-    <uses-permission android:name="android.permission.MODIFY_PHONE_STATE" 
-        tools:ignore="ProtectedPermissions" />
+    <!-- Explicitly declare permissions with maxSdkVersion removed -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
     
-    <!-- Android 14 Specific -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.DIAL" />
-            <data android:scheme="tel" />
-        </intent>
-    </queries>
+    <!-- Normal permissions, no runtime request needed -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Permission configuration for Android 14 -->
+    <permission-group
+        android:name="${applicationId}.permission-group.PHONE"
+        android:label="@string/app_name"
+        android:description="@string/app_name" />
 
     <application
         android:name=".MainApplication"
@@ -30,8 +23,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:theme="@style/AppTheme"
-        android:requestLegacyExternalStorage="true">
+        android:theme="@style/AppTheme">
 
         <activity
             android:name=".MainActivity"
@@ -39,7 +31,6 @@
             android:exported="true"
             android:label="@string/app_name"
             android:launchMode="singleTask"
-            android:permission="android.permission.CALL_PHONE"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
