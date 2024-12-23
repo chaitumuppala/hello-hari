@@ -9,10 +9,16 @@ workflows:
         KEY_ALIAS: "androiddebugkey"
       node: 18.17.1
     scripts:
-      - name: Install npm dependencies
+      - name: Create React Native project
+        script: |
+          npm uninstall -g react-native-cli
+          npm install -g @react-native-community/cli
+          npx react-native init HelloHari --version 0.72.6
+          cp -r HelloHari/* .
+          rm -rf HelloHari
+      - name: Install dependencies
         script: |
           npm install --legacy-peer-deps
-          npm install -g react-native-cli
       - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
@@ -27,7 +33,7 @@ workflows:
       - name: Build Android release
         script: |
           cd android
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease
           
     artifacts:
       - android/app/build/outputs/**/*.apk
