@@ -9,9 +9,18 @@ import {
   NativeEventEmitter,
   NativeModules,
   PermissionsAndroid,
+  Platform,
 } from 'react-native';
 
 const { CallDetector } = NativeModules;
+
+const PERMISSIONS = [
+  PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+  PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
+  PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+  PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS,
+  PermissionsAndroid.PERMISSIONS.ANSWER_PHONE_CALLS,
+];
 
 const App = () => {
   const [isMonitoring, setIsMonitoring] = useState(false);
@@ -22,38 +31,68 @@ const App = () => {
     const eventEmitter = new NativeEventEmitter(CallDetector);
     const subscription = eventEmitter.addListener(
       'CallStateChanged',
-      (event) => {
-        console.log('Call state changed:', event);
-        if (event.callState === 'RINGING') {
-          setCurrentCall({
-            number: event.number,
-            riskLevel: 'Analyzing...',
-            state: 'Incoming'
-          });
-        } else if (event.callState === 'IDLE') {
-          setCurrentCall(null);
-        }
-      }
+      handleCallStateChange
     );
 
-    return () => {
-      subscription.remove();
-    };
+    return () => subscription.remove();
   }, []);
+
+  const handleCallStateChange = (event) => {
+    console.log('Call state changed:', event);
+    if (event.callState === 'RINGING') {
+      setCurrentCall({
+        number: event.number,
+        riskLevel: 'Analyzing...',
+        state: 'Incoming'
+      });
+    } else if (event.callState === 'IDLE') {
+      setCurrentCall(null);
+    }
+  };
 
   const requestPermissions = async () => {
     try {
-      const granted = await PermissionsAndroid.requestMultiple([
-        PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
-        PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
-        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-      ]);
-
-      return Object.values(granted).every(
-        permission => permission === PermissionsAndroid.RESULTS.GRANTED
+      const results = await Promise.all(
+        PERMISSIONS.map(permission =>
+          PermissionsAndroid.request(permission, {
+            title: 'Hello Hari Permissions',
+            message: 'Hello Hari needs access to your phone and microphone to protect you from scam calls.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK'
+          })
+        )
       );
+
+      console.log('Permission results:', results);
+      
+      const allGranted = results.every(
+        result => result === PermissionsAndroid.RESULTS.GRANTED
+      );
+
+      if (!allGranted) {
+        Alert.alert(
+          'Permissions Required',
+          'Please grant all permissions to use call monitoring features.',
+          [
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                // Ideally open app settings here
+                Alert.alert('Please enable permissions in app settings');
+              }
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            }
+          ]
+        );
+      }
+
+      return allGranted;
     } catch (err) {
-      console.warn(err);
+      console.warn('Permission request error:', err);
       return false;
     }
   };
@@ -62,10 +101,6 @@ const App = () => {
     if (!isMonitoring) {
       const hasPermissions = await requestPermissions();
       if (!hasPermissions) {
-        Alert.alert(
-          'Permission Required',
-          'Call monitoring requires phone and audio permissions'
-        );
         return;
       }
 
@@ -74,7 +109,8 @@ const App = () => {
         setIsMonitoring(true);
         Alert.alert('Status', 'Call monitoring started');
       } catch (error) {
-        Alert.alert('Error', error.message);
+        console.error('Start monitoring error:', error);
+        Alert.alert('Error', error.message || 'Failed to start monitoring');
       }
     } else {
       try {
@@ -83,7 +119,8 @@ const App = () => {
         setCurrentCall(null);
         Alert.alert('Status', 'Call monitoring stopped');
       } catch (error) {
-        Alert.alert('Error', error.message);
+        console.error('Stop monitoring error:', error);
+        Alert.alert('Error', error.message || 'Failed to stop monitoring');
       }
     }
   };
