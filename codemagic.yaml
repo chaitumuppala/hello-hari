@@ -3,23 +3,11 @@ workflows:
     name: Hello Hari Android
     max_build_duration: 60
     environment:
+      android_signing:
+        - debug_keystore
       node: latest
       npm: latest
     scripts:
-      - name: Install React Native CLI
-        script: |
-          npm install -g react-native-cli
-      - name: Create package.json if not exists
-        script: |
-          if [ ! -f package.json ]; then
-            npm init -y
-          fi
-      - name: Install React and React Native
-        script: |
-          npm install --save react@18.2.0 react-native@0.72.6
-      - name: Install other dependencies
-        script: |
-          npm install --save react-native-permissions
       - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
@@ -31,8 +19,9 @@ workflows:
         script: |
           cd android
           ./gradlew assembleRelease
+          
     artifacts:
-      - android/app/build/outputs/**/*.apk
+      - android/app/build/outputs/apk/release/*.apk
     publishing:
       email:
         recipients:
