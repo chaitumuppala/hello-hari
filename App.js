@@ -6,19 +6,86 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  NativeEventEmitter,
+  NativeModules,
+  PermissionsAndroid,
 } from 'react-native';
+
+const { CallDetector } = NativeModules;
 
 const App = () => {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [currentCall, setCurrentCall] = useState(null);
   const [riskScore, setRiskScore] = useState(0);
 
-  const toggleMonitoring = () => {
-    setIsMonitoring(!isMonitoring);
-    Alert.alert(
-      'Status',
-      !isMonitoring ? 'Call monitoring started' : 'Call monitoring stopped'
+  useEffect(() => {
+    const eventEmitter = new NativeEventEmitter(CallDetector);
+    const subscription = eventEmitter.addListener(
+      'CallStateChanged',
+      (event) => {
+        console.log('Call state changed:', event);
+        if (event.callState === 'RINGING') {
+          setCurrentCall({
+            number: event.number,
+            riskLevel: 'Analyzing...',
+            state: 'Incoming'
+          });
+        } else if (event.callState === 'IDLE') {
+          setCurrentCall(null);
+        }
+      }
     );
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  const requestPermissions = async () => {
+    try {
+      const granted = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+        PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+      ]);
+
+      return Object.values(granted).every(
+        permission => permission === PermissionsAndroid.RESULTS.GRANTED
+      );
+    } catch (err) {
+      console.warn(err);
+      return false;
+    }
+  };
+
+  const toggleMonitoring = async () => {
+    if (!isMonitoring) {
+      const hasPermissions = await requestPermissions();
+      if (!hasPermissions) {
+        Alert.alert(
+          'Permission Required',
+          'Call monitoring requires phone and audio permissions'
+        );
+        return;
+      }
+
+      try {
+        await CallDetector.startCallDetection();
+        setIsMonitoring(true);
+        Alert.alert('Status', 'Call monitoring started');
+      } catch (error) {
+        Alert.alert('Error', error.message);
+      }
+    } else {
+      try {
+        await CallDetector.stopCallDetection();
+        setIsMonitoring(false);
+        setCurrentCall(null);
+        Alert.alert('Status', 'Call monitoring stopped');
+      } catch (error) {
+        Alert.alert('Error', error.message);
+      }
+    }
   };
 
   return (
@@ -42,6 +109,7 @@ const App = () => {
         <View style={styles.callCard}>
           <Text style={styles.callNumber}>Number: {currentCall.number}</Text>
           <Text style={styles.riskLevel}>Risk Level: {currentCall.riskLevel}</Text>
+          <Text style={styles.callState}>State: {currentCall.state}</Text>
         </View>
       )}
 
@@ -111,6 +179,11 @@ const styles = StyleSheet.create({
   riskLevel: {
     marginTop: 8,
     color: '#666',
+  },
+  callState: {
+    marginTop: 4,
+    color: '#666',
+    fontStyle: 'italic',
   },
   riskMeter: {
     margin: 16,
