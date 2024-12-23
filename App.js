@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   View,
@@ -8,26 +8,85 @@ import {
   Alert,
   Linking,
   PermissionsAndroid,
+  Platform,
 } from 'react-native';
 
 const App = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [hasPermission, setHasPermission] = useState(false);
+
+  useEffect(() => {
+    checkPermission();
+  }, []);
+
+  const checkPermission = async () => {
+    try {
+      const status = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CALL_PHONE);
+      setHasPermission(status);
+    } catch (err) {
+      console.warn(err);
+    }
+  };
 
   const requestCallPermission = async () => {
     try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CALL_PHONE,
-        {
-          title: 'Call Permission',
-          message: 'HelloHari needs access to make phone calls.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
+      if (Platform.Version >= 34) { // Android 14 and above
+        // First check if we can request the permission
+        const granted = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.CALL_PHONE
+        );
+        
+        if (!granted) {
+          const permissionResult = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.CALL_PHONE,
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+          ]);
+
+          if (permissionResult['android.permission.CALL_PHONE'] === PermissionsAndroid.RESULTS.GRANTED) {
+            setHasPermission(true);
+            return true;
+          }
         }
+      } else {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CALL_PHONE,
+          {
+            title: 'Call Permission',
+            message: 'HelloHari needs access to make phone calls.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
+        );
+
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          setHasPermission(true);
+          return true;
+        }
+      }
+      
+      // If permission not granted, show settings dialog
+      Alert.alert(
+        'Permission Required',
+        'Please grant call permission in settings to make calls.',
+        [
+          {
+            text: 'Open Settings',
+            onPress: () => {
+              Linking.openSettings().catch(() => {
+                Alert.alert('Unable to open settings');
+              });
+            },
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ]
       );
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
+      return false;
     } catch (err) {
-      console.warn(err);
+      console.warn('Permission request error:', err);
       return false;
     }
   };
@@ -42,11 +101,14 @@ const App = () => {
 
   const handleCall = async () => {
     if (phoneNumber.length > 0) {
-      const hasPermission = await requestCallPermission();
-      if (hasPermission) {
-        Linking.openURL(`tel:${phoneNumber}`);
-      } else {
-        Alert.alert('Permission Denied', 'Cannot make calls without permission');
+      if (!hasPermission) {
+        const granted = await requestCallPermission();
+        if (!granted) return;
+      }
+      try {
+        await Linking.openURL(`tel:${phoneNumber}`);
+      } catch (err) {
+        Alert.alert('Error', 'Could not make the call');
       }
     }
   };
@@ -96,7 +158,7 @@ const App = () => {
             style={[styles.dialButton, styles.callButton]} 
             onPress={handleCall}
           >
-            <Text style={styles.dialButtonText}>Call</Text>
+            <Text style={[styles.dialButtonText, styles.callButtonText]}>Call</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -139,6 +201,7 @@ const styles = StyleSheet.create({
   phoneNumberText: {
     fontSize: 32,
     fontWeight: 'bold',
+    color: '#000000',
   },
   dialPad: {
     padding: 20,
@@ -157,12 +220,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 2,
   },
-  callButton: {
-    backgroundColor: '#4CAF50',
-  },
   dialButtonText: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: '#000000',
+  },
+  callButton: {
+    backgroundColor: '#4CAF50',
+  },
+  callButtonText: {
+    color: '#FFFFFF',
   },
 });
 
