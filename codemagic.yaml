@@ -12,7 +12,7 @@ workflows:
       - name: Install npm dependencies
         script: |
           npm install --legacy-peer-deps
-          npx react-native --version
+          npm install -g react-native-cli
       - name: Set Android SDK location
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
@@ -27,7 +27,7 @@ workflows:
       - name: Build Android release
         script: |
           cd android
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --no-daemon
           
     artifacts:
       - android/app/build/outputs/**/*.apk
