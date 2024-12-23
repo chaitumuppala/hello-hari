@@ -1,14 +1,22 @@
 package com.hellohari;
 
-import android.app.Activity;
-import android.os.Bundle;
-import android.widget.FrameLayout;
+import com.facebook.react.ReactActivity;
+import com.facebook.react.ReactActivityDelegate;
+import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
+import com.facebook.react.defaults.DefaultReactActivityDelegate;
 
-public class MainActivity extends Activity {
+public class MainActivity extends ReactActivity {
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        FrameLayout layout = new FrameLayout(this);
-        setContentView(layout);
+    protected String getMainComponentName() {
+        return "HelloHari";
+    }
+
+    @Override
+    protected ReactActivityDelegate createReactActivityDelegate() {
+        return new DefaultReactActivityDelegate(
+            this,
+            getMainComponentName(),
+            DefaultNewArchitectureEntryPoint.getFabricEnabled()
+        );
     }
 }
