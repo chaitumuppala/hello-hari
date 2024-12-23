@@ -9,6 +9,7 @@ import {
   NativeEventEmitter,
   NativeModules,
   PermissionsAndroid,
+  Linking,
 } from 'react-native';
 
 const { CallDetector } = NativeModules;
@@ -18,31 +19,66 @@ const App = () => {
   const [currentCall, setCurrentCall] = useState(null);
   const [riskScore, setRiskScore] = useState(0);
 
+  const openSettings = () => {
+    Linking.openSettings();
+  };
+
   const requestPermission = async () => {
     try {
+      // First check if permission is already denied
+      const alreadyGranted = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE
+      );
+
+      if (alreadyGranted) {
+        Alert.alert('Success', 'Permission already granted');
+        return true;
+      }
+
       const granted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
         {
           title: 'Phone Permission',
-          message: 'Hello Hari needs access to your phone.',
+          message: 'Hello Hari needs access to your phone to detect scam calls',
           buttonNeutral: 'Ask Me Later',
           buttonNegative: 'Cancel',
           buttonPositive: 'OK',
         }
       );
+
       if (granted === PermissionsAndroid.RESULTS.GRANTED) {
         Alert.alert('Success', 'Phone permission granted');
+        return true;
       } else {
-        Alert.alert('Permission denied');
+        Alert.alert(
+          'Permission Required',
+          'Please grant phone permission from settings to use this feature',
+          [
+            {
+              text: 'Open Settings',
+              onPress: openSettings
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            }
+          ]
+        );
+        return false;
       }
     } catch (err) {
-      Alert.alert('Error', err.toString());
+      console.error('Permission error:', err);
+      Alert.alert('Error', 'Failed to request permission: ' + err.message);
+      return false;
     }
   };
 
-  const toggleMonitoring = () => {
+  const toggleMonitoring = async () => {
     if (!isMonitoring) {
-      requestPermission();
+      const hasPermission = await requestPermission();
+      if (!hasPermission) {
+        return;
+      }
     }
     setIsMonitoring(!isMonitoring);
     Alert.alert(
