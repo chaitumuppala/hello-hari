@@ -6,36 +6,28 @@ buildscript {
         targetSdkVersion = 33
         ndkVersion = "23.1.7779620"
         kotlinVersion = "1.8.0"
-        reactNativeVersion = "0.72.6"
     }
     repositories {
         google()
         mavenCentral()
-        maven {
-            url '$rootDir/../node_modules/react-native/android'
-        }
+        maven { url 'https://www.jitpack.io' }
     }
     dependencies {
         classpath("com.android.tools.build:gradle:7.3.1")
-        classpath("com.facebook.react:react-native-gradle-plugin:$reactNativeVersion")
+        // Using a fixed version of the plugin instead of dynamic version
+        classpath("com.facebook.react:react-native-gradle-plugin:0.71.8")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
 }
 
 allprojects {
     repositories {
-        maven {
-            url "$rootDir/../node_modules/react-native/android"
-        }
-        maven {
-            url "$rootDir/../node_modules/jsc-android/dist"
-        }
-        mavenCentral {
-            content {
-                excludeGroup "com.facebook.react"
-            }
-        }
         google()
+        mavenCentral()
         maven { url 'https://www.jitpack.io' }
+        maven {
+            // All of React Native (JS, Android binaries) is installed from npm
+            url("$rootDir/../node_modules/react-native/android")
+        }
     }
 }
