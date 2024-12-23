@@ -2,21 +2,15 @@ buildscript {
     ext {
         buildToolsVersion = "33.0.0"
         minSdkVersion = 21
-        compileSdkVersion = 33
-        targetSdkVersion = 33
-        ndkVersion = "23.1.7779620"
-        kotlinVersion = "1.8.0"
+        compileSdkVersion = 30
+        targetSdkVersion = 30
     }
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://www.jitpack.io' }
     }
     dependencies {
         classpath("com.android.tools.build:gradle:7.3.1")
-        // Using a fixed version of the plugin instead of dynamic version
-        classpath("com.facebook.react:react-native-gradle-plugin:0.71.8")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
 }
 
@@ -24,10 +18,5 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://www.jitpack.io' }
-        maven {
-            // All of React Native (JS, Android binaries) is installed from npm
-            url("$rootDir/../node_modules/react-native/android")
-        }
     }
 }
