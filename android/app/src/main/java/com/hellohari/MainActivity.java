@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.provider.Settings;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -14,22 +15,25 @@ import com.facebook.react.defaults.DefaultReactActivityDelegate;
 
 public class MainActivity extends ReactActivity {
     private static final int PERMISSION_REQUEST_CODE = 123;
+    private static final String[] REQUIRED_PERMISSIONS = {
+        Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.FOREGROUND_SERVICE,
+        Manifest.permission.POST_NOTIFICATIONS
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        checkAndRequestPermissions();
+        requestInitialPermissions();
     }
 
-    private void checkAndRequestPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.RECORD_AUDIO},
-                    PERMISSION_REQUEST_CODE);
-        } else {
-            startRecordingService();
-        }
+    private void requestInitialPermissions() {
+        // Request all permissions at once
+        ActivityCompat.requestPermissions(
+            this,
+            REQUIRED_PERMISSIONS,
+            PERMISSION_REQUEST_CODE
+        );
     }
 
     @Override
@@ -38,16 +42,21 @@ public class MainActivity extends ReactActivity {
                                          int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startRecordingService();
+            boolean allGranted = true;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+
+            if (allGranted) {
+                // All permissions granted, open app settings to ensure they're enabled
+                Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(android.net.Uri.parse("package:" + getPackageName()));
+                startActivity(intent);
             }
         }
-    }
-
-    private void startRecordingService() {
-        Intent serviceIntent = new Intent(this, CallRecordingService.class);
-        startService(serviceIntent);
     }
 
     @Override
