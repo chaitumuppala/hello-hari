@@ -3,7 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Basic Permissions -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" 
+        android:maxSdkVersion="33"/>
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -20,10 +21,10 @@
     <!-- Features -->
     <uses-feature 
         android:name="android.hardware.microphone" 
-        android:required="true" />
+        android:required="false" />
     <uses-feature 
         android:name="android.hardware.telephony" 
-        android:required="true" />
+        android:required="false" />
 
     <queries>
         <package android:name="com.android.systemui" />
@@ -59,5 +60,6 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Call recording for scam protection"/>
         </service>
+
     </application>
 </manifest>
