@@ -94,22 +94,30 @@ public class PermissionModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void openSettings(Promise promise) {
-        Activity activity = getCurrentActivity();
-        if (activity == null) {
-            promise.reject("ACTIVITY_NULL", "Activity is null");
-            return;
-        }
+    Activity activity = getCurrentActivity();
+    if (activity == null) {
+        promise.reject("ACTIVITY_NULL", "Activity is null");
+        return;
+    }
 
+    try {
+        // Use Settings.ACTION_APPLICATION_SETTINGS instead of ACTION_APPLICATION_DETAILS_SETTINGS
+        Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+        intent.setData(Uri.parse("package:" + activity.getPackageName()));
+        // Remove FLAG_ACTIVITY_NEW_TASK as it might cause issues
+        activity.startActivity(intent);
+        promise.resolve(true);
+    } catch (Exception e1) {
         try {
+            // Fallback to standard app settings if the above fails
             Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
             Uri uri = Uri.fromParts("package", activity.getPackageName(), null);
             intent.setData(uri);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity.startActivity(intent);
             promise.resolve(true);
-        } catch (Exception e) {
-            Log.e(TAG, "Error opening settings", e);
-            promise.reject("SETTINGS_ERROR", e.getMessage());
+        } catch (Exception e2) {
+            Log.e(TAG, "Error opening settings", e2);
+            promise.reject("SETTINGS_ERROR", e2.getMessage());
         }
     }
 }
