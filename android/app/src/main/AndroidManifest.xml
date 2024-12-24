@@ -1,13 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.hellohari">
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Base Permissions -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Runtime Permissions -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" 
+        android:required="true"/>
+
+    <!-- Foreground Service Permissions -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"
+        android:minSdkVersion="28" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"
+        android:minSdkVersion="34" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"
+        android:minSdkVersion="33" />
+
+    <!-- Declare that the app uses recording features -->
+    <uses-feature 
+        android:name="android.hardware.microphone" 
+        android:required="true" />
+
+    <queries>
+        <package android:name="com.android.systemui" />
+    </queries>
 
     <application
         android:name=".MainApplication"
@@ -17,7 +31,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/AppTheme">
 
-        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
@@ -28,17 +41,18 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.permission.RECORD_AUDIO" />
             </intent-filter>
         </activity>
 
-        <!-- Recording Service -->
         <service
             android:name=".CallRecordingService"
-            android:foregroundServiceType="microphone"
-            android:exported="false">
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="microphone">
             <property 
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Call recording for scam detection and user protection"/>
+                android:value="Call recording for protecting users from scam calls"/>
         </service>
 
     </application>
