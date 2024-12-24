@@ -3,11 +3,12 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Basic Permissions -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" 
-        android:maxSdkVersion="33"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" 
+        android:minSdkVersion="26" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
-    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     
     <!-- Foreground Service Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -21,13 +22,17 @@
     <!-- Features -->
     <uses-feature 
         android:name="android.hardware.microphone" 
-        android:required="false" />
+        android:required="true" />
     <uses-feature 
         android:name="android.hardware.telephony" 
-        android:required="false" />
+        android:required="true" />
 
     <queries>
         <package android:name="com.android.systemui" />
+        <!-- Add this to ensure we can open system settings -->
+        <intent>
+            <action android:name="android.settings.APPLICATION_DETAILS_SETTINGS" />
+        </intent>
     </queries>
 
     <application
@@ -55,7 +60,8 @@
             android:name=".CallRecordingService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="microphone|phoneCall">
+            android:foregroundServiceType="microphone|phoneCall"
+            android:permission="android.permission.BIND_JOB_SERVICE">
             <property 
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Call recording for scam protection"/>
