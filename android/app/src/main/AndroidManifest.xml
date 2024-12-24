@@ -1,59 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    tools:targetApi="34">
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Permissions with revamped declaration -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" 
-        tools:replace="android:maxSdkVersion"
-        android:maxSdkVersion="33"/>
-    <uses-permission android:name="android.permission.PHONE_STATE_CONTROL"
-        android:minSdkVersion="34" />
+    <!-- Basic Permissions -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     
-    <!-- Foreground Service Permissions -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Special Permissions for Android 14 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
     
-    <!-- Android 14 Specific -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-    
-    <!-- Background Operation -->
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-        
-    <!-- Features -->
-    <uses-feature 
-        android:name="android.hardware.microphone" 
-        android:required="false" />
-    <uses-feature 
-        android:name="android.hardware.telephony" 
-        android:required="false" />
-
-    <queries>
-        <package android:name="com.android.systemui" />
-        <intent>
-            <action android:name="android.settings.APPLICATION_DETAILS_SETTINGS" />
-        </intent>
-        <intent>
-            <action android:name="android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION" />
-        </intent>
-    </queries>
-
     <application
         android:name=".MainApplication"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:theme="@style/AppTheme">
-
-        <meta-data
-            android:name="com.google.android.gms.permission.AD_ID"
-            android:value="false"/>
+        android:theme="@style/AppTheme"
+        android:enableOnBackInvokedCallback="true">
 
         <activity
             android:name=".MainActivity"
@@ -66,21 +34,18 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
         </activity>
+
+        <!-- Add this meta-data -->
+        <meta-data
+            android:name="com.google.android.gms.permission.RESTRICTED_FUNCTIONALITY"
+            android:value="true" />
 
         <service
             android:name=".CallRecordingService"
             android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="microphone|phoneCall"
-            android:isolatedProcess="false">
-            <property 
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Call recording for scam protection"/>
+            android:foregroundServiceType="systemExempted"
+            android:exported="false">
         </service>
 
     </application>
