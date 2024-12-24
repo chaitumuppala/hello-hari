@@ -23,26 +23,21 @@ public class MainActivity extends ReactActivity {
         Manifest.permission.READ_CALL_LOG,
         Manifest.permission.READ_PHONE_NUMBERS,
         Manifest.permission.RECORD_AUDIO,
-        Manifest.permission.FOREGROUND_SERVICE,
+        Manifest.permission.MANAGE_OWN_CALLS,
         Manifest.permission.POST_NOTIFICATIONS
     };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (Build.VERSION.SDK_INT >= 33) {
-            // Request notifications permission for Android 13+
-            ActivityCompat.requestPermissions(
-                this,
-                new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                PERMISSION_REQUEST_CODE
-            );
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            checkAndRequestPermissions();
+        } else {
+            requestInitialPermissions();
         }
-        requestInitialPermissions();
     }
 
-    private void requestInitialPermissions() {
-        // Check if permissions are already granted
+    private void checkAndRequestPermissions() {
         boolean allGranted = true;
         for (String permission : REQUIRED_PERMISSIONS) {
             if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
@@ -52,12 +47,46 @@ public class MainActivity extends ReactActivity {
         }
 
         if (!allGranted) {
-            // Request permissions
-            ActivityCompat.requestPermissions(
-                this,
-                REQUIRED_PERMISSIONS,
-                PERMISSION_REQUEST_CODE
-            );
+            boolean shouldShowRationale = false;
+            for (String permission : REQUIRED_PERMISSIONS) {
+                if (ActivityCompat.shouldShowRequestPermissionRationale(this, permission)) {
+                    shouldShowRationale = true;
+                    break;
+                }
+            }
+
+            if (shouldShowRationale) {
+                showSettingsDialog();
+            } else {
+                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSION_REQUEST_CODE);
+            }
+        }
+    }
+
+    private void requestInitialPermissions() {
+        ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSION_REQUEST_CODE);
+    }
+
+    private void showSettingsDialog() {
+        new AlertDialog.Builder(this)
+            .setTitle("Permissions Required")
+            .setMessage("This app needs permissions to protect you from scam calls. Please grant them in Settings.")
+            .setPositiveButton("Open Settings", (dialog, which) -> openAppSettings())
+            .setNegativeButton("Cancel", null)
+            .setCancelable(false)
+            .show();
+    }
+
+    private void openAppSettings() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            Uri uri = Uri.parse("package:" + getPackageName());
+            intent.setData(uri);
+            startActivity(intent);
+        } catch (Exception e) {
+            // Fallback for older devices
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
+            startActivity(intent);
         }
     }
 
@@ -65,50 +94,17 @@ public class MainActivity extends ReactActivity {
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSION_REQUEST_CODE) {
-            boolean somePermissionsDenied = false;
+            boolean allGranted = true;
             for (int result : grantResults) {
                 if (result != PackageManager.PERMISSION_GRANTED) {
-                    somePermissionsDenied = true;
+                    allGranted = false;
                     break;
                 }
             }
 
-            if (somePermissionsDenied) {
-                // Show settings dialog with proper explanation
-                new AlertDialog.Builder(this)
-                    .setTitle("Permissions Required")
-                    .setMessage("This app needs permissions to protect you from scam calls. Please enable them in Settings.")
-                    .setPositiveButton("Settings", (dialog, which) -> {
-                        try {
-                            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                            Uri uri = Uri.fromParts("package", getPackageName(), null);
-                            intent.setData(uri);
-                            startActivity(intent);
-                        } catch (Exception e) {
-                            // If detailed settings fail, open general settings
-                            Intent intent = new Intent(Settings.ACTION_SETTINGS);
-                            startActivity(intent);
-                        }
-                    })
-                    .setNegativeButton("Cancel", null)
-                    .setCancelable(false)  // Makes the dialog modal
-                    .show();
+            if (!allGranted) {
+                showSettingsDialog();
             }
-        }
-    }
-
-    private void openAppSettings() {
-        try {
-            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-            Uri uri = Uri.fromParts("package", getPackageName(), null);
-            intent.setData(uri);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-        } catch (Exception e) {
-            // Fallback to general settings if detailed settings fail
-            Intent intent = new Intent(Settings.ACTION_SETTINGS);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
         }
     }
 
