@@ -73,7 +73,7 @@ public class PermissionModule extends ReactContextBaseJavaModule {
         }
 
         // For Android 14 and above, ensure we handle the new permission model
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        if (Build.VERSION.SDK_INT >= 34) { // Using SDK_INT 34 for Android 14
             boolean shouldShowSettings = false;
             for (String permission : REQUIRED_PERMISSIONS) {
                 if (!ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)) {
