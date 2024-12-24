@@ -2,37 +2,32 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Basic Permissions -->
+    <!-- Basic Permissions - removed maxSdkVersion and added proper minSdkVersion -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" 
-        android:minSdkVersion="26" />
+    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     
-    <!-- Foreground Service Permissions -->
+    <!-- Modified Foreground Service Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- Background Processing -->
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
     
-    <!-- Features -->
+    <!-- Android 14 Specific Permissions -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" 
+        android:minSdkVersion="34" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" 
+        android:minSdkVersion="34" />
+        
+    <!-- Make hardware features optional -->
     <uses-feature 
         android:name="android.hardware.microphone" 
-        android:required="true" />
+        android:required="false" />
     <uses-feature 
         android:name="android.hardware.telephony" 
-        android:required="true" />
+        android:required="false" />
 
     <queries>
         <package android:name="com.android.systemui" />
-        <!-- Add this to ensure we can open system settings -->
-        <intent>
-            <action android:name="android.settings.APPLICATION_DETAILS_SETTINGS" />
-        </intent>
     </queries>
 
     <application
@@ -60,12 +55,10 @@
             android:name=".CallRecordingService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="microphone|phoneCall"
-            android:permission="android.permission.BIND_JOB_SERVICE">
+            android:foregroundServiceType="microphone|phoneCall">
             <property 
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Call recording for scam protection"/>
         </service>
-
     </application>
 </manifest>
