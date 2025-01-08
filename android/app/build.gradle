@@ -1,21 +1,16 @@
 apply plugin: "com.android.application"
+apply plugin: "com.facebook.react"
 
 android {
     namespace "com.hellohari"
-    compileSdkVersion 34
-    buildToolsVersion "34.0.0"
+    compileSdkVersion rootProject.ext.compileSdkVersion
 
     defaultConfig {
         applicationId "com.hellohari"
         minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion 34  // Targeting Android 14
+        targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
-
-        // Add these configurations
-        manifestPlaceholders = [
-            PACKAGE_NAME: applicationId
-        ]
     }
 
     signingConfigs {
@@ -28,23 +23,17 @@ android {
     }
 
     buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        debug {
             signingConfig signingConfigs.debug
         }
-    }
-
-    // Add this configuration
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        release {
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
     }
 }
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    // Add these dependencies for permission handling
-    implementation 'androidx.core:core:1.12.0'
-    implementation 'androidx.annotation:annotation:1.7.0'
 }
