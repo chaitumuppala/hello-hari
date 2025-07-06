@@ -26,11 +26,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.io.File;
 
-public class MainActivity extends Activity implements EnhancedCallDetector.CallDetectionListener {
+public class MainActivity extends Activity implements SimpleCallDetector.CallDetectionListener {
     private static final String TAG = "HelloHariMain";
     private static final int PERMISSION_REQUEST_CODE = 123;
     
-    private EnhancedCallDetector callDetector;
+    private SimpleCallDetector callDetector;
     private TextView statusText;
     private TextView callLogText;
     private TextView recordingStatusText;
@@ -62,7 +62,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         super.onCreate(savedInstanceState);
         
         callLog = new StringBuilder();
-        callDetector = new EnhancedCallDetector(this);
+        callDetector = new SimpleCallDetector(this);
         callDetector.setCallDetectionListener(this);
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         
@@ -564,7 +564,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         for (int i = 0; i < audioSources.length; i++) {
             addToCallLog("Trying " + sourceNames[i] + "...");
             
-            if (tryRecordingWithSource(audioSources[i], sourceNames[i])) {
+            if (tryRecordingWithSource(audioSources[i], sourceNames[i], phoneNumber)) {
                 // Start quality monitoring for successful recording
                 monitorRecordingQuality();
                 return true;
@@ -604,7 +604,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         }
     }
 
-    private boolean tryRecordingWithSource(int audioSource, String sourceName) {
+    private boolean tryRecordingWithSource(int audioSource, String sourceName, String phoneNumber) {
         MediaRecorder recorder = null;
         
         try {
@@ -889,7 +889,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         }).start();
     }
 
-    // Enhanced CallDetectionListener implementation
+    // CallDetectionListener implementation (using SimpleCallDetector interface)
     @Override
     public void onCallStateChanged(String state, String phoneNumber) {
         runOnUiThread(() -> {
@@ -921,30 +921,6 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
                 logEntry = "STATE: " + state + " - " + displayNumber;
             }
             
-            addToCallLog(logEntry);
-        });
-    }
-
-    @Override
-    public void onRecordingStatusChanged(boolean recording, String filePath) {
-        runOnUiThread(() -> {
-            isRecording = recording;
-            if (recording) {
-                addToCallLog("ENHANCED RECORDING: Smart audio analysis active...");
-            } else {
-                addToCallLog("ENHANCED RECORDING: Processing smart audio patterns...");
-            }
-            updateEnhancedUI();
-        });
-    }
-
-    @Override
-    public void onRiskLevelChanged(int riskScore, String analysis) {
-        runOnUiThread(() -> {
-            currentRiskScore = riskScore;
-            updateRiskLevel(riskScore, analysis);
-            
-            String logEntry = String.format("SMART RISK ANALYSIS: %d%% - %s", riskScore, analysis);
             addToCallLog(logEntry);
         });
     }
@@ -1164,7 +1140,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
     protected void onDestroy() {
         super.onDestroy();
         
-        // Cleanup enhanced call detector
+        // Cleanup call detector
         if (callDetector != null) {
             callDetector.stopCallDetection();
         }
