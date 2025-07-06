@@ -1,23 +1,58 @@
 package com.hellohari;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.widget.TextView;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.view.ViewGroup;
 import androidx.core.app.ActivityCompat;
 
-import com.facebook.react.ReactActivity;
-import com.facebook.react.ReactActivityDelegate;
-import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
-import com.facebook.react.defaults.DefaultReactActivityDelegate;
-
-public class MainActivity extends ReactActivity {
+public class MainActivity extends Activity {
     private static final int PERMISSION_REQUEST_CODE = 123;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // Create simple UI programmatically
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 50, 50, 50);
+        
+        // Title
+        TextView title = new TextView(this);
+        title.setText("Hello Hari - Call Protection");
+        title.setTextSize(24);
+        title.setPadding(0, 0, 0, 30);
+        layout.addView(title);
+        
+        // Subtitle
+        TextView subtitle = new TextView(this);
+        subtitle.setText("Your Call Safety Companion");
+        subtitle.setTextSize(16);
+        subtitle.setPadding(0, 0, 0, 50);
+        layout.addView(subtitle);
+        
+        // Request permissions button
+        Button permButton = new Button(this);
+        permButton.setText("Grant Permissions");
+        permButton.setOnClickListener(v -> requestPermissions());
+        layout.addView(permButton);
+        
+        // About button
+        Button aboutButton = new Button(this);
+        aboutButton.setText("About Hello Hari");
+        aboutButton.setOnClickListener(v -> showAbout());
+        layout.addView(aboutButton);
+        
+        setContentView(layout);
+        
+        // Request permissions on startup
         requestPermissions();
     }
 
@@ -39,18 +74,17 @@ public class MainActivity extends ReactActivity {
         intent.setData(uri);
         startActivity(intent);
     }
-
-    @Override
-    protected String getMainComponentName() {
-        return "HelloHari";
-    }
-
-    @Override
-    protected ReactActivityDelegate createReactActivityDelegate() {
-        return new DefaultReactActivityDelegate(
-            this,
-            getMainComponentName(),
-            DefaultNewArchitectureEntryPoint.getFabricEnabled()
-        );
+    
+    private void showAbout() {
+        // Create simple about dialog programmatically
+        TextView aboutText = new TextView(this);
+        aboutText.setText("Hello Hari (HH) is dedicated to protecting people from phone scams and fraudulent calls.\n\nIn memory of Hari, whose spirit of protecting others lives on through this app.");
+        aboutText.setPadding(50, 50, 50, 50);
+        aboutText.setTextSize(16);
+        
+        LinearLayout aboutLayout = new LinearLayout(this);
+        aboutLayout.addView(aboutText);
+        
+        setContentView(aboutLayout);
     }
 }
