@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.telephony.TelephonyManager;
 import android.widget.TextView;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -19,6 +20,11 @@ import android.util.Log;
 public class MainActivity extends Activity implements SimpleCallDetector.CallDetectionListener {
     private static final String TAG = "MainActivity";
     private static final int PERMISSION_REQUEST_CODE = 123;
+    
+    // Define constants for switch-case compatibility
+    private static final String STATE_RINGING = TelephonyManager.EXTRA_STATE_RINGING;
+    private static final String STATE_OFFHOOK = TelephonyManager.EXTRA_STATE_OFFHOOK;
+    private static final String STATE_IDLE = TelephonyManager.EXTRA_STATE_IDLE;
     
     private SimpleCallDetector callDetector;
     private TextView statusText;
@@ -243,19 +249,15 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
             String displayNumber = phoneNumber != null ? phoneNumber : "Unknown";
             String logEntry = "";
             
-            switch (state) {
-                case TelephonyManager.EXTRA_STATE_RINGING:
-                    logEntry = "📞 INCOMING: " + displayNumber + " - Analyzing for scams...";
-                    break;
-                case TelephonyManager.EXTRA_STATE_OFFHOOK:
-                    logEntry = "📱 ANSWERED: " + displayNumber + " - Recording for safety";
-                    break;
-                case TelephonyManager.EXTRA_STATE_IDLE:
-                    logEntry = "📴 ENDED: Call finished - Analysis complete";
-                    break;
-                default:
-                    logEntry = "📋 STATE: " + state + " - " + displayNumber;
-                    break;
+            // Use if-else instead of switch for string comparison
+            if (STATE_RINGING.equals(state)) {
+                logEntry = "📞 INCOMING: " + displayNumber + " - Analyzing for scams...";
+            } else if (STATE_OFFHOOK.equals(state)) {
+                logEntry = "📱 ANSWERED: " + displayNumber + " - Recording for safety";
+            } else if (STATE_IDLE.equals(state)) {
+                logEntry = "📴 ENDED: Call finished - Analysis complete";
+            } else {
+                logEntry = "📋 STATE: " + state + " - " + displayNumber;
             }
             
             addToCallLog(logEntry);
