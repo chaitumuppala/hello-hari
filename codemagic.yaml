@@ -1,6 +1,6 @@
 workflows:
   hello-hari-workflow:
-    name: Hello Hari Android - APK Diagnostic
+    name: Hello Hari Android - Phase 1 Call Detection
     max_build_duration: 120
     environment:
       vars:
@@ -33,59 +33,25 @@ workflows:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
           
-      - name: Build APK and Diagnose
+      - name: Build APK and Copy to Root
         script: |
           cd android
-          echo "=== BEFORE BUILD ==="
-          pwd
-          ls -la
+          ./gradlew clean assembleDebug assembleRelease
           
-          echo "=== BUILDING APK ==="
-          ./gradlew assembleDebug --stacktrace
+          echo "=== FINDING AND COPYING APK FILES ==="
+          find app/build/outputs -name "*.apk" -type f
           
-          echo "=== AFTER BUILD - SEARCHING FOR APK FILES ==="
-          find . -name "*.apk" -type f -exec ls -la {} \;
+          # Copy APK files to easily accessible location
+          cp app/build/outputs/apk/debug/app-debug.apk ../HelloHari-debug.apk || echo "Debug APK not found"
+          cp app/build/outputs/apk/release/app-release.apk ../HelloHari-release.apk || echo "Release APK not found"
           
-          echo "=== BUILD OUTPUTS DIRECTORY ==="
-          ls -la app/build/ || echo "No app/build directory"
-          ls -la app/build/outputs/ || echo "No outputs directory"
-          ls -la app/build/outputs/apk/ || echo "No apk directory"
-          ls -la app/build/outputs/apk/debug/ || echo "No debug directory"
-          
-          echo "=== FULL PROJECT STRUCTURE ==="
-          find . -type d -name "*apk*" -o -name "*build*" | head -20
-          
-          echo "=== ANY APK FILES ANYWHERE ==="
-          find /Users/builder/clone -name "*.apk" -type f 2>/dev/null || echo "No APK files found anywhere"
-          
-          echo "=== GRADLE TASKS AVAILABLE ==="
-          ./gradlew tasks | grep -i apk || echo "No APK tasks found"
-          
-      - name: Try Alternative Build Methods
-        script: |
-          cd android
-          echo "=== TRYING ALTERNATIVE BUILD COMMANDS ==="
-          
-          echo "1. Try assembleRelease:"
-          ./gradlew assembleRelease || echo "assembleRelease failed"
-          
-          echo "2. Try build:"
-          ./gradlew build || echo "build failed"
-          
-          echo "3. Search again for any APK files:"
-          find . -name "*.apk" -type f -exec ls -la {} \;
-          
-          echo "4. Check if unsigned APK exists:"
-          find . -name "*unsigned*" -type f
-          
-          echo "5. List all files in build/outputs:"
-          find app/build/outputs -type f 2>/dev/null || echo "No files in build/outputs"
+          echo "=== COPIED APK FILES ==="
+          ls -la ../HelloHari*.apk || echo "No APK files copied"
           
     artifacts:
-      - android/app/build/outputs/**/*
-      - android/app/build/**/*.apk
-      - android/**/*.apk
-      - "**/*.apk"
+      - HelloHari-debug.apk
+      - HelloHari-release.apk
+      - android/app/build/outputs/**/*.apk
       
     publishing:
       email:
