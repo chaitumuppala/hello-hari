@@ -14,6 +14,11 @@ public class SimpleCallDetector {
     private BroadcastReceiver callReceiver;
     private boolean isMonitoring = false;
     
+    // Define constants for switch-case compatibility
+    private static final String STATE_RINGING = TelephonyManager.EXTRA_STATE_RINGING;
+    private static final String STATE_OFFHOOK = TelephonyManager.EXTRA_STATE_OFFHOOK;
+    private static final String STATE_IDLE = TelephonyManager.EXTRA_STATE_IDLE;
+    
     public interface CallDetectionListener {
         void onCallStateChanged(String state, String phoneNumber);
     }
@@ -105,25 +110,18 @@ public class SimpleCallDetector {
     }
 
     private void handleCallStateChange(String state, String phoneNumber) {
-        switch (state) {
-            case TelephonyManager.EXTRA_STATE_RINGING:
-                Log.i(TAG, "📞 INCOMING CALL detected from: " + (phoneNumber != null ? phoneNumber : "Unknown"));
-                onIncomingCall(phoneNumber);
-                break;
-                
-            case TelephonyManager.EXTRA_STATE_OFFHOOK:
-                Log.i(TAG, "📱 CALL ANSWERED or OUTGOING CALL started");
-                onCallAnswered(phoneNumber);
-                break;
-                
-            case TelephonyManager.EXTRA_STATE_IDLE:
-                Log.i(TAG, "📴 CALL ENDED or PHONE IDLE");
-                onCallEnded(phoneNumber);
-                break;
-                
-            default:
-                Log.d(TAG, "Unknown call state: " + state);
-                break;
+        // Use if-else instead of switch for string comparison
+        if (STATE_RINGING.equals(state)) {
+            Log.i(TAG, "📞 INCOMING CALL detected from: " + (phoneNumber != null ? phoneNumber : "Unknown"));
+            onIncomingCall(phoneNumber);
+        } else if (STATE_OFFHOOK.equals(state)) {
+            Log.i(TAG, "📱 CALL ANSWERED or OUTGOING CALL started");
+            onCallAnswered(phoneNumber);
+        } else if (STATE_IDLE.equals(state)) {
+            Log.i(TAG, "📴 CALL ENDED or PHONE IDLE");
+            onCallEnded(phoneNumber);
+        } else {
+            Log.d(TAG, "Unknown call state: " + state);
         }
     }
 
