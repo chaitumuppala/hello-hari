@@ -47,10 +47,19 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        // Force consistent Kotlin versions to fix duplicate class conflicts
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.10'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.10'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.10'
+    }
+}
+
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.core:core:1.10.1'
     
-    // Remove the problematic React Native dependency
-    // We'll build this as a pure Android app for now
+    // Force consistent Kotlin stdlib
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.8.10'
 }
