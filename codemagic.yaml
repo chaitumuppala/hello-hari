@@ -12,6 +12,7 @@ workflows:
         - ~/.gradle/caches
         - ~/.npm
         - android/.gradle
+        - node_modules
     scripts:
       - name: Set up Android environment
         script: |
@@ -19,7 +20,7 @@ workflows:
           
       - name: Install npm dependencies
         script: |
-          npm ci --legacy-peer-deps
+          npm install --legacy-peer-deps
           
       - name: Set Android SDK permissions
         script: |
