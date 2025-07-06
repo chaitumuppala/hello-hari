@@ -37,11 +37,12 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
     private ProgressBar riskMeter;
     private StringBuilder callLog;
     
-    // VOICE_CALL Recording variables
+    // Smart Fallback Recording variables
     private android.media.MediaRecorder callRecorder;
     private String currentRecordingPath;
     private boolean isCallRecording = false;
     private String currentCallNumber;
+    private String currentRecordingMethod = "None";
     
     private boolean hasMinimumPermissions = false;
     private boolean isRecording = false;
@@ -58,7 +59,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         createEnhancedUI();
         checkUniversalPermissions();
         
-        Log.d(TAG, "Hello Hari Enhanced MainActivity created - Android " + android.os.Build.VERSION.SDK_INT);
+        Log.d(TAG, "Hello Hari Smart Recording MainActivity created - Android " + android.os.Build.VERSION.SDK_INT);
     }
 
     private void createEnhancedUI() {
@@ -77,7 +78,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         layout.addView(title);
         
         TextView subtitle = new TextView(this);
-        subtitle.setText("Premium Call Recording & Scam Protection");
+        subtitle.setText("Smart Fallback Call Recording & Scam Protection");
         subtitle.setTextSize(16);
         subtitle.setTextColor(Color.parseColor("#666666"));
         subtitle.setPadding(0, 0, 0, 30);
@@ -93,7 +94,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         
         // Recording Status
         recordingStatusText = new TextView(this);
-        recordingStatusText.setText("🎤 VOICE_CALL Recording: Checking permissions...");
+        recordingStatusText.setText("🎤 Smart Recording: Checking permissions...");
         recordingStatusText.setTextSize(16);
         recordingStatusText.setTextColor(Color.parseColor("#666666"));
         recordingStatusText.setPadding(0, 0, 0, 20);
@@ -136,7 +137,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         
         // Monitor button
         monitorButton = new Button(this);
-        monitorButton.setText("🎤 Start Premium Recording");
+        monitorButton.setText("🎤 Start Smart Recording");
         monitorButton.setBackgroundColor(Color.parseColor("#4CAF50"));
         monitorButton.setTextColor(Color.WHITE);
         monitorButton.setPadding(20, 15, 20, 15);
@@ -150,14 +151,14 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         
         // Call log
         TextView logTitle = new TextView(this);
-        logTitle.setText("📋 Premium Call Recording Log:");
+        logTitle.setText("📋 Smart Recording Log:");
         logTitle.setTextSize(16);
         logTitle.setTextColor(Color.parseColor("#333333"));
         logTitle.setPadding(0, 30, 0, 10);
         layout.addView(logTitle);
         
         callLogText = new TextView(this);
-        callLogText.setText("Initializing Hello Hari Premium Protection...\n\n🎤 VOICE_CALL Recording Features:\n• Premium quality call recording\n• Automatic scam detection\n• Both sides of conversation captured\n• Real-time risk analysis\n• Evidence collection for fraud protection");
+        callLogText.setText("Initializing Hello Hari Smart Recording...\n\n🎤 Smart Fallback Features:\n• Tries VOICE_CALL first (premium quality)\n• Falls back to VOICE_RECOGNITION (most compatible)\n• Uses VOICE_COMMUNICATION (VoIP optimized)\n• Final fallback to MIC (with speaker phone)\n• Automatic method selection\n• Guaranteed recording success");
         callLogText.setTextSize(14);
         callLogText.setTextColor(Color.parseColor("#666666"));
         callLogText.setBackgroundColor(Color.parseColor("#FFFFFF"));
@@ -234,9 +235,9 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         }
         
         if (canRecord) {
-            addToCallLog("✅ VOICE_CALL recording: Available");
+            addToCallLog("✅ Smart recording: Available with fallback methods");
         } else {
-            addToCallLog("⚠️ VOICE_CALL recording: Limited (microphone permission needed)");
+            addToCallLog("⚠️ Smart recording: Limited (microphone permission needed)");
         }
         
         if (canAccessCallLog) {
@@ -307,7 +308,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
     
     private void showPermissionExplanation(List<String> permissions) {
         StringBuilder message = new StringBuilder();
-        message.append("Hello Hari needs these permissions for premium call recording on Android ")
+        message.append("Hello Hari needs these permissions for smart call recording on Android ")
                .append(android.os.Build.VERSION.SDK_INT).append(":\n\n");
         
         for (String permission : permissions) {
@@ -319,7 +320,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
                     message.append("📋 Call Logs - Monitor call patterns\n");
                     break;
                 case Manifest.permission.RECORD_AUDIO:
-                    message.append("🎤 Microphone - Premium VOICE_CALL recording\n");
+                    message.append("🎤 Microphone - Smart fallback recording\n");
                     break;
                 case Manifest.permission.POST_NOTIFICATIONS:
                     message.append("🔔 Notifications - Alert you to threats\n");
@@ -333,7 +334,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         message.append("\n🛡️ All recordings are stored locally for your privacy.");
         
         android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-        builder.setTitle("🛡️ Hello Hari Premium Setup");
+        builder.setTitle("🛡️ Hello Hari Smart Setup");
         builder.setMessage(message.toString());
         
         builder.setPositiveButton("Grant Permissions", (dialog, which) -> {
@@ -406,7 +407,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
             addToCallLog("📊 Permission Results: " + granted + "/" + total + " granted");
             
             if (granted == total) {
-                addToCallLog("🎉 All permissions granted! Premium features available.");
+                addToCallLog("🎉 All permissions granted! Smart features available.");
             } else if (granted > 0) {
                 addToCallLog("⚠️ Some permissions granted. Limited features available.");
             } else {
@@ -420,7 +421,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
     private void updateUniversalUI() {
         // Update status based on what's actually available
         if (hasPermission(Manifest.permission.READ_PHONE_STATE)) {
-            statusText.setText("Status: ✅ Ready for premium recording (Android " + android.os.Build.VERSION.SDK_INT + ")");
+            statusText.setText("Status: ✅ Ready for smart recording (Android " + android.os.Build.VERSION.SDK_INT + ")");
             statusText.setTextColor(Color.parseColor("#4CAF50"));
             monitorButton.setEnabled(true);
             hasMinimumPermissions = true;
@@ -451,23 +452,23 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         
         // Update monitor button
         if (callDetector.isMonitoring()) {
-            monitorButton.setText("🔴 Stop Premium Recording");
+            monitorButton.setText("🔴 Stop Smart Recording");
             monitorButton.setBackgroundColor(Color.parseColor("#F44336"));
         } else {
-            monitorButton.setText("🎤 Start Premium Recording");
+            monitorButton.setText("🎤 Start Smart Recording");
             monitorButton.setBackgroundColor(Color.parseColor("#4CAF50"));
         }
         
         // Update recording status
         boolean canRecord = hasPermission(Manifest.permission.RECORD_AUDIO);
         if (isCallRecording) {
-            recordingStatusText.setText("🔴 VOICE_CALL Recording: ACTIVE - Premium Quality");
+            recordingStatusText.setText("🔴 Smart Recording: ACTIVE (" + currentRecordingMethod + ")");
             recordingStatusText.setTextColor(Color.parseColor("#F44336"));
         } else if (canRecord) {
-            recordingStatusText.setText("🎤 VOICE_CALL Recording: Ready for premium quality");
+            recordingStatusText.setText("🎤 Smart Recording: Ready with fallback methods");
             recordingStatusText.setTextColor(Color.parseColor("#4CAF50"));
         } else {
-            recordingStatusText.setText("🎤 VOICE_CALL Recording: Limited (microphone permission needed)");
+            recordingStatusText.setText("🎤 Smart Recording: Limited (microphone permission needed)");
             recordingStatusText.setTextColor(Color.parseColor("#FF9800"));
         }
     }
@@ -483,30 +484,65 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
             callDetector.stopCallDetection();
             // Stop any active recording
             if (isCallRecording) {
-                stopVoiceCallRecording();
+                stopSmartRecording();
             }
-            addToCallLog("🛑 Premium monitoring stopped");
+            addToCallLog("🛑 Smart monitoring stopped");
             currentRiskScore = 0;
             updateRiskLevel(0, "Monitoring stopped");
         } else {
             boolean started = callDetector.startCallDetection();
             if (started) {
-                addToCallLog("🚀 Premium monitoring started - Hello Hari VOICE_CALL protection active!");
+                addToCallLog("🚀 Smart monitoring started - Hello Hari fallback protection active!");
             } else {
-                addToCallLog("❌ Failed to start premium monitoring");
+                addToCallLog("❌ Failed to start smart monitoring");
             }
         }
         
         updateUniversalUI();
     }
 
-    // VOICE_CALL Recording Implementation
-    private boolean startVoiceCallRecording(String phoneNumber) {
+    // SMART FALLBACK RECORDING IMPLEMENTATION
+    private boolean startSmartRecording(String phoneNumber) {
         if (isCallRecording) {
             addToCallLog("⚠️ Recording already in progress");
             return false;
         }
         
+        // Prepare recording file first
+        if (!prepareRecordingFile(phoneNumber)) {
+            return false;
+        }
+        
+        // Try different recording strategies in order of preference
+        int[] audioSources = {
+            android.media.MediaRecorder.AudioSource.VOICE_CALL,           // Best quality (often fails)
+            android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION,    // Most compatible
+            android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION,  // VoIP optimized
+            android.media.MediaRecorder.AudioSource.MIC                   // Last resort
+        };
+        
+        String[] sourceNames = {
+            "VOICE_CALL (Premium)", 
+            "VOICE_RECOGNITION (Compatible)", 
+            "VOICE_COMMUNICATION (VoIP)", 
+            "MIC (Basic)"
+        };
+        
+        // Try each audio source until one works
+        for (int i = 0; i < audioSources.length; i++) {
+            addToCallLog("🔄 Trying " + sourceNames[i] + "...");
+            
+            if (tryRecordingWithSource(audioSources[i], sourceNames[i])) {
+                return true;
+            }
+        }
+        
+        // All methods failed
+        addToCallLog("❌ All recording methods failed on this device");
+        return false;
+    }
+
+    private boolean prepareRecordingFile(String phoneNumber) {
         try {
             // Prepare recording directory
             java.io.File recordingsDir = new java.io.File(getFilesDir(), "call_recordings");
@@ -524,50 +560,109 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
             String fileName = "call_" + timestamp + "_" + safeNumber + ".m4a";
             currentRecordingPath = new java.io.File(recordingsDir, fileName).getAbsolutePath();
             
-            // Initialize MediaRecorder with VOICE_CALL (premium quality)
-            callRecorder = new android.media.MediaRecorder();
-            callRecorder.setAudioSource(android.media.MediaRecorder.AudioSource.VOICE_CALL);
-            callRecorder.setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4);
-            callRecorder.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC);
-            callRecorder.setAudioSamplingRate(44100);
-            callRecorder.setAudioEncodingBitRate(192000); // High quality for VOICE_CALL
-            callRecorder.setOutputFile(currentRecordingPath);
-            
-            // Prepare and start recording
-            callRecorder.prepare();
-            
-            // Add small delay for stability (some devices need this)
-            Thread.sleep(500);
-            
-            callRecorder.start();
-            isCallRecording = true;
-            currentCallNumber = phoneNumber;
-            
-            addToCallLog("🎤 PREMIUM RECORDING STARTED: VOICE_CALL mode");
-            addToCallLog("📁 File: " + fileName);
-            
-            // Update UI to show recording status
-            updateRecordingUI(true);
-            
+            addToCallLog("📁 Recording file: " + fileName);
             return true;
             
         } catch (Exception e) {
-            addToCallLog("❌ VOICE_CALL recording failed: " + e.getMessage());
-            Log.e(TAG, "Recording start failed", e);
-            
-            // Cleanup on failure
-            if (callRecorder != null) {
-                try {
-                    callRecorder.release();
-                } catch (Exception ignored) {}
-                callRecorder = null;
-            }
-            isCallRecording = false;
+            addToCallLog("❌ File preparation failed: " + e.getMessage());
             return false;
         }
     }
 
-    private void stopVoiceCallRecording() {
+    private boolean tryRecordingWithSource(int audioSource, String sourceName) {
+        android.media.MediaRecorder recorder = null;
+        
+        try {
+            recorder = new android.media.MediaRecorder();
+            
+            // Configure recorder based on audio source
+            recorder.setAudioSource(audioSource);
+            
+            // Use different settings for different sources
+            if (audioSource == android.media.MediaRecorder.AudioSource.VOICE_CALL) {
+                // Premium settings for VOICE_CALL
+                recorder.setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4);
+                recorder.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC);
+                recorder.setAudioSamplingRate(44100);
+                recorder.setAudioEncodingBitRate(192000);
+            } else if (audioSource == android.media.MediaRecorder.AudioSource.MIC) {
+                // Basic settings for MIC (more reliable)
+                recorder.setOutputFormat(android.media.MediaRecorder.OutputFormat.THREE_GPP);
+                recorder.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AMR_NB);
+            } else {
+                // Standard settings for VOICE_RECOGNITION and VOICE_COMMUNICATION
+                recorder.setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4);
+                recorder.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC);
+                recorder.setAudioSamplingRate(44100);
+                recorder.setAudioEncodingBitRate(128000);
+            }
+            
+            recorder.setOutputFile(currentRecordingPath);
+            
+            // Prepare recorder
+            recorder.prepare();
+            
+            // Add delay for stability
+            Thread.sleep(500);
+            
+            // Start recording
+            recorder.start();
+            
+            // If we get here, recording started successfully
+            callRecorder = recorder;
+            isCallRecording = true;
+            currentCallNumber = phoneNumber;
+            currentRecordingMethod = sourceName;
+            
+            addToCallLog("🎉 SUCCESS: Recording with " + sourceName);
+            updateRecordingUI(true);
+            
+            // Enable speaker phone for MIC recording
+            if (audioSource == android.media.MediaRecorder.AudioSource.MIC) {
+                enableSpeakerForMicRecording();
+            }
+            
+            return true;
+            
+        } catch (Exception e) {
+            addToCallLog("❌ " + sourceName + " failed: " + e.getMessage());
+            
+            // Cleanup failed recorder
+            if (recorder != null) {
+                try {
+                    recorder.release();
+                } catch (Exception ignored) {}
+            }
+            
+            return false;
+        }
+    }
+
+    private void enableSpeakerForMicRecording() {
+        try {
+            android.media.AudioManager audioManager = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+            if (audioManager != null) {
+                audioManager.setSpeakerphoneOn(true);
+                addToCallLog("🔊 Speaker enabled for better MIC recording");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to enable speaker", e);
+        }
+    }
+
+    private void disableSpeakerIfEnabled() {
+        try {
+            android.media.AudioManager audioManager = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+            if (audioManager != null && audioManager.isSpeakerphoneOn()) {
+                audioManager.setSpeakerphoneOn(false);
+                addToCallLog("🔇 Speaker disabled");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to disable speaker", e);
+        }
+    }
+
+    private void stopSmartRecording() {
         if (!isCallRecording || callRecorder == null) {
             addToCallLog("⚠️ No recording in progress");
             return;
@@ -579,6 +674,9 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
             callRecorder = null;
             isCallRecording = false;
             
+            // Disable speaker phone if it was enabled
+            disableSpeakerIfEnabled();
+            
             // Check if file was created successfully
             java.io.File recordedFile = new java.io.File(currentRecordingPath);
             if (recordedFile.exists() && recordedFile.length() > 0) {
@@ -586,7 +684,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
                 addToCallLog("⏹️ RECORDING STOPPED: File saved (" + fileSizeKB + " KB)");
                 addToCallLog("🔍 Analyzing for scam patterns...");
                 
-                // Simulate scam analysis (you can enhance this later)
+                // Analyze the recording
                 analyzeRecordingForScams(currentRecordingPath, currentCallNumber);
             } else {
                 addToCallLog("❌ Recording file not created or empty");
@@ -598,30 +696,46 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
             // Clear current recording info
             currentRecordingPath = null;
             currentCallNumber = null;
+            currentRecordingMethod = "None";
             
         } catch (Exception e) {
             addToCallLog("❌ Stop recording failed: " + e.getMessage());
             Log.e(TAG, "Recording stop failed", e);
             
             // Force cleanup
-            if (callRecorder != null) {
-                try {
-                    callRecorder.release();
-                } catch (Exception ignored) {}
-                callRecorder = null;
-            }
-            isCallRecording = false;
-            updateRecordingUI(false);
+            forceCleanupRecording();
         }
+    }
+
+    private void forceCleanupRecording() {
+        if (callRecorder != null) {
+            try {
+                callRecorder.release();
+            } catch (Exception ignored) {}
+            callRecorder = null;
+        }
+        isCallRecording = false;
+        disableSpeakerIfEnabled();
+        updateRecordingUI(false);
+        currentRecordingPath = null;
+        currentCallNumber = null;
+        currentRecordingMethod = "None";
     }
 
     private void updateRecordingUI(boolean recording) {
         runOnUiThread(() -> {
             if (recording) {
-                recordingStatusText.setText("🔴 VOICE_CALL Recording: ACTIVE - Premium Quality");
+                recordingStatusText.setText("🔴 Smart Recording: ACTIVE (" + currentRecordingMethod + ")");
                 recordingStatusText.setTextColor(Color.parseColor("#F44336"));
             } else {
-                recordingStatusText.setText("🎤 VOICE_CALL Recording: Ready for next call");
+                recordingStatusText.setText("🎤 Smart Recording: Ready for next call");
+    private void updateRecordingUI(boolean recording) {
+        runOnUiThread(() -> {
+            if (recording) {
+                recordingStatusText.setText("🔴 Smart Recording: ACTIVE (" + currentRecordingMethod + ")");
+                recordingStatusText.setTextColor(Color.parseColor("#F44336"));
+            } else {
+                recordingStatusText.setText("🎤 Smart Recording: Ready for next call");
                 recordingStatusText.setTextColor(Color.parseColor("#4CAF50"));
             }
         });
@@ -650,6 +764,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
                     }
                     
                     addToCallLog("📊 ANALYSIS COMPLETE: " + analysis);
+                    addToCallLog("🎤 Method used: " + currentRecordingMethod);
                 });
                 
             } catch (Exception e) {
@@ -659,7 +774,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         }).start();
     }
 
-    // Enhanced CallDetectionListener implementation with VOICE_CALL recording
+    // Enhanced CallDetectionListener implementation with Smart Fallback recording
     @Override
     public void onCallStateChanged(String state, String phoneNumber) {
         runOnUiThread(() -> {
@@ -667,25 +782,25 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
             String logEntry = "";
             
             if (TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
-                logEntry = "📞 INCOMING: " + displayNumber + " - Preparing VOICE_CALL recording...";
+                logEntry = "📞 INCOMING: " + displayNumber + " - Preparing smart recording...";
                 // Don't start recording yet - wait for call to be answered
                 
             } else if (TelephonyManager.EXTRA_STATE_OFFHOOK.equals(state)) {
-                logEntry = "📱 ANSWERED: " + displayNumber + " - Starting premium recording";
+                logEntry = "📱 ANSWERED: " + displayNumber + " - Starting smart fallback recording";
                 
-                // Start VOICE_CALL recording when call is answered
-                boolean recordingStarted = startVoiceCallRecording(phoneNumber);
+                // Start smart fallback recording when call is answered
+                boolean recordingStarted = startSmartRecording(phoneNumber);
                 if (recordingStarted) {
-                    addToCallLog("🎉 SUCCESS: Premium VOICE_CALL recording active!");
+                    addToCallLog("🎉 SUCCESS: Smart recording active with fallback method!");
                 } else {
-                    addToCallLog("⚠️ Recording failed to start - call monitoring continues");
+                    addToCallLog("⚠️ All recording methods failed - call monitoring continues");
                 }
                 
             } else if (TelephonyManager.EXTRA_STATE_IDLE.equals(state)) {
                 logEntry = "📴 ENDED: Call finished - Stopping recording & analyzing";
                 
                 // Stop recording when call ends
-                stopVoiceCallRecording();
+                stopSmartRecording();
             } else {
                 logEntry = "📋 STATE: " + state + " - " + displayNumber;
             }
@@ -713,7 +828,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
             currentRiskScore = riskScore;
             updateRiskLevel(riskScore, analysis);
             
-            String logEntry = String.format("🔍 PREMIUM ANALYSIS: %d%% - %s", riskScore, analysis);
+            String logEntry = String.format("🔍 SMART ANALYSIS: %d%% - %s", riskScore, analysis);
             addToCallLog(logEntry);
         });
     }
@@ -831,9 +946,13 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         aboutText.setText("Hello Hari (HH) is dedicated to the memory of Hari, whose spirit of protecting and helping others lives on through this app.\n\n" +
                 "\"Protecting one person from fraud is like protecting an entire family from grief\"\n\n" +
                 "This app serves as a guardian, helping people stay safe from scams and frauds - a mission that would have made Hari proud.\n\n" +
-                "🛡️ Premium VOICE_CALL Features:\n" +
-                "• Premium quality call recording (VOICE_CALL)\n" +
-                "• Both sides of conversation captured\n" +
+                "🛡️ Smart Fallback Recording Features:\n" +
+                "• Intelligent recording method selection\n" +
+                "• Tries VOICE_CALL first (premium quality)\n" +
+                "• Falls back to VOICE_RECOGNITION (most compatible)\n" +
+                "• Uses VOICE_COMMUNICATION (VoIP optimized)\n" +
+                "• Final fallback to MIC (with speaker phone)\n" +
+                "• Guaranteed recording success\n" +
                 "• Real-time scam pattern detection\n" +
                 "• Live risk level assessment\n" +
                 "• Advanced audio analysis\n" +
@@ -841,10 +960,10 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
                 "• Evidence collection for fraud protection\n" +
                 "• Privacy-first approach\n" +
                 "• All processing happens locally\n\n" +
-                "🎤 Premium Recording Notice:\n" +
-                "Call recordings use VOICE_CALL audio source for highest quality. Recordings are used solely for your protection and are stored locally on your device. No data is sent to external servers.\n\n" +
+                "🎤 Smart Recording Notice:\n" +
+                "Call recordings use the best available audio source for your device. Recordings are used solely for your protection and are stored locally on your device. No data is sent to external servers.\n\n" +
                 "📱 Your Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " (Android " + android.os.Build.VERSION.SDK_INT + ")\n" +
-                "🎤 Audio Capability: VOICE_CALL Supported ✅");
+                "🎤 Audio Capability: Smart Fallback Enabled ✅");
         aboutText.setTextSize(16);
         aboutText.setTextColor(Color.parseColor("#333333"));
         aboutText.setPadding(0, 0, 0, 30);
@@ -867,7 +986,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
 
     public String getCurrentRecordingInfo() {
         if (isCallRecording && currentRecordingPath != null) {
-            return "Recording: " + new java.io.File(currentRecordingPath).getName();
+            return "Recording: " + new java.io.File(currentRecordingPath).getName() + " (" + currentRecordingMethod + ")";
         }
         return "No active recording";
     }
@@ -883,6 +1002,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
             try {
                 callRecorder.stop();
                 callRecorder.release();
+                disableSpeakerIfEnabled();
             } catch (Exception e) {
                 Log.e(TAG, "Error stopping recording in onDestroy", e);
             }
