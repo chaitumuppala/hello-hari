@@ -618,27 +618,62 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         
         setContentView(aboutLayout);
     }
-
-    private void testAudioCompatibility() {
-    addToCallLog("🔍 Testing audio sources on Nothing Phone 1...");
+private void testAudioCompatibility() {
+    addToCallLog("🔍 Testing audio sources on Nothing A063 Android 35...");
     
     try {
-        // Simple test without RobustCallRecorder for now
-        addToCallLog("📱 Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
-        addToCallLog("📱 Android: " + android.os.Build.VERSION.SDK_INT);
-        addToCallLog("✅ Basic compatibility test completed");
+        StringBuilder results = new StringBuilder();
+        results.append("=== AUDIO SOURCE TEST ===\n");
+        results.append("Device: Nothing A063\n");
+        results.append("Android: 35\n\n");
         
-        // Show simple dialog
+        // Test different audio sources
+        results.append("MIC: ").append(testAudioSource(android.media.MediaRecorder.AudioSource.MIC) ? "✅ SUPPORTED" : "❌ NOT SUPPORTED").append("\n");
+        results.append("VOICE_RECOGNITION: ").append(testAudioSource(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION) ? "✅ SUPPORTED" : "❌ NOT SUPPORTED").append("\n");
+        results.append("VOICE_COMMUNICATION: ").append(testAudioSource(android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION) ? "✅ SUPPORTED" : "❌ NOT SUPPORTED").append("\n");
+        results.append("CAMCORDER: ").append(testAudioSource(android.media.MediaRecorder.AudioSource.CAMCORDER) ? "✅ SUPPORTED" : "❌ NOT SUPPORTED").append("\n");
+        
+        // Try VOICE_CALL (likely to fail on Android 15)
+        results.append("VOICE_CALL: ").append(testAudioSource(android.media.MediaRecorder.AudioSource.VOICE_CALL) ? "✅ SUPPORTED" : "❌ NOT SUPPORTED").append("\n");
+        
+        // Log results
+        String[] lines = results.toString().split("\n");
+        for (String line : lines) {
+            if (!line.trim().isEmpty()) {
+                addToCallLog(line);
+            }
+        }
+        
+        // Show results dialog
         android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-        builder.setTitle("🔍 Device Info");
-        builder.setMessage("Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + 
-                          "\nAndroid: " + android.os.Build.VERSION.SDK_INT + 
-                          "\n\nBasic test completed!");
+        builder.setTitle("🎤 Audio Source Compatibility");
+        builder.setMessage(results.toString());
         builder.setPositiveButton("OK", null);
         builder.show();
         
     } catch (Exception e) {
-        addToCallLog("❌ Test failed: " + e.getMessage());
+        addToCallLog("❌ Audio test failed: " + e.getMessage());
+    }
+}
+
+private boolean testAudioSource(int audioSource) {
+    android.media.MediaRecorder testRecorder = null;
+    try {
+        testRecorder = new android.media.MediaRecorder();
+        testRecorder.setAudioSource(audioSource);
+        testRecorder.setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4);
+        testRecorder.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC);
+        testRecorder.setOutputFile("/dev/null"); // Dummy output
+        testRecorder.prepare();
+        return true;
+    } catch (Exception e) {
+        return false;
+    } finally {
+        if (testRecorder != null) {
+            try {
+                testRecorder.release();
+            } catch (Exception ignored) {}
+        }
     }
 }
     @Override
