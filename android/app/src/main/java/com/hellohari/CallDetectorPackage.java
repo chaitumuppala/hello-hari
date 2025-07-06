@@ -20,6 +20,7 @@ public class CallDetectorPackage implements ReactPackage {
         List<NativeModule> modules = new ArrayList<>();
         modules.add(new CallDetectorModule(reactContext));
         modules.add(new PermissionModule(reactContext));
+        modules.add(new AudioRecorderModule(reactContext)); 
         return modules;
     }
 }
