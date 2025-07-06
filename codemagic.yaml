@@ -5,11 +5,8 @@ workflows:
     environment:
       android_signing:
         - hello_hari_keystore
-      groups:
-        - google_play # If you plan to publish to Google Play
       vars:
         PACKAGE_NAME: "com.hellohari"
-        GOOGLE_PLAY_TRACK: internal
       node: 18.17.1
       java: 11
     cache:
@@ -25,29 +22,6 @@ workflows:
       - name: Install npm dependencies
         script: |
           npm ci --legacy-peer-deps
-          
-      - name: Create missing directories and files
-        script: |
-          # Create native modules directory if it doesn't exist
-          mkdir -p src/native-modules
-          
-          # Create metro config if missing
-          if [ ! -f metro.config.js ]; then
-            cat > metro.config.js << 'EOF'
-          const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
-          const config = {};
-          module.exports = mergeConfig(getDefaultConfig(__dirname), config);
-          EOF
-          fi
-          
-          # Create babel config if missing
-          if [ ! -f babel.config.js ]; then
-            cat > babel.config.js << 'EOF'
-          module.exports = {
-            presets: ['module:metro-react-native-babel-preset'],
-          };
-          EOF
-          fi
           
       - name: Set Android SDK permissions
         script: |
@@ -69,10 +43,6 @@ workflows:
           ./gradlew clean
           ./gradlew assembleRelease --stacktrace
           
-      - name: Find and list APKs
-        script: |
-          find android/app/build/outputs -name "*.apk" -type f
-          
     artifacts:
       - android/app/build/outputs/**/*.apk
       - android/app/build/outputs/**/*.aab
@@ -81,13 +51,6 @@ workflows:
       email:
         recipients:
           - your.email@example.com # Replace with your email
-        notify:
-          success: true
-          failure: true
-      slack:
-        # Configure if you use Slack
-        channel: '#builds'
-        notify_on_build_start: true
         notify:
           success: true
           failure: true
