@@ -3,8 +3,6 @@ workflows:
     name: Hello Hari Android
     max_build_duration: 120
     environment:
-      android_signing:
-        - hello_hari_keystore
       vars:
         PACKAGE_NAME: "com.hellohari"
       node: 18.17.1
