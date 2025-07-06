@@ -172,6 +172,20 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         aboutButton.setLayoutParams(aboutParams);
         layout.addView(aboutButton);
         
+        // TEST BUTTON - Add this after the about button
+        Button testButton = new Button(this);
+        testButton.setText("🔍 Test Audio Sources");
+        testButton.setBackgroundColor(Color.parseColor("#FF5722"));
+        testButton.setTextColor(Color.WHITE);
+        testButton.setPadding(20, 15, 20, 15);
+        testButton.setOnClickListener(v -> testAudioCompatibility());
+
+        LinearLayout.LayoutParams testParams = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        testParams.setMargins(0, 10, 0, 0);
+        testButton.setLayoutParams(testParams);
+        layout.addView(testButton);
+        
         scrollView.addView(layout);
         setContentView(scrollView);
     }
