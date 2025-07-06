@@ -1,6 +1,6 @@
 workflows:
   hello-hari-workflow:
-    name: Hello Hari Android
+    name: Hello Hari Android - Phase 1 Call Detection
     max_build_duration: 120
     environment:
       vars:
@@ -16,7 +16,7 @@ workflows:
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
           
-      - name: Temporarily exclude React Native dependent files
+      - name: Exclude React Native modules (keeping SimpleCallDetector)
         script: |
           # Move React Native dependent files out of build path
           mkdir -p temp_excluded
@@ -24,7 +24,7 @@ workflows:
           mv android/app/src/main/java/com/hellohari/PermissionModule.java temp_excluded/ || true
           mv android/app/src/main/java/com/hellohari/CallDetectorPackage.java temp_excluded/ || true
           mv android/app/src/main/java/com/hellohari/AudioRecorderModule.java temp_excluded/ || true
-          echo "Excluded React Native dependent files for basic build"
+          echo "Phase 1: Excluded React Native modules, keeping SimpleCallDetector"
           
       - name: Set Android SDK permissions
         script: |
@@ -45,6 +45,7 @@ workflows:
           cd android
           ./gradlew clean
           ./gradlew assembleDebug --stacktrace
+          echo "✅ Phase 1 APK built with call detection functionality"
           
     artifacts:
       - android/app/build/outputs/**/*.apk
