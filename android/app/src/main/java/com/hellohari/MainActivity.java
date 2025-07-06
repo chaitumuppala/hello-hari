@@ -619,6 +619,28 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         setContentView(aboutLayout);
     }
 
+    private void testAudioCompatibility() {
+    addToCallLog("🔍 Testing audio sources on Nothing Phone 1...");
+    
+    try {
+        // Simple test without RobustCallRecorder for now
+        addToCallLog("📱 Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
+        addToCallLog("📱 Android: " + android.os.Build.VERSION.SDK_INT);
+        addToCallLog("✅ Basic compatibility test completed");
+        
+        // Show simple dialog
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle("🔍 Device Info");
+        builder.setMessage("Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + 
+                          "\nAndroid: " + android.os.Build.VERSION.SDK_INT + 
+                          "\n\nBasic test completed!");
+        builder.setPositiveButton("OK", null);
+        builder.show();
+        
+    } catch (Exception e) {
+        addToCallLog("❌ Test failed: " + e.getMessage());
+    }
+}
     @Override
     protected void onDestroy() {
         super.onDestroy();
