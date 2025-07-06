@@ -47,7 +47,16 @@ workflows:
           ./gradlew assembleDebug --stacktrace
           echo "✅ Phase 1 APK built with call detection functionality"
           
+      - name: List and verify APK files
+        script: |
+          echo "=== APK FILE VERIFICATION ==="
+          find android/app/build/outputs -name "*.apk" -type f
+          ls -la android/app/build/outputs/apk/debug/ || echo "Debug APK directory not found"
+          ls -la android/app/build/outputs/apk/release/ || echo "Release APK directory not found"
+          
     artifacts:
+      - android/app/build/outputs/apk/debug/*.apk
+      - android/app/build/outputs/apk/release/*.apk
       - android/app/build/outputs/**/*.apk
       
     publishing:
