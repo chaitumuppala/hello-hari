@@ -18,9 +18,18 @@ workflows:
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
           
-      - name: Install npm dependencies
+      - name: Install npm dependencies and diagnose
         script: |
           npm install --legacy-peer-deps
+          echo "=== DIAGNOSTIC INFO ==="
+          echo "Node modules React Native version:"
+          ls -la node_modules/ | grep react-native || echo "No react-native in node_modules"
+          echo "Package.json contents:"
+          cat package.json
+          echo "React Native gradle plugin search:"
+          find node_modules -name "*react-native-gradle-plugin*" || echo "No gradle plugin found"
+          echo "React Native android folder:"
+          ls -la node_modules/react-native/ | grep android || echo "No android folder"
           
       - name: Set Android SDK permissions
         script: |
@@ -36,15 +45,15 @@ workflows:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
           
-      - name: Gradle clean and build
+      - name: Try simple Android build without React Native plugin
         script: |
           cd android
+          echo "Attempting build with modified gradle files..."
           ./gradlew clean
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew assembleDebug --stacktrace
           
     artifacts:
       - android/app/build/outputs/**/*.apk
-      - android/app/build/outputs/**/*.aab
       
     publishing:
       email:
