@@ -1,6 +1,6 @@
 workflows:
-  hello-hari-workflow:
-    name: Hello Hari Android - Phase 1 Call Detection
+  hello-hari-phase2:
+    name: Hello Hari Android - Phase 2 Audio Recording
     max_build_duration: 120
     environment:
       vars:
@@ -12,7 +12,7 @@ workflows:
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
           
-      - name: Exclude React Native modules
+      - name: Exclude React Native modules (Phase 2 - Pure Android)
         script: |
           mkdir -p temp_excluded
           mv android/app/src/main/java/com/hellohari/CallDetectorModule.java temp_excluded/ || true
@@ -33,24 +33,25 @@ workflows:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
           
-      - name: Build APK and Copy to Root
+      - name: Build Phase 2 APK with Audio Recording
         script: |
+          echo "=== BUILDING HELLO HARI PHASE 2 - AUDIO RECORDING ==="
           cd android
           ./gradlew clean assembleDebug assembleRelease
           
           echo "=== FINDING AND COPYING APK FILES ==="
           find app/build/outputs -name "*.apk" -type f
           
-          # Copy APK files to easily accessible location
-          cp app/build/outputs/apk/debug/app-debug.apk ../HelloHari-debug.apk || echo "Debug APK not found"
-          cp app/build/outputs/apk/release/app-release.apk ../HelloHari-release.apk || echo "Release APK not found"
+          # Copy APK files with Phase 2 naming
+          cp app/build/outputs/apk/debug/app-debug.apk ../HelloHari-Phase2-debug.apk || echo "Debug APK not found"
+          cp app/build/outputs/apk/release/app-release.apk ../HelloHari-Phase2-release.apk || echo "Release APK not found"
           
-          echo "=== COPIED APK FILES ==="
-          ls -la ../HelloHari*.apk || echo "No APK files copied"
+          echo "=== PHASE 2 APK FILES READY ==="
+          ls -la ../HelloHari-Phase2*.apk || echo "No APK files copied"
           
     artifacts:
-      - HelloHari-debug.apk
-      - HelloHari-release.apk
+      - HelloHari-Phase2-debug.apk
+      - HelloHari-Phase2-release.apk
       - android/app/build/outputs/**/*.apk
       
     publishing:
