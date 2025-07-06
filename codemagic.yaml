@@ -1,57 +1,199 @@
 workflows:
   hello-hari-phase2:
-    name: Hello Hari Android - Phase 2 Audio Recording
+    name: Hello Hari Android - Phase 2 Audio Recording & Scam Detection
     max_build_duration: 120
     environment:
       vars:
         PACKAGE_NAME: "com.hellohari"
+        PHASE: "Phase 2 - Audio Recording"
       node: 18.17.1
       java: 11
+    cache:
+      cache_paths:
+        - ~/.gradle/caches
+        - android/.gradle
     scripts:
       - name: Set up Android environment
         script: |
+          echo "=== HELLO HARI PHASE 2 BUILD STARTING ==="
+          echo "Phase: Audio Recording & Scam Detection"
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
           
-      - name: Exclude React Native modules (Phase 2 - Pure Android)
+      - name: Display Phase 2 Features
         script: |
+          echo "🎤 Phase 2 Features Being Built:"
+          echo "✅ Real-time call recording"
+          echo "✅ Live scam risk analysis"
+          echo "✅ Audio pattern detection (simulated)"
+          echo "✅ Visual risk meter"
+          echo "✅ Enhanced call monitoring"
+          echo "✅ Post-call analysis reports"
+          
+      - name: Exclude React Native modules (Pure Android Build)
+        script: |
+          echo "=== EXCLUDING REACT NATIVE MODULES FOR PHASE 2 ==="
           mkdir -p temp_excluded
-          mv android/app/src/main/java/com/hellohari/CallDetectorModule.java temp_excluded/ || true
-          mv android/app/src/main/java/com/hellohari/PermissionModule.java temp_excluded/ || true
-          mv android/app/src/main/java/com/hellohari/CallDetectorPackage.java temp_excluded/ || true
-          mv android/app/src/main/java/com/hellohari/AudioRecorderModule.java temp_excluded/ || true
+          
+          # Move React Native specific files out of the way
+          mv android/app/src/main/java/com/hellohari/CallDetectorModule.java temp_excluded/ 2>/dev/null || echo "CallDetectorModule.java not found"
+          mv android/app/src/main/java/com/hellohari/PermissionModule.java temp_excluded/ 2>/dev/null || echo "PermissionModule.java not found"
+          mv android/app/src/main/java/com/hellohari/CallDetectorPackage.java temp_excluded/ 2>/dev/null || echo "CallDetectorPackage.java not found"
+          mv android/app/src/main/java/com/hellohari/AudioRecorderModule.java temp_excluded/ 2>/dev/null || echo "AudioRecorderModule.java not found"
+          
+          # Keep SimpleCallDetector for Phase 1 compatibility but will be replaced by Enhanced
+          echo "React Native modules excluded - building pure Android with enhanced features"
+          
+      - name: Verify Phase 2 Source Files
+        script: |
+          echo "=== VERIFYING PHASE 2 SOURCE FILES ==="
+          
+          # Check if EnhancedCallDetector exists (new for Phase 2)
+          if [ -f "android/app/src/main/java/com/hellohari/EnhancedCallDetector.java" ]; then
+            echo "✅ EnhancedCallDetector.java found - Audio recording features available"
+          else
+            echo "⚠️ EnhancedCallDetector.java not found - will use Phase 1 features only"
+          fi
+          
+          # Check MainActivity
+          if [ -f "android/app/src/main/java/com/hellohari/MainActivity.java" ]; then
+            echo "✅ MainActivity.java found"
+            # Check if it contains Phase 2 features
+            if grep -q "EnhancedCallDetector" android/app/src/main/java/com/hellohari/MainActivity.java; then
+              echo "✅ MainActivity contains Phase 2 enhancements"
+            else
+              echo "ℹ️ MainActivity is Phase 1 version"
+            fi
+          else
+            echo "❌ MainActivity.java not found"
+          fi
+          
+          # List all Java files
+          echo "=== AVAILABLE JAVA SOURCE FILES ==="
+          find android/app/src/main/java/com/hellohari/ -name "*.java" | sort
           
       - name: Set Android SDK permissions
         script: |
+          echo "=== SETTING ANDROID BUILD PERMISSIONS ==="
           cd android && chmod +x gradlew
           
       - name: Create debug keystore
         script: |
+          echo "=== CREATING DEBUG KEYSTORE ==="
           if [ ! -f android/app/debug.keystore ]; then
             keytool -genkeypair -v -keystore android/app/debug.keystore \
               -storepass android -alias androiddebugkey -keypass android \
               -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
+              -dname "CN=Hello Hari Debug,O=Hello Hari,C=US"
+            echo "✅ Debug keystore created"
+          else
+            echo "✅ Debug keystore already exists"
           fi
           
-      - name: Build Phase 2 APK with Audio Recording
+      - name: Gradle Clean
         script: |
-          echo "=== BUILDING HELLO HARI PHASE 2 - AUDIO RECORDING ==="
+          echo "=== CLEANING PREVIOUS BUILD ==="
           cd android
-          ./gradlew clean assembleDebug assembleRelease
+          ./gradlew clean
+          echo "✅ Clean completed"
           
-          echo "=== FINDING AND COPYING APK FILES ==="
-          find app/build/outputs -name "*.apk" -type f
+      - name: Build Phase 2 APKs
+        script: |
+          echo "=== BUILDING HELLO HARI PHASE 2 APKs ==="
+          echo "🎤 Building with Audio Recording & Scam Detection features..."
+          
+          cd android
+          
+          # Build both debug and release
+          echo "Building debug APK..."
+          ./gradlew assembleDebug --stacktrace
+          
+          echo "Building release APK..."
+          ./gradlew assembleRelease --stacktrace
+          
+          echo "✅ Build completed successfully"
+          
+      - name: Verify and Copy APK Files
+        script: |
+          echo "=== FINDING AND COPYING PHASE 2 APK FILES ==="
+          cd android
+          
+          # Find all APK files
+          echo "Available APK files:"
+          find app/build/outputs -name "*.apk" -type f -exec ls -la {} \;
           
           # Copy APK files with Phase 2 naming
-          cp app/build/outputs/apk/debug/app-debug.apk ../HelloHari-Phase2-debug.apk || echo "Debug APK not found"
-          cp app/build/outputs/apk/release/app-release.apk ../HelloHari-Phase2-release.apk || echo "Release APK not found"
+          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk ../HelloHari-Phase2-AudioRecording-debug.apk
+            echo "✅ Debug APK copied: HelloHari-Phase2-AudioRecording-debug.apk"
+          else
+            echo "❌ Debug APK not found"
+          fi
           
-          echo "=== PHASE 2 APK FILES READY ==="
-          ls -la ../HelloHari-Phase2*.apk || echo "No APK files copied"
+          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+            cp app/build/outputs/apk/release/app-release.apk ../HelloHari-Phase2-AudioRecording-release.apk
+            echo "✅ Release APK copied: HelloHari-Phase2-AudioRecording-release.apk"
+          else
+            echo "❌ Release APK not found"
+          fi
+          
+          # Also copy with simple names for backward compatibility
+          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk ../HelloHari-debug.apk
+          fi
+          
+          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+            cp app/build/outputs/apk/release/app-release.apk ../HelloHari-release.apk
+          fi
+          
+      - name: APK Information and Phase 2 Summary
+        script: |
+          echo "=== PHASE 2 BUILD SUMMARY ==="
+          cd $CM_BUILD_DIR
+          
+          # List all APK files created
+          echo "📱 APK Files Created:"
+          ls -la HelloHari*.apk 2>/dev/null || echo "No APK files found"
+          
+          # Show file sizes
+          if [ -f "HelloHari-Phase2-AudioRecording-debug.apk" ]; then
+            size=$(ls -lh HelloHari-Phase2-AudioRecording-debug.apk | awk '{print $5}')
+            echo "🎤 Phase 2 Debug APK: $size"
+          fi
+          
+          if [ -f "HelloHari-Phase2-AudioRecording-release.apk" ]; then
+            size=$(ls -lh HelloHari-Phase2-AudioRecording-release.apk | awk '{print $5}')
+            echo "🎤 Phase 2 Release APK: $size"
+          fi
+          
+          echo ""
+          echo "🛡️ HELLO HARI PHASE 2 - AUDIO RECORDING FEATURES:"
+          echo "✅ Real-time call recording during conversations"
+          echo "✅ Live scam risk analysis with percentage scores"
+          echo "✅ Visual risk meter (Green → Orange → Red)"
+          echo "✅ Smart alerts for suspicious call patterns"
+          echo "✅ Post-call comprehensive analysis reports"
+          echo "✅ Enhanced UI with recording status indicators"
+          echo "✅ Audio file storage for evidence collection"
+          echo "✅ Privacy-first local processing"
+          echo ""
+          echo "📋 TESTING INSTRUCTIONS:"
+          echo "1. Install HelloHari-Phase2-AudioRecording-debug.apk"
+          echo "2. Grant ALL permissions (including audio recording)"
+          echo "3. Tap 'Start Advanced Monitoring'"
+          echo "4. Make test call and observe:"
+          echo "   📞 Call detection and recording preparation"
+          echo "   🎤 Active recording indicator during call"
+          echo "   📊 Live risk meter updates every 5 seconds"
+          echo "   ⚠️ Risk alerts for suspicious patterns"
+          echo "   📴 Final analysis report when call ends"
+          echo ""
+          echo "🎯 Phase 2 Build Complete! Ready for advanced testing."
           
     artifacts:
-      - HelloHari-Phase2-debug.apk
-      - HelloHari-Phase2-release.apk
+      - HelloHari-Phase2-AudioRecording-debug.apk
+      - HelloHari-Phase2-AudioRecording-release.apk
+      - HelloHari-debug.apk
+      - HelloHari-release.apk
       - android/app/build/outputs/**/*.apk
       
     publishing:
