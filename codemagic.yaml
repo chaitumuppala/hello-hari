@@ -16,6 +16,16 @@ workflows:
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
           
+      - name: Temporarily exclude React Native dependent files
+        script: |
+          # Move React Native dependent files out of build path
+          mkdir -p temp_excluded
+          mv android/app/src/main/java/com/hellohari/CallDetectorModule.java temp_excluded/ || true
+          mv android/app/src/main/java/com/hellohari/PermissionModule.java temp_excluded/ || true
+          mv android/app/src/main/java/com/hellohari/CallDetectorPackage.java temp_excluded/ || true
+          mv android/app/src/main/java/com/hellohari/AudioRecorderModule.java temp_excluded/ || true
+          echo "Excluded React Native dependent files for basic build"
+          
       - name: Set Android SDK permissions
         script: |
           cd android
