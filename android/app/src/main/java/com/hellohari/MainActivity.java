@@ -20,6 +20,8 @@ import android.util.Log;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends Activity implements EnhancedCallDetector.CallDetectionListener {
     private static final String TAG = "MainActivity";
@@ -35,7 +37,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
     private ProgressBar riskMeter;
     private StringBuilder callLog;
     
-    private boolean hasAllPermissions = false;
+    private boolean hasMinimumPermissions = false;
     private boolean isRecording = false;
     private int currentRiskScore = 0;
 
@@ -48,9 +50,9 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         callDetector.setCallDetectionListener(this);
         
         createEnhancedUI();
-        checkPermissions();
+        checkUniversalPermissions();
         
-        Log.d(TAG, "Hello Hari Enhanced MainActivity created");
+        Log.d(TAG, "Hello Hari Enhanced MainActivity created - Android " + android.os.Build.VERSION.SDK_INT);
     }
 
     private void createEnhancedUI() {
@@ -69,7 +71,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         layout.addView(title);
         
         TextView subtitle = new TextView(this);
-        subtitle.setText("Advanced Call Safety with Recording");
+        subtitle.setText("Universal Call Safety (Android " + android.os.Build.VERSION.SDK_INT + ")");
         subtitle.setTextSize(16);
         subtitle.setTextColor(Color.parseColor("#666666"));
         subtitle.setPadding(0, 0, 0, 30);
@@ -77,7 +79,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         
         // Status Section
         statusText = new TextView(this);
-        statusText.setText("Status: Ready");
+        statusText.setText("Status: Checking compatibility...");
         statusText.setTextSize(18);
         statusText.setTextColor(Color.parseColor("#333333"));
         statusText.setPadding(0, 0, 0, 10);
@@ -85,7 +87,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         
         // Recording Status
         recordingStatusText = new TextView(this);
-        recordingStatusText.setText("🎤 Recording: Inactive");
+        recordingStatusText.setText("🎤 Recording: Checking permissions...");
         recordingStatusText.setTextSize(16);
         recordingStatusText.setTextColor(Color.parseColor("#666666"));
         recordingStatusText.setPadding(0, 0, 0, 20);
@@ -119,11 +121,11 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         
         // Permission button
         permissionButton = new Button(this);
-        permissionButton.setText("Grant Permissions");
+        permissionButton.setText("Checking Permissions...");
         permissionButton.setBackgroundColor(Color.parseColor("#FF9800"));
         permissionButton.setTextColor(Color.WHITE);
         permissionButton.setPadding(20, 15, 20, 15);
-        permissionButton.setOnClickListener(v -> requestPermissions());
+        permissionButton.setOnClickListener(v -> handlePermissionRequest());
         layout.addView(permissionButton);
         
         // Monitor button
@@ -133,7 +135,6 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         monitorButton.setTextColor(Color.WHITE);
         monitorButton.setPadding(20, 15, 20, 15);
         monitorButton.setOnClickListener(v -> toggleMonitoring());
-        monitorButton.setEnabled(false);
         
         LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -143,14 +144,14 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         
         // Call log
         TextView logTitle = new TextView(this);
-        logTitle.setText("📋 Advanced Call Detection Log:");
+        logTitle.setText("📋 Universal Call Detection Log:");
         logTitle.setTextSize(16);
         logTitle.setTextColor(Color.parseColor("#333333"));
         logTitle.setPadding(0, 30, 0, 10);
         layout.addView(logTitle);
         
         callLogText = new TextView(this);
-        callLogText.setText("No calls detected yet...\n\n🎤 Advanced features:\n• Real-time call recording\n• Scam pattern analysis\n• Risk level assessment\n• Audio safety monitoring");
+        callLogText.setText("Initializing Hello Hari for your Android version...\n\n🛡️ Universal Protection Features:\n• Works on Android 6-15\n• Adaptive permission handling\n• Smart compatibility detection\n• Call monitoring & analysis");
         callLogText.setTextSize(14);
         callLogText.setTextColor(Color.parseColor("#666666"));
         callLogText.setBackgroundColor(Color.parseColor("#FFFFFF"));
@@ -175,39 +176,197 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         setContentView(scrollView);
     }
 
-    private void checkPermissions() {
-        String[] permissions = {
-            Manifest.permission.READ_PHONE_STATE,
-            Manifest.permission.READ_CALL_LOG,
-            Manifest.permission.READ_PHONE_NUMBERS,
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.POST_NOTIFICATIONS,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-        };
+    private void checkUniversalPermissions() {
+        addToCallLog("🔍 Analyzing Android " + android.os.Build.VERSION.SDK_INT + " compatibility...");
         
-        boolean allGranted = true;
-        for (String permission : permissions) {
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-                allGranted = false;
-                break;
+        // Get Android version specific permissions
+        List<String> requiredPermissions = getAndroidVersionPermissions();
+        List<String> missingPermissions = new ArrayList<>();
+        List<String> grantedPermissions = new ArrayList<>();
+        
+        // Check each permission
+        for (String permission : requiredPermissions) {
+            int status = ContextCompat.checkSelfPermission(this, permission);
+            if (status == PackageManager.PERMISSION_GRANTED) {
+                grantedPermissions.add(permission);
+            } else {
+                missingPermissions.add(permission);
             }
         }
         
-        hasAllPermissions = allGranted;
-        updateUI();
+        // Log detailed analysis
+        addToCallLog("📊 Permission Analysis:");
+        addToCallLog("✅ Granted: " + grantedPermissions.size() + " permissions");
+        addToCallLog("⚠️ Missing: " + missingPermissions.size() + " permissions");
+        
+        // Determine minimum functionality
+        boolean canDetectCalls = hasPermission(Manifest.permission.READ_PHONE_STATE);
+        boolean canRecord = hasPermission(Manifest.permission.RECORD_AUDIO);
+        boolean canAccessCallLog = hasPermission(Manifest.permission.READ_CALL_LOG);
+        
+        // Set minimum permissions based on what's actually available
+        if (canDetectCalls) {
+            hasMinimumPermissions = true;
+            addToCallLog("✅ Core call detection: Available");
+        } else {
+            hasMinimumPermissions = false;
+            addToCallLog("❌ Core call detection: Needs phone permission");
+        }
+        
+        if (canRecord) {
+            addToCallLog("✅ Audio recording: Available");
+        } else {
+            addToCallLog("⚠️ Audio recording: Limited (microphone permission needed)");
+        }
+        
+        if (canAccessCallLog) {
+            addToCallLog("✅ Call log access: Available");
+        } else {
+            addToCallLog("⚠️ Call log access: Limited (call log permission needed)");
+        }
+        
+        updateUniversalUI();
+    }
+    
+    private List<String> getAndroidVersionPermissions() {
+        List<String> permissions = new ArrayList<>();
+        
+        // Core permissions available on all Android versions
+        permissions.add(Manifest.permission.READ_PHONE_STATE);
+        
+        // Add permissions based on Android version
+        if (android.os.Build.VERSION.SDK_INT >= 16) {
+            permissions.add(Manifest.permission.READ_CALL_LOG);
+        }
+        
+        if (android.os.Build.VERSION.SDK_INT >= 23) {
+            permissions.add(Manifest.permission.RECORD_AUDIO);
+        }
+        
+        // Phone numbers permission (Android 8.0+)
+        if (android.os.Build.VERSION.SDK_INT >= 26 && android.os.Build.VERSION.SDK_INT < 34) {
+            permissions.add(Manifest.permission.READ_PHONE_NUMBERS);
+        }
+        
+        // Notification permission (Android 13+)
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS);
+        }
+        
+        // Skip storage permissions on Android 11+ (scoped storage)
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        }
+        
+        return permissions;
+    }
+    
+    private boolean hasPermission(String permission) {
+        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED;
     }
 
-    private void requestPermissions() {
-        String[] permissions = {
-            Manifest.permission.READ_PHONE_STATE,
-            Manifest.permission.READ_CALL_LOG,
-            Manifest.permission.READ_PHONE_NUMBERS,
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.POST_NOTIFICATIONS,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-        };
+    private void handlePermissionRequest() {
+        List<String> requiredPermissions = getAndroidVersionPermissions();
+        List<String> permissionsToRequest = new ArrayList<>();
         
-        ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
+        for (String permission : requiredPermissions) {
+            if (!hasPermission(permission)) {
+                permissionsToRequest.add(permission);
+            }
+        }
+        
+        if (permissionsToRequest.isEmpty()) {
+            addToCallLog("✅ All available permissions already granted!");
+            checkUniversalPermissions();
+            return;
+        }
+        
+        // Show explanation for Android version
+        showPermissionExplanation(permissionsToRequest);
+    }
+    
+    private void showPermissionExplanation(List<String> permissions) {
+        StringBuilder message = new StringBuilder();
+        message.append("Hello Hari needs these permissions for Android ")
+               .append(android.os.Build.VERSION.SDK_INT).append(":\n\n");
+        
+        for (String permission : permissions) {
+            switch (permission) {
+                case Manifest.permission.READ_PHONE_STATE:
+                    message.append("📞 Phone State - Detect incoming calls\n");
+                    break;
+                case Manifest.permission.READ_CALL_LOG:
+                    message.append("📋 Call Logs - Monitor call patterns\n");
+                    break;
+                case Manifest.permission.RECORD_AUDIO:
+                    message.append("🎤 Microphone - Record calls for analysis\n");
+                    break;
+                case Manifest.permission.POST_NOTIFICATIONS:
+                    message.append("🔔 Notifications - Alert you to threats\n");
+                    break;
+                case Manifest.permission.READ_PHONE_NUMBERS:
+                    message.append("📱 Phone Numbers - Enhanced call analysis\n");
+                    break;
+            }
+        }
+        
+        message.append("\n🛡️ All processing is done locally for your privacy.");
+        
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle("🛡️ Hello Hari Protection Setup");
+        builder.setMessage(message.toString());
+        
+        builder.setPositiveButton("Grant Permissions", (dialog, which) -> {
+            String[] permArray = permissions.toArray(new String[0]);
+            ActivityCompat.requestPermissions(this, permArray, PERMISSION_REQUEST_CODE);
+        });
+        
+        builder.setNegativeButton("Manual Setup", (dialog, which) -> {
+            showManualSetupGuide();
+        });
+        
+        builder.setNeutralButton("Continue Anyway", (dialog, which) -> {
+            addToCallLog("⚠️ Continuing with limited permissions");
+            hasMinimumPermissions = hasPermission(Manifest.permission.READ_PHONE_STATE);
+            updateUniversalUI();
+        });
+        
+        builder.show();
+    }
+    
+    private void showManualSetupGuide() {
+        String message = "For " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + 
+                        " (Android " + android.os.Build.VERSION.SDK_INT + "):\n\n" +
+                        "1. Go to Settings → Apps → Hello Hari\n" +
+                        "2. Tap 'Permissions'\n" +
+                        "3. Enable ALL available permissions:\n" +
+                        "   • Phone ✅\n" +
+                        "   • Call logs ✅\n" +
+                        "   • Microphone ✅\n" +
+                        "   • Notifications ✅\n\n" +
+                        "4. Return to Hello Hari";
+        
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle("📱 Manual Permission Setup");
+        builder.setMessage(message);
+        
+        builder.setPositiveButton("Open Settings", (dialog, which) -> {
+            try {
+                Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(Uri.fromParts("package", getPackageName(), null));
+                startActivity(intent);
+            } catch (Exception e) {
+                Intent intent = new Intent(Settings.ACTION_SETTINGS);
+                startActivity(intent);
+            }
+        });
+        
+        builder.setNegativeButton("Continue Limited", (dialog, which) -> {
+            hasMinimumPermissions = hasPermission(Manifest.permission.READ_PHONE_STATE);
+            updateUniversalUI();
+        });
+        
+        builder.show();
     }
 
     @Override
@@ -215,41 +374,59 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         
         if (requestCode == PERMISSION_REQUEST_CODE) {
-            boolean allGranted = true;
+            int granted = 0;
+            int total = grantResults.length;
+            
             for (int result : grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    allGranted = false;
-                    break;
+                if (result == PackageManager.PERMISSION_GRANTED) {
+                    granted++;
                 }
             }
             
-            hasAllPermissions = allGranted;
+            addToCallLog("📊 Permission Results: " + granted + "/" + total + " granted");
             
-            if (allGranted) {
-                addToCallLog("✅ All permissions granted - Advanced features enabled!");
+            if (granted == total) {
+                addToCallLog("🎉 All permissions granted! Full features available.");
+            } else if (granted > 0) {
+                addToCallLog("⚠️ Some permissions granted. Limited features available.");
             } else {
-                addToCallLog("⚠️ Some permissions denied. Recording features may not work.");
+                addToCallLog("❌ No permissions granted. Basic mode only.");
             }
             
-            updateUI();
+            checkUniversalPermissions();
         }
     }
 
-    private void updateUI() {
-        if (hasAllPermissions) {
-            statusText.setText("Status: ✅ Ready for advanced monitoring");
+    private void updateUniversalUI() {
+        // Update status based on what's actually available
+        if (hasPermission(Manifest.permission.READ_PHONE_STATE)) {
+            statusText.setText("Status: ✅ Ready for call monitoring (Android " + android.os.Build.VERSION.SDK_INT + ")");
             statusText.setTextColor(Color.parseColor("#4CAF50"));
-            permissionButton.setText("Permissions Granted ✓");
+            monitorButton.setEnabled(true);
+            hasMinimumPermissions = true;
+        } else {
+            statusText.setText("Status: ⚠️ Limited mode (phone permission needed)");
+            statusText.setTextColor(Color.parseColor("#FF9800"));
+            monitorButton.setEnabled(false);
+            hasMinimumPermissions = false;
+        }
+        
+        // Update permission button
+        List<String> missingPerms = new ArrayList<>();
+        for (String perm : getAndroidVersionPermissions()) {
+            if (!hasPermission(perm)) {
+                missingPerms.add(perm);
+            }
+        }
+        
+        if (missingPerms.isEmpty()) {
+            permissionButton.setText("✅ All Permissions Granted");
             permissionButton.setBackgroundColor(Color.parseColor("#4CAF50"));
             permissionButton.setEnabled(false);
-            monitorButton.setEnabled(true);
         } else {
-            statusText.setText("Status: ⚠️ Permissions needed for recording");
-            statusText.setTextColor(Color.parseColor("#FF9800"));
-            permissionButton.setText("Grant Permissions");
+            permissionButton.setText("Grant " + missingPerms.size() + " Permissions");
             permissionButton.setBackgroundColor(Color.parseColor("#FF9800"));
             permissionButton.setEnabled(true);
-            monitorButton.setEnabled(false);
         }
         
         // Update monitor button
@@ -262,36 +439,41 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         }
         
         // Update recording status
+        boolean canRecord = hasPermission(Manifest.permission.RECORD_AUDIO);
         if (isRecording) {
             recordingStatusText.setText("🔴 Recording: ACTIVE - Analyzing audio...");
             recordingStatusText.setTextColor(Color.parseColor("#F44336"));
+        } else if (canRecord) {
+            recordingStatusText.setText("🎤 Recording: Ready");
+            recordingStatusText.setTextColor(Color.parseColor("#4CAF50"));
         } else {
-            recordingStatusText.setText("🎤 Recording: Inactive");
-            recordingStatusText.setTextColor(Color.parseColor("#666666"));
+            recordingStatusText.setText("🎤 Recording: Limited (microphone permission needed)");
+            recordingStatusText.setTextColor(Color.parseColor("#FF9800"));
         }
     }
 
     private void toggleMonitoring() {
-        if (!hasAllPermissions) {
-            addToCallLog("❌ Cannot start advanced monitoring without permissions");
+        if (!hasMinimumPermissions) {
+            addToCallLog("❌ Cannot start monitoring without phone permission");
+            handlePermissionRequest();
             return;
         }
 
         if (callDetector.isMonitoring()) {
             callDetector.stopCallDetection();
-            addToCallLog("🛑 Advanced call monitoring stopped");
+            addToCallLog("🛑 Advanced monitoring stopped");
             currentRiskScore = 0;
             updateRiskLevel(0, "Monitoring stopped");
         } else {
             boolean started = callDetector.startCallDetection();
             if (started) {
-                addToCallLog("🚀 Advanced monitoring started - Hello Hari recording protection active!");
+                addToCallLog("🚀 Advanced monitoring started - Hello Hari protecting on Android " + android.os.Build.VERSION.SDK_INT + "!");
             } else {
                 addToCallLog("❌ Failed to start advanced monitoring");
             }
         }
         
-        updateUI();
+        updateUniversalUI();
     }
 
     // Enhanced CallDetectionListener implementation
@@ -302,11 +484,11 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
             String logEntry = "";
             
             if (TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
-                logEntry = "📞 INCOMING: " + displayNumber + " - Preparing recording & analysis...";
+                logEntry = "📞 INCOMING: " + displayNumber + " - Preparing universal analysis...";
             } else if (TelephonyManager.EXTRA_STATE_OFFHOOK.equals(state)) {
-                logEntry = "📱 ANSWERED: " + displayNumber + " - Recording & analyzing for scams";
+                logEntry = "📱 ANSWERED: " + displayNumber + " - Recording & analyzing (Android " + android.os.Build.VERSION.SDK_INT + ")";
             } else if (TelephonyManager.EXTRA_STATE_IDLE.equals(state)) {
-                logEntry = "📴 ENDED: Call finished - Final analysis complete";
+                logEntry = "📴 ENDED: Call finished - Universal analysis complete";
             } else {
                 logEntry = "📋 STATE: " + state + " - " + displayNumber;
             }
@@ -320,11 +502,11 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         runOnUiThread(() -> {
             isRecording = recording;
             if (recording) {
-                addToCallLog("🎤 RECORDING STARTED: Audio analysis in progress...");
+                addToCallLog("🎤 RECORDING STARTED: Universal audio analysis active...");
             } else {
-                addToCallLog("⏹️ RECORDING STOPPED: Analyzing audio for scam patterns...");
+                addToCallLog("⏹️ RECORDING STOPPED: Processing audio for scam patterns...");
             }
-            updateUI();
+            updateUniversalUI();
         });
     }
 
@@ -334,7 +516,7 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
             currentRiskScore = riskScore;
             updateRiskLevel(riskScore, analysis);
             
-            String logEntry = String.format("🔍 RISK ANALYSIS: %d%% - %s", riskScore, analysis);
+            String logEntry = String.format("🔍 UNIVERSAL ANALYSIS: %d%% - %s", riskScore, analysis);
             addToCallLog(logEntry);
         });
     }
@@ -395,7 +577,9 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
         aboutText.setText("Hello Hari (HH) is dedicated to the memory of Hari, whose spirit of protecting and helping others lives on through this app.\n\n" +
                 "\"Protecting one person from fraud is like protecting an entire family from grief\"\n\n" +
                 "This app serves as a guardian, helping people stay safe from scams and frauds - a mission that would have made Hari proud.\n\n" +
-                "🛡️ Phase 2 Features:\n" +
+                "🛡️ Universal Protection Features:\n" +
+                "• Compatible with Android 6-15\n" +
+                "• Adaptive permission handling\n" +
                 "• Real-time call recording\n" +
                 "• Advanced scam pattern detection\n" +
                 "• Live risk level assessment\n" +
@@ -404,7 +588,8 @@ public class MainActivity extends Activity implements EnhancedCallDetector.CallD
                 "• Privacy-first approach\n" +
                 "• All processing happens locally\n\n" +
                 "🎤 Recording Notice:\n" +
-                "Call recordings are used solely for your protection and are stored locally on your device. No data is sent to external servers.");
+                "Call recordings are used solely for your protection and are stored locally on your device. No data is sent to external servers.\n\n" +
+                "📱 Your Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " (Android " + android.os.Build.VERSION.SDK_INT + ")");
         aboutText.setTextSize(16);
         aboutText.setTextColor(Color.parseColor("#333333"));
         aboutText.setPadding(0, 0, 0, 30);
