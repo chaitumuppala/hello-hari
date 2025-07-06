@@ -1,4 +1,3 @@
-// App.js
 import React, { useState, useEffect } from 'react';
 import { 
   SafeAreaView,
@@ -6,77 +5,194 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  PermissionsAndroid,
   Alert,
-  Modal
+  Modal,
+  Platform
 } from 'react-native';
 import { CallDetector } from '../native-modules/CallDetector';
 import { AudioRecorder } from '../native-modules/AudioRecorder';
+import { Permissions } from '../../permissions';
 
 const App = () => {
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [currentCall, setCurrentCall] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [riskScore, setRiskScore] = useState(0);
   const [showTribute, setShowTribute] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
-    requestPermissions();
+    checkAndRequestPermissions();
+    
+    // Setup call state listener
+    const callListener = CallDetector.addListener('CallStateChanged', handleCallStateChanged);
+    
+    // Setup recording status listener
+    const recordingListener = AudioRecorder.addListener('recordingStatus', handleRecordingStatus);
+
+    return () => {
+      // Cleanup listeners
+      CallDetector.removeAllListeners();
+      AudioRecorder.removeAllListeners();
+      if (isMonitoring) {
+        stopMonitoring();
+      }
+    };
   }, []);
 
-  const requestPermissions = async () => {
+  const checkAndRequestPermissions = async () => {
     try {
-      const permissions = [
-        PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
-        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-      ];
-
-      const granted = await PermissionsAndroid.requestMultiple(permissions);
-      
-      if (
-        granted['android.permission.READ_PHONE_STATE'] === PermissionsAndroid.RESULTS.GRANTED &&
-        granted['android.permission.RECORD_AUDIO'] === PermissionsAndroid.RESULTS.GRANTED
-      ) {
-        console.log('All permissions granted');
-      } else {
-        Alert.alert('Permissions required', 'App needs phone and audio permissions to work');
+      const status = await Permissions.checkPermissions();
+      if (status.allGranted) {
+        setPermissionsGranted(true);
+        return;
       }
-    } catch (err) {
-      console.warn(err);
+
+      const result = await Permissions.requestPermissions();
+      if (!result) {
+        Alert.alert(
+          'Permissions Required',
+          'This app needs permissions to protect you from scam calls. Please grant them in Settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: Permissions.openSettings }
+          ]
+        );
+      } else {
+        // Recheck permissions after request
+        const newStatus = await Permissions.checkPermissions();
+        setPermissionsGranted(newStatus.allGranted);
+      }
+    } catch (error) {
+      console.error('Error with permissions:', error);
+      Alert.alert('Error', 'Failed to check permissions');
     }
   };
 
-  const toggleMonitoring = () => {
+  const handleCallStateChanged = (event) => {
+    console.log('Call state changed:', event);
+    
+    const { callState, number, state } = event;
+    
+    if (callState === 'RINGING' || state === 'RINGING') {
+      // Incoming call detected
+      setCurrentCall({
+        number: number || 'Unknown',
+        startTime: new Date(),
+        riskLevel: 'Analyzing...'
+      });
+      
+      // Start recording for analysis
+      startRecording();
+      
+      // Add alert
+      addAlert('Incoming Call Detected', `Call from ${number || 'Unknown number'}`, 'info');
+      
+      // Simulate risk analysis
+      setTimeout(() => {
+        const risk = Math.floor(Math.random() * 100);
+        setRiskScore(risk);
+        setCurrentCall(prev => prev ? { ...prev, riskLevel: getRiskLevelText(risk) } : null);
+        
+        if (risk > 70) {
+          addAlert('High Risk Call Detected!', 'This call shows signs of potential fraud', 'warning');
+        }
+      }, 2000);
+      
+    } else if (callState === 'IDLE' || state === 'IDLE') {
+      // Call ended
+      if (currentCall) {
+        addAlert('Call Ended', `Call with ${currentCall.number} ended`, 'info');
+      }
+      setCurrentCall(null);
+      setRiskScore(0);
+      stopRecording();
+    }
+  };
+
+  const handleRecordingStatus = (event) => {
+    setIsRecording(event.recording);
+  };
+
+  const getRiskLevelText = (score) => {
+    if (score < 30) return 'Low Risk';
+    if (score < 70) return 'Medium Risk';
+    return 'High Risk - Potential Scam';
+  };
+
+  const addAlert = (title, description, type = 'info') => {
+    const newAlert = {
+      id: Date.now(),
+      title,
+      description,
+      time: new Date().toLocaleTimeString(),
+      type
+    };
+    
+    setAlerts(prevAlerts => [newAlert, ...prevAlerts.slice(0, 9)]); // Keep only last 10 alerts
+  };
+
+  const startRecording = async () => {
+    try {
+      await AudioRecorder.start();
+      console.log('Recording started');
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      const filePath = await AudioRecorder.stop();
+      console.log('Recording stopped, file saved to:', filePath);
+    } catch (error) {
+      console.error('Failed to stop recording:', error);
+    }
+  };
+
+  const toggleMonitoring = async () => {
+    if (!permissionsGranted) {
+      await checkAndRequestPermissions();
+      return;
+    }
+
     if (!isMonitoring) {
       startMonitoring();
     } else {
       stopMonitoring();
     }
-    setIsMonitoring(!isMonitoring);
   };
 
-  const startMonitoring = () => {
-    CallDetector.startCallDetection((event) => {
-      if (event.state === 'RINGING') {
-        setCurrentCall({
-          number: event.number,
-          startTime: new Date(),
-          riskLevel: 'Analyzing...'
-        });
-        
-        // Start recording and analysis
-        AudioRecorder.start();
-      } else if (event.state === 'DISCONNECTED') {
-        AudioRecorder.stop();
-        setCurrentCall(null);
+  const startMonitoring = async () => {
+    try {
+      const hasPermission = await CallDetector.checkPermission();
+      if (!hasPermission) {
+        Alert.alert('Permission Required', 'Phone state permission is required for call monitoring');
+        return;
       }
-    });
+
+      await CallDetector.startCallDetection(handleCallStateChanged);
+      setIsMonitoring(true);
+      addAlert('Monitoring Started', 'Call protection is now active', 'success');
+    } catch (error) {
+      console.error('Error starting monitoring:', error);
+      Alert.alert('Error', 'Failed to start call monitoring: ' + error.message);
+    }
   };
 
-  const stopMonitoring = () => {
-    CallDetector.stopCallDetection();
-    AudioRecorder.stop();
-    setCurrentCall(null);
+  const stopMonitoring = async () => {
+    try {
+      await CallDetector.stopCallDetection();
+      await AudioRecorder.stop().catch(() => {}); // Stop recording if active
+      setIsMonitoring(false);
+      setCurrentCall(null);
+      setRiskScore(0);
+      addAlert('Monitoring Stopped', 'Call protection is now inactive', 'info');
+    } catch (error) {
+      console.error('Error stopping monitoring:', error);
+      Alert.alert('Error', 'Failed to stop call monitoring');
+    }
   };
 
   const renderCurrentCall = () => {
@@ -85,19 +201,39 @@ const App = () => {
     return (
       <View style={styles.callCard}>
         <Text style={styles.callNumber}>Number: {currentCall.number}</Text>
-        <Text style={styles.riskLevel}>Risk Level: {currentCall.riskLevel}</Text>
+        <Text style={[styles.riskLevel, getRiskLevelStyle(riskScore)]}>
+          Risk Level: {currentCall.riskLevel}
+        </Text>
+        {isRecording && (
+          <Text style={styles.recordingIndicator}>🔴 Recording for analysis</Text>
+        )}
       </View>
     );
   };
 
+  const getRiskLevelStyle = (score) => {
+    if (score < 30) return { color: '#4CAF50' };
+    if (score < 70) return { color: '#FF9800' };
+    return { color: '#F44336' };
+  };
+
   const renderAlerts = () => {
-    return alerts.map((alert, index) => (
-      <View key={index} style={styles.alertCard}>
+    return alerts.slice(0, 5).map((alert) => (
+      <View key={alert.id} style={[styles.alertCard, getAlertStyle(alert.type)]}>
         <Text style={styles.alertTitle}>{alert.title}</Text>
         <Text style={styles.alertDescription}>{alert.description}</Text>
         <Text style={styles.alertTime}>{alert.time}</Text>
       </View>
     ));
+  };
+
+  const getAlertStyle = (type) => {
+    switch (type) {
+      case 'warning': return { borderLeftColor: '#FF9800', borderLeftWidth: 4 };
+      case 'success': return { borderLeftColor: '#4CAF50', borderLeftWidth: 4 };
+      case 'error': return { borderLeftColor: '#F44336', borderLeftWidth: 4 };
+      default: return { borderLeftColor: '#2196F3', borderLeftWidth: 4 };
+    }
   };
 
   return (
@@ -106,11 +242,31 @@ const App = () => {
         <Text style={styles.titleHH}>HH</Text>
         <Text style={styles.titleMain}>Hello Hari</Text>
         <Text style={styles.subtitle}>Your Call Safety Companion</Text>
+        {Platform.OS === 'android' && (
+          <Text style={styles.platformInfo}>Android Protection Active</Text>
+        )}
       </View>
 
+      {!permissionsGranted && (
+        <View style={styles.permissionBanner}>
+          <Text style={styles.permissionText}>⚠️ Permissions required for full protection</Text>
+          <TouchableOpacity 
+            style={styles.permissionButton}
+            onPress={checkAndRequestPermissions}
+          >
+            <Text style={styles.permissionButtonText}>Grant Permissions</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <TouchableOpacity 
-        style={[styles.monitorButton, isMonitoring && styles.monitoringActive]}
+        style={[
+          styles.monitorButton, 
+          isMonitoring && styles.monitoringActive,
+          !permissionsGranted && styles.monitorButtonDisabled
+        ]}
         onPress={toggleMonitoring}
+        disabled={!permissionsGranted}
       >
         <Text style={styles.buttonText}>
           {isMonitoring ? 'Stop Monitoring' : 'Start Monitoring'}
@@ -122,14 +278,24 @@ const App = () => {
       <View style={styles.riskMeter}>
         <Text style={styles.riskTitle}>Current Risk Level</Text>
         <View style={styles.riskBar}>
-          <View style={[styles.riskFill, { width: `${riskScore}%` }]} />
+          <View style={[
+            styles.riskFill, 
+            { 
+              width: `${riskScore}%`,
+              backgroundColor: riskScore < 30 ? '#4CAF50' : riskScore < 70 ? '#FF9800' : '#F44336'
+            }
+          ]} />
         </View>
         <Text style={styles.riskPercentage}>{riskScore}%</Text>
       </View>
 
       <View style={styles.alertsContainer}>
         <Text style={styles.alertsTitle}>Recent Alerts</Text>
-        {renderAlerts()}
+        {alerts.length === 0 ? (
+          <Text style={styles.noAlerts}>No alerts yet. Start monitoring to begin protection.</Text>
+        ) : (
+          renderAlerts()
+        )}
       </View>
       
       <TouchableOpacity 
@@ -197,6 +363,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#E0E0E0',
   },
+  platformInfo: {
+    fontSize: 12,
+    color: '#B0B0B0',
+    marginTop: 4,
+  },
+  permissionBanner: {
+    backgroundColor: '#FFF3CD',
+    padding: 12,
+    margin: 16,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9800',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  permissionText: {
+    flex: 1,
+    color: '#856404',
+    fontSize: 14,
+  },
+  permissionButton: {
+    backgroundColor: '#FF9800',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  permissionButtonText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   monitorButton: {
     margin: 16,
     padding: 16,
@@ -206,6 +404,9 @@ const styles = StyleSheet.create({
   },
   monitoringActive: {
     backgroundColor: '#F44336',
+  },
+  monitorButtonDisabled: {
+    backgroundColor: '#CCCCCC',
   },
   buttonText: {
     color: '#FFF',
@@ -217,7 +418,9 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#FFF',
     borderRadius: 8,
-    elevation: 1,
+    elevation: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
   },
   callNumber: {
     fontSize: 16,
@@ -225,7 +428,14 @@ const styles = StyleSheet.create({
   },
   riskLevel: {
     marginTop: 8,
-    color: '#666',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  recordingIndicator: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#F44336',
+    fontWeight: 'bold',
   },
   riskMeter: {
     margin: 16,
@@ -246,12 +456,12 @@ const styles = StyleSheet.create({
   },
   riskFill: {
     height: '100%',
-    backgroundColor: '#4CAF50',
     borderRadius: 4,
   },
   riskPercentage: {
     marginTop: 8,
     textAlign: 'right',
+    fontWeight: 'bold',
   },
   alertsContainer: {
     flex: 1,
@@ -261,6 +471,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
+  },
+  noAlerts: {
+    textAlign: 'center',
+    color: '#666',
+    fontStyle: 'italic',
+    marginTop: 20,
   },
   alertCard: {
     padding: 16,
