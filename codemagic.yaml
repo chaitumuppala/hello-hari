@@ -1,35 +1,28 @@
 workflows:
   hello-hari-workflow:
-    name: Hello Hari Android - Phase 1 Call Detection
+    name: Hello Hari Android - APK Diagnostic
     max_build_duration: 120
     environment:
       vars:
         PACKAGE_NAME: "com.hellohari"
       node: 18.17.1
       java: 11
-    cache:
-      cache_paths:
-        - ~/.gradle/caches
-        - android/.gradle
     scripts:
       - name: Set up Android environment
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
           
-      - name: Exclude React Native modules (keeping SimpleCallDetector)
+      - name: Exclude React Native modules
         script: |
-          # Move React Native dependent files out of build path
           mkdir -p temp_excluded
           mv android/app/src/main/java/com/hellohari/CallDetectorModule.java temp_excluded/ || true
           mv android/app/src/main/java/com/hellohari/PermissionModule.java temp_excluded/ || true
           mv android/app/src/main/java/com/hellohari/CallDetectorPackage.java temp_excluded/ || true
           mv android/app/src/main/java/com/hellohari/AudioRecorderModule.java temp_excluded/ || true
-          echo "Phase 1: Excluded React Native modules, keeping SimpleCallDetector"
           
       - name: Set Android SDK permissions
         script: |
-          cd android
-          chmod +x gradlew
+          cd android && chmod +x gradlew
           
       - name: Create debug keystore
         script: |
@@ -40,29 +33,64 @@ workflows:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
           
-      - name: Build Android APK
+      - name: Build APK and Diagnose
         script: |
           cd android
-          ./gradlew clean
-          ./gradlew assembleDebug --stacktrace
-          echo "✅ Phase 1 APK built with call detection functionality"
+          echo "=== BEFORE BUILD ==="
+          pwd
+          ls -la
           
-      - name: List and verify APK files
+          echo "=== BUILDING APK ==="
+          ./gradlew assembleDebug --stacktrace
+          
+          echo "=== AFTER BUILD - SEARCHING FOR APK FILES ==="
+          find . -name "*.apk" -type f -exec ls -la {} \;
+          
+          echo "=== BUILD OUTPUTS DIRECTORY ==="
+          ls -la app/build/ || echo "No app/build directory"
+          ls -la app/build/outputs/ || echo "No outputs directory"
+          ls -la app/build/outputs/apk/ || echo "No apk directory"
+          ls -la app/build/outputs/apk/debug/ || echo "No debug directory"
+          
+          echo "=== FULL PROJECT STRUCTURE ==="
+          find . -type d -name "*apk*" -o -name "*build*" | head -20
+          
+          echo "=== ANY APK FILES ANYWHERE ==="
+          find /Users/builder/clone -name "*.apk" -type f 2>/dev/null || echo "No APK files found anywhere"
+          
+          echo "=== GRADLE TASKS AVAILABLE ==="
+          ./gradlew tasks | grep -i apk || echo "No APK tasks found"
+          
+      - name: Try Alternative Build Methods
         script: |
-          echo "=== APK FILE VERIFICATION ==="
-          find android/app/build/outputs -name "*.apk" -type f
-          ls -la android/app/build/outputs/apk/debug/ || echo "Debug APK directory not found"
-          ls -la android/app/build/outputs/apk/release/ || echo "Release APK directory not found"
+          cd android
+          echo "=== TRYING ALTERNATIVE BUILD COMMANDS ==="
+          
+          echo "1. Try assembleRelease:"
+          ./gradlew assembleRelease || echo "assembleRelease failed"
+          
+          echo "2. Try build:"
+          ./gradlew build || echo "build failed"
+          
+          echo "3. Search again for any APK files:"
+          find . -name "*.apk" -type f -exec ls -la {} \;
+          
+          echo "4. Check if unsigned APK exists:"
+          find . -name "*unsigned*" -type f
+          
+          echo "5. List all files in build/outputs:"
+          find app/build/outputs -type f 2>/dev/null || echo "No files in build/outputs"
           
     artifacts:
-      - android/app/build/outputs/apk/debug/*.apk
-      - android/app/build/outputs/apk/release/*.apk
-      - android/app/build/outputs/**/*.apk
+      - android/app/build/outputs/**/*
+      - android/app/build/**/*.apk
+      - android/**/*.apk
+      - "**/*.apk"
       
     publishing:
       email:
         recipients:
-          - your.email@example.com # Replace with your email
+          - your.email@example.com
         notify:
           success: true
           failure: true
