@@ -987,17 +987,18 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                     MediaRecorder.AudioSource.MIC
                 };
                 
-                boolean hasWorkingSource = false;
-                String recommendedMethod = "None";
+                // Use final variables for lambda compatibility
+                final boolean[] hasWorkingSourceArray = {false};
+                final String[] recommendedMethodArray = {"None"};
                 
                 for (int i = 0; i < sources.length; i++) {
                     boolean supported = testAudioSource(audioSources[i]);
                     String status = supported ? "SUPPORTED" : "NOT SUPPORTED";
                     results.append(sources[i]).append(": ").append(status).append("\n");
                     
-                    if (supported && !hasWorkingSource) {
-                        hasWorkingSource = true;
-                        recommendedMethod = sources[i];
+                    if (supported && !hasWorkingSourceArray[0]) {
+                        hasWorkingSourceArray[0] = true;
+                        recommendedMethodArray[0] = sources[i];
                     }
                     
                     // Log results in real-time
@@ -1006,9 +1007,9 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                 }
                 
                 results.append("\nSMART RECORDING ANALYSIS:\n");
-                if (hasWorkingSource) {
+                if (hasWorkingSourceArray[0]) {
                     results.append("Smart recording WILL WORK on this device\n");
-                    results.append("Recommended method: ").append(recommendedMethod).append("\n");
+                    results.append("Recommended method: ").append(recommendedMethodArray[0]).append("\n");
                     results.append("Fallback methods available: Yes\n");
                 } else {
                     results.append("No audio sources available for recording\n");
@@ -1023,16 +1024,20 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                 }
                 
                 // Show results dialog
+                final String finalResults = results.toString();
+                final boolean finalHasWorkingSource = hasWorkingSourceArray[0];
+                final String finalRecommendedMethod = recommendedMethodArray[0];
+                
                 runOnUiThread(() -> {
                     android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
                     builder.setTitle("Smart Recording Compatibility Results");
-                    builder.setMessage(results.toString());
+                    builder.setMessage(finalResults);
                     builder.setPositiveButton("OK", null);
                     builder.show();
                     
                     addToCallLog("Smart recording compatibility test completed");
-                    if (hasWorkingSource) {
-                        addToCallLog("Device supports smart recording with " + recommendedMethod);
+                    if (finalHasWorkingSource) {
+                        addToCallLog("Device supports smart recording with " + finalRecommendedMethod);
                     } else {
                         addToCallLog("Device may have limited recording capabilities");
                     }
