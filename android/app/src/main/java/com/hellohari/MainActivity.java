@@ -71,243 +71,419 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
     private int realTimeRiskScore = 0;
     private List<String> detectedPatternsRealTime = new ArrayList<>();
 
-    @Override
+      @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        
-        callLog = new StringBuilder();
-        callDetector = new SimpleCallDetector(this);
-        callDetector.setCallDetectionListener(this);
-        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
-        
-        createSimplifiedUI();
-        checkUniversalPermissions();
-        
-        Log.d(TAG, "Hello Hari AI Phase 3 - Multi-Language Scam Detection Initialized");
-        addToCallLog("🤖 Hello Hari Phase 3 - AI Multi-Language Scam Detection Started");
-        addToCallLog("Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
-        addToCallLog("Android: " + android.os.Build.VERSION.SDK_INT);
-        addToCallLog("AI Languages: English, Hindi, Telugu");
+    super.onCreate(savedInstanceState);
+    
+    callLog = new StringBuilder();
+    callDetector = new SimpleCallDetector(this);
+    callDetector.setCallDetectionListener(this);
+    audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+    
+    createModernUI(); // CHANGED FROM createSimplifiedUI()
+    checkUniversalPermissions();
+    
+    Log.d(TAG, "Hello Hari Phase 3 - Multi-Language Scam Detection Initialized");
+    addToCallLog("🛡️ Hello Hari protection system started");
+    addToCallLog("Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
     }
 
-  private void createSimplifiedUI() {
+    private void createModernUI() {
     ScrollView scrollView = new ScrollView(this);
     LinearLayout mainLayout = new LinearLayout(this);
     mainLayout.setOrientation(LinearLayout.VERTICAL);
-    mainLayout.setPadding(16, 16, 16, 16);
-    mainLayout.setBackgroundColor(Color.parseColor("#FAFAFA")); // Material background
+    mainLayout.setPadding(0, 0, 0, 0); // Full screen layout
+    mainLayout.setBackgroundColor(Color.parseColor("#F8FAFC")); // Light gray background
     
-    // === MATERIAL DESIGN HEADER ===
-    LinearLayout headerCard = createMaterialCard();
-    headerCard.setBackgroundColor(Color.parseColor("#1976D2")); // Material Blue
-    headerCard.setPadding(24, 32, 24, 32);
+    // === TOP HEADER WITH PROPER MATERIAL DESIGN ===
+    LinearLayout headerSection = new LinearLayout(this);
+    headerSection.setOrientation(LinearLayout.VERTICAL);
+    headerSection.setBackgroundColor(Color.parseColor("#1565C0")); // Material Blue 800
+    headerSection.setPadding(24, 48, 24, 32); // Extra top padding for status bar
     
+    // App title row
     LinearLayout titleRow = new LinearLayout(this);
     titleRow.setOrientation(LinearLayout.HORIZONTAL);
-    titleRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    titleRow.setGravity(Gravity.CENTER_VERTICAL);
     
-    TextView titleIcon = new TextView(this);
-    titleIcon.setText("🛡️");
-    titleIcon.setTextSize(36);
-    titleIcon.setPadding(0, 0, 20, 0);
-    titleRow.addView(titleIcon);
+    TextView appIcon = new TextView(this);
+    appIcon.setText("🛡️");
+    appIcon.setTextSize(28);
+    appIcon.setPadding(0, 0, 16, 0);
+    titleRow.addView(appIcon);
     
-    LinearLayout titleColumn = new LinearLayout(this);
-    titleColumn.setOrientation(LinearLayout.VERTICAL);
+    TextView appTitle = new TextView(this);
+    appTitle.setText("Hello Hari");
+    appTitle.setTextSize(24);
+    appTitle.setTextColor(Color.WHITE);
+    appTitle.setTypeface(null, Typeface.BOLD);
+    titleRow.addView(appTitle);
     
-    TextView title = new TextView(this);
-    title.setText("Hello Hari");
-    title.setTextSize(32);
-    title.setTextColor(Color.WHITE);
-    title.setTypeface(null, android.graphics.Typeface.BOLD);
-    titleColumn.addView(title);
+    headerSection.addView(titleRow);
     
-    TextView subtitle = new TextView(this);
-    subtitle.setText("Call Protection");
-    subtitle.setTextSize(18);
-    subtitle.setTextColor(Color.parseColor("#E3F2FD"));
-    titleColumn.addView(subtitle);
+    // Status indicator in header
+    TextView headerStatus = new TextView(this);
+    headerStatus.setText("Call Protection");
+    headerStatus.setTextSize(16);
+    headerStatus.setTextColor(Color.parseColor("#E3F2FD"));
+    headerStatus.setPadding(44, 8, 0, 0); // Align with title
+    headerSection.addView(headerStatus);
     
-    titleRow.addView(titleColumn);
-    headerCard.addView(titleRow);
-    mainLayout.addView(headerCard);
-    addMaterialSpacing(mainLayout, 24);
+    mainLayout.addView(headerSection);
     
-    // === STATUS CARD ===
-    LinearLayout statusCard = createMaterialCard();
+    // === MAIN CONTENT AREA ===
+    LinearLayout contentLayout = new LinearLayout(this);
+    contentLayout.setOrientation(LinearLayout.VERTICAL);
+    contentLayout.setPadding(16, 24, 16, 16);
+    
+    // === PROTECTION STATUS CARD ===
+    LinearLayout statusCard = createElevatedCard();
     statusCard.setPadding(24, 24, 24, 24);
     
-    // Status with material icon
+    // Status row with icon and text
     LinearLayout statusRow = new LinearLayout(this);
     statusRow.setOrientation(LinearLayout.HORIZONTAL);
-    statusRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
-    statusRow.setPadding(0, 0, 0, 20);
+    statusRow.setGravity(Gravity.CENTER_VERTICAL);
+    statusRow.setPadding(0, 0, 0, 16);
     
     TextView statusIcon = new TextView(this);
-    statusIcon.setText("📡");
-    statusIcon.setTextSize(24);
-    statusIcon.setPadding(0, 0, 16, 0);
+    statusIcon.setText("🟢");
+    statusIcon.setTextSize(20);
+    statusIcon.setPadding(0, 0, 12, 0);
     statusRow.addView(statusIcon);
     
     statusText = new TextView(this);
-    statusText.setText("Ready to Monitor");
-    statusText.setTextSize(20);
-    statusText.setTextColor(Color.parseColor("#212121"));
-    statusText.setTypeface(null, android.graphics.Typeface.BOLD);
+    statusText.setText("Protection Ready");
+    statusText.setTextSize(18);
+    statusText.setTextColor(Color.parseColor("#1B5E20")); // Dark green
+    statusText.setTypeface(null, Typeface.BOLD);
     statusRow.addView(statusText);
     
     statusCard.addView(statusRow);
     
-    // Risk meter with material styling
-    LinearLayout riskSection = new LinearLayout(this);
-    riskSection.setOrientation(LinearLayout.VERTICAL);
-    riskSection.setPadding(0, 16, 0, 24);
+    // Risk level display
+    TextView riskLabel = new TextView(this);
+    riskLabel.setText("Risk Level");
+    riskLabel.setTextSize(14);
+    riskLabel.setTextColor(Color.parseColor("#757575"));
+    riskLabel.setPadding(0, 8, 0, 8);
+    statusCard.addView(riskLabel);
     
     riskLevelText = new TextView(this);
-    riskLevelText.setText("0% Risk Level");
-    riskLevelText.setTextSize(18);
-    riskLevelText.setTextColor(Color.parseColor("#4CAF50"));
-    riskLevelText.setTypeface(null, android.graphics.Typeface.BOLD);
-    riskLevelText.setGravity(android.view.Gravity.CENTER);
-    riskSection.addView(riskLevelText);
+    riskLevelText.setText("0% - No Risk Detected");
+    riskLevelText.setTextSize(16);
+    riskLevelText.setTextColor(Color.parseColor("#2E7D32"));
+    riskLevelText.setTypeface(null, Typeface.BOLD);
+    statusCard.addView(riskLevelText);
     
+    // Risk meter
     riskMeter = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
     riskMeter.setMax(100);
     riskMeter.setProgress(0);
-    riskMeter.getProgressDrawable().setColorFilter(Color.parseColor("#4CAF50"), android.graphics.PorterDuff.Mode.SRC_IN);
+    riskMeter.getProgressDrawable().setColorFilter(Color.parseColor("#4CAF50"), PorterDuff.Mode.SRC_IN);
     LinearLayout.LayoutParams riskParams = new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, 32);
+        LinearLayout.LayoutParams.MATCH_PARENT, 24);
     riskParams.setMargins(0, 12, 0, 0);
     riskMeter.setLayoutParams(riskParams);
-    riskSection.addView(riskMeter);
+    statusCard.addView(riskMeter);
     
-    statusCard.addView(riskSection);
+    contentLayout.addView(statusCard);
+    addSpacing(contentLayout, 20);
     
-    // Material action buttons
-    permissionButton = createMaterialButton("Grant Permissions", "#FF9800", true);
+    // === MAIN ACTION BUTTONS ===
+    // Permission button (if needed)
+    permissionButton = createPrimaryButton("Grant Permissions", "#FF6D00", true);
     permissionButton.setOnClickListener(v -> handlePermissionRequest());
-    statusCard.addView(permissionButton);
+    contentLayout.addView(permissionButton);
+    addSpacing(contentLayout, 12);
     
-    addMaterialSpacing(statusCard, 16);
-    
-    monitorButton = createMaterialButton("Start Monitoring", "#4CAF50", false);
+    // Main monitor button
+    monitorButton = createPrimaryButton("Start Monitoring", "#2E7D32", false);
     monitorButton.setOnClickListener(v -> toggleMonitoring());
-    statusCard.addView(monitorButton);
+    contentLayout.addView(monitorButton);
+    addSpacing(contentLayout, 24);
     
-    mainLayout.addView(statusCard);
-    addMaterialSpacing(mainLayout, 24);
+    // === FEATURE CARDS SECTION ===
+    TextView featuresTitle = new TextView(this);
+    featuresTitle.setText("Features");
+    featuresTitle.setTextSize(18);
+    featuresTitle.setTextColor(Color.parseColor("#212121"));
+    featuresTitle.setTypeface(null, Typeface.BOLD);
+    featuresTitle.setPadding(8, 0, 0, 16);
+    contentLayout.addView(featuresTitle);
     
-    // === QUICK ACTIONS CARD ===
-    LinearLayout actionsCard = createMaterialCard();
-    actionsCard.setPadding(20, 20, 20, 20);
+    // Features grid (2 columns)
+    LinearLayout featuresGrid = new LinearLayout(this);
+    featuresGrid.setOrientation(LinearLayout.HORIZONTAL);
+    featuresGrid.setWeightSum(2.0f);
     
+    // Real-time Protection feature
+    LinearLayout realtimeCard = createFeatureCard(
+        "⚡", "Real-time Analysis", "Live call monitoring", "#1976D2");
+    featuresGrid.addView(realtimeCard);
+    addHorizontalSpacing(featuresGrid, 12);
+    
+    // Multi-language feature  
+    LinearLayout languageCard = createFeatureCard(
+        "🌐", "Multi-language", "English, Hindi, Telugu", "#7B1FA2");
+    featuresGrid.addView(languageCard);
+    
+    contentLayout.addView(featuresGrid);
+    addSpacing(contentLayout, 16);
+    
+    // Second row of features
+    LinearLayout featuresGrid2 = new LinearLayout(this);
+    featuresGrid2.setOrientation(LinearLayout.HORIZONTAL);
+    featuresGrid2.setWeightSum(2.0f);
+    
+    // Smart Recording feature
+    LinearLayout recordingCard = createFeatureCard(
+        "🎤", "Smart Recording", "4-tier fallback system", "#D32F2F");
+    featuresGrid2.addView(recordingCard);
+    addHorizontalSpacing(featuresGrid2, 12);
+    
+    // Privacy feature
+    LinearLayout privacyCard = createFeatureCard(
+        "🔒", "Privacy First", "All data stays local", "#388E3C");
+    featuresGrid2.addView(privacyCard);
+    
+    contentLayout.addView(featuresGrid2);
+    addSpacing(contentLayout, 24);
+    
+    // === QUICK ACTIONS ===
     TextView actionsTitle = new TextView(this);
     actionsTitle.setText("Quick Actions");
     actionsTitle.setTextSize(18);
     actionsTitle.setTextColor(Color.parseColor("#212121"));
-    actionsTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-    actionsTitle.setPadding(0, 0, 0, 16);
-    actionsCard.addView(actionsTitle);
+    actionsTitle.setTypeface(null, Typeface.BOLD);
+    actionsTitle.setPadding(8, 0, 0, 16);
+    contentLayout.addView(actionsTitle);
     
     LinearLayout actionsRow = new LinearLayout(this);
     actionsRow.setOrientation(LinearLayout.HORIZONTAL);
-    actionsRow.setGravity(android.view.Gravity.CENTER);
+    actionsRow.setWeightSum(3.0f);
     
-    Button testAudioBtn = createMaterialChip("🎤 Test Audio", "#E53935");
+    Button testAudioBtn = createActionChip("🎤 Test Audio", "#F57C00");
     testAudioBtn.setOnClickListener(v -> testAudioCompatibility());
     actionsRow.addView(testAudioBtn);
+    addHorizontalSpacing(actionsRow, 8);
     
-    Button testDetectionBtn = createMaterialChip("🔍 Test Detection", "#7B1FA2");
+    Button testDetectionBtn = createActionChip("🔍 Test Detection", "#303F9F");
     testDetectionBtn.setOnClickListener(v -> testAICompatibility());
     actionsRow.addView(testDetectionBtn);
+    addHorizontalSpacing(actionsRow, 8);
     
-    Button viewLogsBtn = createMaterialChip("📊 View Logs", "#455A64");
+    Button viewLogsBtn = createActionChip("📊 View Logs", "#5D4037");
     viewLogsBtn.setOnClickListener(v -> showDetailedLogs());
     actionsRow.addView(viewLogsBtn);
     
-    actionsCard.addView(actionsRow);
-    mainLayout.addView(actionsCard);
-    addMaterialSpacing(mainLayout, 24);
+    contentLayout.addView(actionsRow);
+    addSpacing(contentLayout, 24);
     
-    // === SYSTEM STATUS CARD ===
-    LinearLayout systemCard = createMaterialCard();
-    systemCard.setPadding(20, 20, 20, 20);
+    // === SYSTEM INFO (COMPACT) ===
+    LinearLayout systemCard = createElevatedCard();
+    systemCard.setPadding(20, 16, 20, 16);
     
     TextView systemTitle = new TextView(this);
     systemTitle.setText("System Status");
-    systemTitle.setTextSize(18);
-    systemTitle.setTextColor(Color.parseColor("#212121"));
-    systemTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-    systemTitle.setPadding(0, 0, 0, 16);
+    systemTitle.setTextSize(16);
+    systemTitle.setTextColor(Color.parseColor("#424242"));
+    systemTitle.setTypeface(null, Typeface.BOLD);
+    systemTitle.setPadding(0, 0, 0, 12);
     systemCard.addView(systemTitle);
     
-    // Recording status
+    // Recording status (compact)
     recordingStatusText = new TextView(this);
     recordingStatusText.setText("🎤 Recording: Ready");
-    recordingStatusText.setTextSize(16);
-    recordingStatusText.setTextColor(Color.parseColor("#4CAF50"));
-    recordingStatusText.setPadding(12, 12, 12, 12);
-    recordingStatusText.setBackgroundColor(Color.parseColor("#E8F5E8"));
-    android.graphics.drawable.GradientDrawable recordingBg = new android.graphics.drawable.GradientDrawable();
-    recordingBg.setColor(Color.parseColor("#E8F5E8"));
-    recordingBg.setCornerRadius(8);
-    recordingStatusText.setBackground(recordingBg);
+    recordingStatusText.setTextSize(14);
+    recordingStatusText.setTextColor(Color.parseColor("#2E7D32"));
     systemCard.addView(recordingStatusText);
     
-    addMaterialSpacing(systemCard, 12);
-    
-    // Device info
+    // Device info (minimal)
     deviceInfoText = new TextView(this);
-    deviceInfoText.setText("📱 " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
-    deviceInfoText.setTextSize(14);
+    deviceInfoText.setText("📱 " + android.os.Build.MODEL);
+    deviceInfoText.setTextSize(12);
     deviceInfoText.setTextColor(Color.parseColor("#757575"));
-    deviceInfoText.setPadding(12, 8, 12, 8);
+    deviceInfoText.setPadding(0, 4, 0, 0);
     systemCard.addView(deviceInfoText);
     
-    addMaterialSpacing(systemCard, 16);
+    contentLayout.addView(systemCard);
+    addSpacing(contentLayout, 16);
     
-    // Recent activity preview
-    TextView activityLabel = new TextView(this);
-    activityLabel.setText("Recent Activity");
-    activityLabel.setTextSize(16);
-    activityLabel.setTextColor(Color.parseColor("#424242"));
-    activityLabel.setTypeface(null, android.graphics.Typeface.BOLD);
-    activityLabel.setPadding(0, 0, 0, 12);
-    systemCard.addView(activityLabel);
-    
+    // === RECENT ACTIVITY (MINIMAL) ===
     callLogText = new TextView(this);
-    callLogText.setText("🟢 Protection system ready\n📡 Monitoring: Standby\n🔍 Detection: Active");
-    callLogText.setTextSize(14);
+    callLogText.setText("🟢 Protection system initialized\n📡 Ready to monitor calls");
+    callLogText.setTextSize(13);
     callLogText.setTextColor(Color.parseColor("#616161"));
     callLogText.setBackgroundColor(Color.parseColor("#F5F5F5"));
-    callLogText.setPadding(16, 16, 16, 16);
-    callLogText.setMaxLines(3);
-    android.graphics.drawable.GradientDrawable logBg = new android.graphics.drawable.GradientDrawable();
+    callLogText.setPadding(16, 12, 16, 12);
+    callLogText.setMaxLines(2);
+    GradientDrawable logBg = new GradientDrawable();
     logBg.setColor(Color.parseColor("#F5F5F5"));
     logBg.setCornerRadius(8);
     callLogText.setBackground(logBg);
-    systemCard.addView(callLogText);
+    contentLayout.addView(callLogText);
     
-    // View more logs button
-    Button viewMoreBtn = new Button(this);
-    viewMoreBtn.setText("VIEW DETAILED LOGS");
-    viewMoreBtn.setTextColor(Color.parseColor("#1976D2"));
-    viewMoreBtn.setBackgroundColor(Color.TRANSPARENT);
-    viewMoreBtn.setTextSize(14);
-    viewMoreBtn.setTypeface(null, android.graphics.Typeface.BOLD);
-    viewMoreBtn.setOnClickListener(v -> showDetailedLogs());
-    LinearLayout.LayoutParams viewMoreParams = new LinearLayout.LayoutParams(
+    // View detailed logs link
+    Button viewDetailedBtn = new Button(this);
+    viewDetailedBtn.setText("View Detailed Logs");
+    viewDetailedBtn.setTextColor(Color.parseColor("#1976D2"));
+    viewDetailedBtn.setBackgroundColor(Color.TRANSPARENT);
+    viewDetailedBtn.setTextSize(14);
+    viewDetailedBtn.setAllCaps(false);
+    viewDetailedBtn.setOnClickListener(v -> showDetailedLogs());
+    LinearLayout.LayoutParams viewParams = new LinearLayout.LayoutParams(
         LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    viewMoreParams.gravity = android.view.Gravity.END;
-    viewMoreParams.setMargins(0, 12, 0, 0);
-    viewMoreBtn.setLayoutParams(viewMoreParams);
-    systemCard.addView(viewMoreBtn);
+    viewParams.gravity = Gravity.END;
+    viewParams.setMargins(0, 8, 0, 0);
+    viewDetailedBtn.setLayoutParams(viewParams);
+    contentLayout.addView(viewDetailedBtn);
     
-    mainLayout.addView(systemCard);
+    addSpacing(contentLayout, 24); // Bottom padding
     
+    mainLayout.addView(contentLayout);
     scrollView.addView(mainLayout);
     setContentView(scrollView);
 }
+
+// === HELPER METHODS FOR NEW DESIGN ===
+
+private LinearLayout createElevatedCard() {
+    LinearLayout card = new LinearLayout(this);
+    card.setOrientation(LinearLayout.VERTICAL);
+    
+    GradientDrawable drawable = new GradientDrawable();
+    drawable.setColor(Color.WHITE);
+    drawable.setCornerRadius(12);
+    drawable.setStroke(1, Color.parseColor("#E0E0E0"));
+    card.setBackground(drawable);
+    
+    if (android.os.Build.VERSION.SDK_INT >= 21) {
+        card.setElevation(4);
+        card.setTranslationZ(2);
+    }
+    
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    card.setLayoutParams(params);
+    
+    return card;
+}
+
+private Button createPrimaryButton(String text, String colorHex, boolean outlined) {
+    Button button = new Button(this);
+    button.setText(text);
+    button.setTextSize(16);
+    button.setTypeface(null, Typeface.BOLD);
+    button.setAllCaps(false); // Use normal case, not all caps
+    button.setPadding(24, 16, 24, 16);
+    
+    GradientDrawable drawable = new GradientDrawable();
+    
+    if (outlined) {
+        drawable.setColor(Color.TRANSPARENT);
+        drawable.setStroke(2, Color.parseColor(colorHex));
+        button.setTextColor(Color.parseColor(colorHex));
+    } else {
+        drawable.setColor(Color.parseColor(colorHex));
+        button.setTextColor(Color.WHITE);
+    }
+    
+    drawable.setCornerRadius(8);
+    button.setBackground(drawable);
+    
+    if (!outlined && android.os.Build.VERSION.SDK_INT >= 21) {
+        button.setElevation(6);
+        button.setTranslationZ(3);
+    }
+    
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    button.setLayoutParams(params);
+    
+    return button;
+}
+
+private LinearLayout createFeatureCard(String icon, String title, String description, String colorHex) {
+    LinearLayout card = new LinearLayout(this);
+    card.setOrientation(LinearLayout.VERTICAL);
+    card.setPadding(16, 16, 16, 16);
+    card.setGravity(Gravity.CENTER);
+    
+    GradientDrawable drawable = new GradientDrawable();
+    drawable.setColor(Color.WHITE);
+    drawable.setCornerRadius(12);
+    drawable.setStroke(2, Color.parseColor(colorHex));
+    card.setBackground(drawable);
+    
+    // Icon
+    TextView iconText = new TextView(this);
+    iconText.setText(icon);
+    iconText.setTextSize(24);
+    iconText.setGravity(Gravity.CENTER);
+    iconText.setPadding(0, 0, 0, 8);
+    card.addView(iconText);
+    
+    // Title
+    TextView titleText = new TextView(this);
+    titleText.setText(title);
+    titleText.setTextSize(14);
+    titleText.setTextColor(Color.parseColor(colorHex));
+    titleText.setTypeface(null, Typeface.BOLD);
+    titleText.setGravity(Gravity.CENTER);
+    titleText.setPadding(0, 0, 0, 4);
+    card.addView(titleText);
+    
+    // Description
+    TextView descText = new TextView(this);
+    descText.setText(description);
+    descText.setTextSize(12);
+    descText.setTextColor(Color.parseColor("#757575"));
+    descText.setGravity(Gravity.CENTER);
+    descText.setMaxLines(2);
+    card.addView(descText);
+    
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+    card.setLayoutParams(params);
+    
+    return card;
+}
+
+private Button createActionChip(String text, String colorHex) {
+    Button chip = new Button(this);
+    chip.setText(text);
+    chip.setTextColor(Color.WHITE);
+    chip.setTextSize(12);
+    chip.setTypeface(null, Typeface.BOLD);
+    chip.setAllCaps(false);
+    chip.setPadding(16, 12, 16, 12);
+    
+    GradientDrawable drawable = new GradientDrawable();
+    drawable.setColor(Color.parseColor(colorHex));
+    drawable.setCornerRadius(20);
+    chip.setBackground(drawable);
+    
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+    chip.setLayoutParams(params);
+    
+    return chip;
+}
+
+private void addSpacing(LinearLayout layout, int dpSize) {
+    View space = new View(this);
+    space.setLayoutParams(new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT, dpSize));
+    layout.addView(space);
+}
+
+private void addHorizontalSpacing(LinearLayout layout, int dpSize) {
+    View space = new View(this);
+    space.setLayoutParams(new LinearLayout.LayoutParams(dpSize, LinearLayout.LayoutParams.MATCH_PARENT));
+    layout.addView(space);
+}
+ 
 // Helper method for menu buttons
 private Button createMenuButton(String text, String colorHex) {
     Button button = new Button(this);
@@ -347,7 +523,7 @@ private void showDetailedLogs() {
     backButton.setText("← Back");
     backButton.setTextColor(Color.parseColor("#059669"));
     backButton.setBackgroundColor(Color.TRANSPARENT);
-    backButton.setOnClickListener(v -> createSimplifiedUI());
+    backButton.setOnClickListener(v -> createModernUI());
     headerRow.addView(backButton);
     
     TextView logTitle = new TextView(this);
@@ -1601,7 +1777,7 @@ private void updateRiskLevel(int riskScore, String analysis) {
         backButton.setText("🔙 Back to AI Scam Detection");
         backButton.setBackgroundColor(Color.parseColor("#2E3192"));
         backButton.setTextColor(Color.WHITE);
-        backButton.setOnClickListener(v -> createSimplifiedUI());
+        backButton.setOnClickListener(v -> createModernUI());
         aboutLayout.addView(backButton);
         
         ScrollView scrollView = new ScrollView(this);
@@ -1682,95 +1858,6 @@ private void updateRiskLevel(int riskScore, String analysis) {
         Log.d(TAG, "Hello Hari AI Phase 3 resumed - UI refreshed");
     }
 
- // === MATERIAL DESIGN UI HELPERS ===
-
-private LinearLayout createMaterialCard() {
-    LinearLayout card = new LinearLayout(this);
-    card.setOrientation(LinearLayout.VERTICAL);
-    
-    // Material Design card with elevation
-    android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
-    drawable.setColor(Color.WHITE);
-    drawable.setCornerRadius(12); // Material corner radius
-    drawable.setStroke(0, Color.TRANSPARENT);
-    card.setBackground(drawable);
-    
-    // Material elevation shadow
-    if (android.os.Build.VERSION.SDK_INT >= 21) {
-        card.setElevation(4);
-        card.setTranslationZ(2);
-    }
-    
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    card.setLayoutParams(params);
-    
-    return card;
-}
-
-private Button createMaterialButton(String text, String colorHex, boolean outlined) {
-    Button button = new Button(this);
-    button.setText(text.toUpperCase()); // Material buttons use uppercase
-    button.setTextSize(16);
-    button.setTypeface(null, android.graphics.Typeface.BOLD);
-    button.setPadding(32, 20, 32, 20);
-    
-    android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
-    
-    if (outlined) {
-        // Outlined button style
-        drawable.setColor(Color.TRANSPARENT);
-        drawable.setStroke(4, Color.parseColor(colorHex));
-        button.setTextColor(Color.parseColor(colorHex));
-    } else {
-        // Filled button style
-        drawable.setColor(Color.parseColor(colorHex));
-        button.setTextColor(Color.WHITE);
-    }
-    
-    drawable.setCornerRadius(8); // Material corner radius
-    button.setBackground(drawable);
-    
-    // Material elevation for filled buttons
-    if (!outlined && android.os.Build.VERSION.SDK_INT >= 21) {
-        button.setElevation(6);
-        button.setTranslationZ(3);
-    }
-    
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    params.setMargins(0, 8, 0, 8);
-    button.setLayoutParams(params);
-    
-    return button;
-}
-
-private Button createMaterialChip(String text, String colorHex) {
-    Button chip = new Button(this);
-    chip.setText(text);
-    chip.setTextColor(Color.WHITE);
-    chip.setTextSize(12);
-    chip.setTypeface(null, android.graphics.Typeface.BOLD);
-    chip.setPadding(20, 16, 20, 16);
-    
-    android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
-    drawable.setColor(Color.parseColor(colorHex));
-    drawable.setCornerRadius(20); // Chip corner radius
-    chip.setBackground(drawable);
-    
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-    params.setMargins(6, 0, 6, 0);
-    chip.setLayoutParams(params);
-    
-    return chip;
-}
-
-private void addMaterialSpacing(LinearLayout layout, int dpSize) {
-    android.view.View space = new android.view.View(this);
-    space.setLayoutParams(new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, dpSize));
-    layout.addView(space);
-}   
+  
 }
 
