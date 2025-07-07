@@ -30,6 +30,7 @@ import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 import java.io.File;
+import android.view.View;
 import android.graphics.Typeface;
 
 public class MainActivity extends Activity implements SimpleCallDetector.CallDetectionListener {
@@ -1858,6 +1859,11 @@ private void updateRiskLevel(int riskScore, String analysis) {
         Log.d(TAG, "Hello Hari AI Phase 3 resumed - UI refreshed");
     }
 
-  
+  private void addHorizontalSpacing(LinearLayout layout, int dpSize) {
+    View space = new View(this);
+    space.setLayoutParams(new LinearLayout.LayoutParams(dpSize, LinearLayout.LayoutParams.MATCH_PARENT));
+    layout.addView(space);
+}
+
 }
 
