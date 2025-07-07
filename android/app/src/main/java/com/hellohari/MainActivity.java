@@ -1432,4 +1432,29 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         updateEnhancedUI();
         Log.d(TAG, "Hello Hari AI Phase 3 resumed - UI refreshed");
     }
+// === UI HELPER METHODS ===
+
+private LinearLayout createCard() {
+    // ... helper method code ...
+}
+
+private void addCardHeader(LinearLayout card, String icon, String title) {
+    // ... helper method code ...
+}
+
+private LinearLayout createStatusRow(String icon, String label) {
+    // ... helper method code ...
+}
+
+private Button createActionButton(String text, String colorHex) {
+    // ... helper method code ...
+}
+
+private void addCardSpacing(LinearLayout layout) {
+    // ... helper method code ...
+}
+
+private void addButtonSpacing(LinearLayout layout) {
+    // ... helper method code ...
+}
 }
