@@ -86,180 +86,56 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
 
     private void createEnhancedUI() {
         ScrollView scrollView = new ScrollView(this);
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(40, 40, 40, 40);
-        layout.setBackgroundColor(Color.parseColor("#F5F6FA"));
+        LinearLayout mainLayout = new LinearLayout(this);
+        mainLayout.setOrientation(LinearLayout.VERTICAL);
+        mainLayout.setPadding(16, 16, 16, 16);
+        mainLayout.setBackgroundColor(Color.parseColor("#F5F6FA"));
         
-        // Header with enhanced branding
+        // === HEADER CARD ===
+        LinearLayout headerCard = createCard();
+        headerCard.setBackgroundColor(Color.parseColor("#2E3192"));
+        headerCard.setPadding(24, 24, 24, 24);
+        
+        // App Title with Icon
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        
+        TextView titleIcon = new TextView(this);
+        titleIcon.setText("🛡️");
+        titleIcon.setTextSize(28);
+        titleIcon.setPadding(0, 0, 12, 0);
+        titleRow.addView(titleIcon);
+        
+        LinearLayout titleColumn = new LinearLayout(this);
+        titleColumn.setOrientation(LinearLayout.VERTICAL);
+        
         TextView title = new TextView(this);
         title.setText("Hello Hari (HH)");
-        title.setTextSize(32);
-        title.setTextColor(Color.parseColor("#2E3192"));
-        title.setPadding(0, 0, 0, 5);
-        layout.addView(title);
+        title.setTextSize(28);
+        title.setTextColor(Color.WHITE);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        titleColumn.addView(title);
         
         TextView subtitle = new TextView(this);
-        subtitle.setText("Phase 3 - AI Multi-Language Scam Detection & Smart Recording");
+        subtitle.setText("AI Multi-Language Scam Detection");
         subtitle.setTextSize(14);
-        subtitle.setTextColor(Color.parseColor("#666666"));
-        subtitle.setPadding(0, 0, 0, 10);
-        layout.addView(subtitle);
+        subtitle.setTextColor(Color.parseColor("#E3F2FD"));
+        titleColumn.addView(subtitle);
         
-        // Device compatibility info
-        deviceInfoText = new TextView(this);
-        deviceInfoText.setText("🤖 AI optimized for " + android.os.Build.MANUFACTURER + " " + 
-                              android.os.Build.MODEL + " (Android " + android.os.Build.VERSION.SDK_INT + ")");
-        deviceInfoText.setTextSize(12);
-        deviceInfoText.setTextColor(Color.parseColor("#888888"));
-        deviceInfoText.setPadding(0, 0, 0, 20);
-        layout.addView(deviceInfoText);
+        titleRow.addView(titleColumn);
+        headerCard.addView(titleRow);
         
-        // Status Section with enhanced info
-        statusText = new TextView(this);
-        statusText.setText("Status: Initializing AI multi-language scam detection...");
-        statusText.setTextSize(18);
-        statusText.setTextColor(Color.parseColor("#333333"));
-        statusText.setPadding(0, 0, 0, 10);
-        layout.addView(statusText);
+        // Phase indicator
+        TextView phaseIndicator = new TextView(this);
+        phaseIndicator.setText("🤖 Phase 3 - Real-time AI Analysis");
+        phaseIndicator.setTextSize(12);
+        phaseIndicator.setTextColor(Color.parseColor("#BBDEFB"));
+        phaseIndicator.setPadding(0, 8, 0, 0);
+        headerCard.addView(phaseIndicator);
         
-        // Enhanced Recording Status with AI info
-        recordingStatusText = new TextView(this);
-        recordingStatusText.setText("🎤 Smart Recording + 🤖 AI Analysis: Checking compatibility...");
-        recordingStatusText.setTextSize(16);
-        recordingStatusText.setTextColor(Color.parseColor("#666666"));
-        recordingStatusText.setPadding(0, 0, 0, 20);
-        layout.addView(recordingStatusText);
-        
-        // Enhanced Risk Level Section
-        TextView riskTitle = new TextView(this);
-        riskTitle.setText("🧠 AI Real-time Scam Risk Assessment:");
-        riskTitle.setTextSize(16);
-        riskTitle.setTextColor(Color.parseColor("#333333"));
-        riskTitle.setPadding(0, 0, 0, 10);
-        layout.addView(riskTitle);
-        
-        riskLevelText = new TextView(this);
-        riskLevelText.setText("0% - No active call (AI standby)");
-        riskLevelText.setTextSize(20);
-        riskLevelText.setTextColor(Color.parseColor("#4CAF50"));
-        riskLevelText.setPadding(0, 0, 0, 10);
-        layout.addView(riskLevelText);
-        
-        // Enhanced Risk Meter with better styling
-        riskMeter = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        riskMeter.setMax(100);
-        riskMeter.setProgress(0);
-        riskMeter.getProgressDrawable().setColorFilter(Color.parseColor("#4CAF50"), android.graphics.PorterDuff.Mode.SRC_IN);
-        LinearLayout.LayoutParams riskParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 40);
-        riskParams.setMargins(0, 0, 0, 30);
-        riskMeter.setLayoutParams(riskParams);
-        layout.addView(riskMeter);
-        
-        // Enhanced Permission button
-        permissionButton = new Button(this);
-        permissionButton.setText("🔐 Checking AI & Recording Permissions...");
-        permissionButton.setBackgroundColor(Color.parseColor("#FF9800"));
-        permissionButton.setTextColor(Color.WHITE);
-        permissionButton.setPadding(20, 15, 20, 15);
-        permissionButton.setOnClickListener(v -> handlePermissionRequest());
-        layout.addView(permissionButton);
-        
-        // Enhanced Monitor button
-        monitorButton = new Button(this);
-        monitorButton.setText("🚀 Start AI Scam Protection");
-        monitorButton.setBackgroundColor(Color.parseColor("#4CAF50"));
-        monitorButton.setTextColor(Color.WHITE);
-        monitorButton.setPadding(20, 15, 20, 15);
-        monitorButton.setOnClickListener(v -> toggleMonitoring());
-        
-        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        buttonParams.setMargins(0, 10, 0, 10);
-        monitorButton.setLayoutParams(buttonParams);
-        layout.addView(monitorButton);
-        
-        // Enhanced Audio Test button
-        testAudioButton = new Button(this);
-        testAudioButton.setText("🎤 Test Audio Recording Compatibility");
-        testAudioButton.setBackgroundColor(Color.parseColor("#FF5722"));
-        testAudioButton.setTextColor(Color.WHITE);
-        testAudioButton.setPadding(20, 15, 20, 15);
-        testAudioButton.setOnClickListener(v -> testAudioCompatibility());
-        
-        LinearLayout.LayoutParams testParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        testParams.setMargins(0, 0, 0, 10);
-        testAudioButton.setLayoutParams(testParams);
-        layout.addView(testAudioButton);
-        
-        // AI Test button
-        testAIButton = new Button(this);
-        testAIButton.setText("🤖 Test AI Multi-Language Detection");
-        testAIButton.setBackgroundColor(Color.parseColor("#9C27B0"));
-        testAIButton.setTextColor(Color.WHITE);
-        testAIButton.setPadding(20, 15, 20, 15);
-        testAIButton.setOnClickListener(v -> testAICompatibility());
-        
-        LinearLayout.LayoutParams aiTestParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        aiTestParams.setMargins(0, 0, 0, 10);
-        testAIButton.setLayoutParams(aiTestParams);
-        layout.addView(testAIButton);
-        
-        // Enhanced call log with better formatting
-        TextView logTitle = new TextView(this);
-        logTitle.setText("🤖 AI Scam Detection & Smart Recording Log:");
-        logTitle.setTextSize(16);
-        logTitle.setTextColor(Color.parseColor("#333333"));
-        logTitle.setPadding(0, 30, 0, 10);
-        layout.addView(logTitle);
-        
-        callLogText = new TextView(this);
-        callLogText.setText("Initializing Hello Hari AI Phase 3 System...\n\n" +
-                "🤖 AI SCAM DETECTION FEATURES:\n" +
-                "- Multi-language analysis (English, Hindi, Telugu)\n" +
-                "- 500+ scam keyword pattern database\n" +
-                "- Cross-language detection for mixed calls\n" +
-                "- Real-time risk scoring with visual feedback\n" +
-                "- Context-aware urgency & authority detection\n" +
-                "- Smart transcription quality assessment\n\n" +
-                "🎤 SMART FALLBACK RECORDING:\n" +
-                "- VOICE_RECOGNITION (Most Compatible)\n" +
-                "- VOICE_COMMUNICATION (VoIP Optimized)\n" +
-                "- CAMCORDER (Alternative Method)\n" +
-                "- MIC + Speaker (Guaranteed Fallback)\n" +
-                "- Real-time recording quality monitoring\n" +
-                "- Automatic method switching on failure\n\n" +
-                "🔒 PRIVACY GUARANTEE:\n" +
-                "- 100% local AI processing (no cloud)\n" +
-                "- No external data transmission\n" +
-                "- User-controlled keyword management\n" +
-                "- Transparent risk assessment\n\n" +
-                "Ready for advanced scam protection!");
-        callLogText.setTextSize(14);
-        callLogText.setTextColor(Color.parseColor("#666666"));
-        callLogText.setBackgroundColor(Color.parseColor("#FFFFFF"));
-        callLogText.setPadding(15, 15, 15, 15);
-        layout.addView(callLogText);
-        
-        // About button
-        Button aboutButton = new Button(this);
-        aboutButton.setText("ℹ️ About Hello Hari AI");
-        aboutButton.setBackgroundColor(Color.parseColor("#2E3192"));
-        aboutButton.setTextColor(Color.WHITE);
-        aboutButton.setPadding(20, 15, 20, 15);
-        aboutButton.setOnClickListener(v -> showAbout());
-        
-        LinearLayout.LayoutParams aboutParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        aboutParams.setMargins(0, 20, 0, 0);
-        aboutButton.setLayoutParams(aboutParams);
-        layout.addView(aboutButton);
-        
-        scrollView.addView(layout);
-        setContentView(scrollView);
+        mainLayout.addView(headerCard);
+        addCardSpacing(mainLayout);
     }
 
     private void checkUniversalPermissions() {
