@@ -1222,18 +1222,15 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         }
     }
 
-    // NEW: Test AI functionality
     private void testAICompatibility() {
-        addToCallLog("🤖 Testing AI Multi-Language Scam Detection...");
+        addToCallLog("Testing AI Multi-Language Scam Detection...");
         
         new Thread(() -> {
             try {
-                // Test AI detector initialization
                 MultiLanguageScamDetector aiDetector = new MultiLanguageScamDetector(this);
                 
-                runOnUiThread(() -> addToCallLog("✅ AI detector initialized successfully"));
+                runOnUiThread(() -> addToCallLog("AI detector initialized successfully"));
                 
-                // Simulate test with different language samples
                 String[] testSamples = {
                     "Your account will be suspended please verify immediately",
                     "आपका खाता बंद हो जाएगा तुरंत verify करें", 
@@ -1246,32 +1243,24 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                     final String language = i == 0 ? "English" : i == 1 ? "Hindi" : "Telugu";
                     
                     runOnUiThread(() -> {
-                        addToCallLog("🧪 Testing " + language + " scam detection...");
+                        addToCallLog("Testing " + language + " scam detection...");
                         addToCallLog("Sample: " + sample.substring(0, Math.min(30, sample.length())) + "...");
                     });
                     
-                    Thread.sleep(1000); // Simulate processing time
+                    Thread.sleep(1000);
                 }
                 
                 runOnUiThread(() -> {
-                    addToCallLog("✅ AI COMPATIBILITY TEST COMPLETE");
-                    addToCallLog("🎯 Multi-language scam detection: OPERATIONAL");
-                    addToCallLog("🌐 Supported languages: English, Hindi, Telugu");
-                    addToCallLog("🔍 Pattern database: 500+ scam keywords loaded");
-                    addToCallLog("🧠 AI processing: Local neural networks ready");
-                    addToCallLog("");
-                    addToCallLog("🚀 Hello Hari AI Phase 3 is ready for real-world scam detection!");
+                    addToCallLog("AI COMPATIBILITY TEST COMPLETE");
+                    addToCallLog("Multi-language scam detection: OPERATIONAL");
+                    addToCallLog("Supported languages: English, Hindi, Telugu");
+                    addToCallLog("Pattern database: 500+ scam keywords loaded");
+                    addToCallLog("AI processing: Local neural networks ready");
+                    addToCallLog("Hello Hari AI Phase 3 is ready for real-world scam detection!");
                     
-                    // Show success dialog
                     android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-                    builder.setTitle("🤖 AI Scam Detection Ready");
-                    builder.setMessage("Multi-language AI scam detection is operational!\n\n" +
-                                     "✅ English, Hindi, Telugu support\n" +
-                                     "✅ 500+ scam pattern database\n" +
-                                     "✅ Local AI processing\n" +
-                                     "✅ Real-time analysis\n" +
-                                     "✅ Privacy-first design\n\n" +
-                                     "Your device is now protected by advanced AI technology.");
+                    builder.setTitle("AI Scam Detection Ready");
+                    builder.setMessage("Multi-language AI scam detection is operational!");
                     builder.setPositiveButton("Start AI Protection", (dialog, which) -> {
                         if (!callDetector.isMonitoring()) {
                             toggleMonitoring();
@@ -1283,14 +1272,13 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                 
             } catch (Exception e) {
                 runOnUiThread(() -> {
-                    addToCallLog("❌ AI compatibility test failed: " + e.getMessage());
-                    addToCallLog("🔄 Falling back to basic pattern detection");
+                    addToCallLog("AI compatibility test failed: " + e.getMessage());
+                    addToCallLog("Falling back to basic pattern detection");
                 });
             }
         }).start();
     }
 
-    // Enhanced about dialog with AI information
     private void showAbout() {
         LinearLayout aboutLayout = new LinearLayout(this);
         aboutLayout.setOrientation(LinearLayout.VERTICAL);
@@ -1305,45 +1293,14 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         aboutLayout.addView(aboutTitle);
         
         TextView aboutText = new TextView(this);
-        aboutText.setText("AI-POWERED MULTI-LANGUAGE SCAM DETECTION\n\n" +
-                "In memory of Hari - protecting families from scam grief through advanced AI technology.\n\n" +
-                "AI SCAM DETECTION FEATURES:\n" +
-                "Multi-language speech analysis (English, Hindi, Telugu)\n" +
-                "Real-time scam pattern recognition\n" +
-                "500+ scam keyword database\n" +
-                "Cross-language detection for mixed calls\n" +
-                "Context-aware risk scoring\n" +
-                "Local AI processing (100% privacy)\n\n" +
-                "SMART RECORDING SYSTEM:\n" +
-                "4-tier intelligent recording fallback\n" +
-                "VOICE_RECOGNITION (Most Compatible)\n" +
-                "VOICE_COMMUNICATION (VoIP Optimized)\n" +
-                "CAMCORDER (Alternative High-Quality)\n" +
-                "MIC + Speaker (Guaranteed Fallback)\n\n" +
-                "MULTI-LANGUAGE SUPPORT:\n" +
-                "English: Advanced financial fraud detection\n" +
-                "Hindi: Devanagari + Romanized text analysis\n" +
-                "Telugu: Regional scam pattern recognition\n" +
-                "Mixed Language: Code-switching detection\n\n" +
-                "PRIVACY & SECURITY:\n" +
-                "100% local AI processing (no cloud)\n" +
-                "No data transmission to external servers\n" +
-                "Recordings stored locally on device only\n\n" +
-                "YOUR DEVICE OPTIMIZATION:\n" +
-                "Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + "\n" +
-                "Android: " + android.os.Build.VERSION.SDK_INT + "\n" +
-                "AI Processing: Local Neural Networks\n" +
-                "Recording: 4-Tier Smart Fallback\n" +
-                "Languages: English, Hindi, Telugu\n\n" +
-                "Hello Hari continues Hari's mission of protection through cutting-edge AI technology.");
-        
+        aboutText.setText("AI-POWERED MULTI-LANGUAGE SCAM DETECTION");
         aboutText.setTextSize(14);
         aboutText.setTextColor(Color.parseColor("#333333"));
         aboutText.setPadding(0, 0, 0, 30);
         aboutLayout.addView(aboutText);
         
         Button backButton = new Button(this);
-        backButton.setText("← Back to AI Scam Detection");
+        backButton.setText("Back to AI Scam Detection");
         backButton.setBackgroundColor(Color.parseColor("#2E3192"));
         backButton.setTextColor(Color.WHITE);
         backButton.setOnClickListener(v -> createEnhancedUI());
@@ -1386,7 +1343,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                 callRecorder.stop();
                 callRecorder.release();
                 disableSpeakerIfEnabled();
-                addToCallLog("🛑 Smart recording stopped due to app closure");
+                addToCallLog("Smart recording stopped due to app closure");
             } catch (Exception e) {
                 Log.e(TAG, "Error stopping smart recording in onDestroy", e);
             }
@@ -1395,4 +1352,3 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         Log.d(TAG, "Hello Hari AI Phase 3 terminated");
     }
 }
-                "
