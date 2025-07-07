@@ -479,11 +479,7 @@ private void addSpacing(LinearLayout layout, int dpSize) {
     layout.addView(space);
 }
 
-private void addHorizontalSpacing(LinearLayout layout, int dpSize) {
-    View space = new View(this);
-    space.setLayoutParams(new LinearLayout.LayoutParams(dpSize, LinearLayout.LayoutParams.MATCH_PARENT));
-    layout.addView(space);
-}
+
  
 // Helper method for menu buttons
 private Button createMenuButton(String text, String colorHex) {
