@@ -1435,27 +1435,103 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
 // === UI HELPER METHODS ===
 
 private LinearLayout createCard() {
-    // ... helper method code ...
+    LinearLayout card = new LinearLayout(this);
+    card.setOrientation(LinearLayout.VERTICAL);
+    card.setBackgroundColor(Color.WHITE);
+    card.setPadding(20, 20, 20, 20);
+    
+    // Add card elevation effect with border
+    android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
+    drawable.setColor(Color.WHITE);
+    drawable.setCornerRadius(12);
+    drawable.setStroke(1, Color.parseColor("#E0E0E0"));
+    card.setBackground(drawable);
+    
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    card.setLayoutParams(params);
+    
+    return card;
 }
 
 private void addCardHeader(LinearLayout card, String icon, String title) {
-    // ... helper method code ...
+    LinearLayout headerRow = new LinearLayout(this);
+    headerRow.setOrientation(LinearLayout.HORIZONTAL);
+    headerRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    headerRow.setPadding(0, 0, 0, 16);
+    
+    TextView iconView = new TextView(this);
+    iconView.setText(icon);
+    iconView.setTextSize(20);
+    iconView.setPadding(0, 0, 12, 0);
+    headerRow.addView(iconView);
+    
+    TextView titleView = new TextView(this);
+    titleView.setText(title);
+    titleView.setTextSize(18);
+    titleView.setTextColor(Color.parseColor("#333333"));
+    titleView.setTypeface(null, android.graphics.Typeface.BOLD);
+    headerRow.addView(titleView);
+    
+    card.addView(headerRow);
 }
 
 private LinearLayout createStatusRow(String icon, String label) {
-    // ... helper method code ...
+    LinearLayout row = new LinearLayout(this);
+    row.setOrientation(LinearLayout.HORIZONTAL);
+    row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    row.setPadding(0, 4, 0, 4);
+    
+    TextView iconView = new TextView(this);
+    iconView.setText(icon);
+    iconView.setTextSize(16);
+    iconView.setPadding(0, 0, 12, 0);
+    row.addView(iconView);
+    
+    TextView labelView = new TextView(this);
+    labelView.setText(label);
+    labelView.setTextSize(14);
+    labelView.setTextColor(Color.parseColor("#666666"));
+    labelView.setPadding(0, 0, 8, 0);
+    row.addView(labelView);
+    
+    return row;
 }
 
 private Button createActionButton(String text, String colorHex) {
-    // ... helper method code ...
+    Button button = new Button(this);
+    button.setText(text);
+    button.setTextColor(Color.WHITE);
+    button.setTextSize(16);
+    button.setTypeface(null, android.graphics.Typeface.BOLD);
+    button.setPadding(24, 16, 24, 16);
+    
+    // Create rounded button background
+    android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
+    drawable.setColor(Color.parseColor(colorHex));
+    drawable.setCornerRadius(8);
+    button.setBackground(drawable);
+    
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    button.setLayoutParams(params);
+    
+    return button;
 }
 
 private void addCardSpacing(LinearLayout layout) {
-    // ... helper method code ...
+    android.view.View space = new android.view.View(this);
+    space.setLayoutParams(new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT, 16));
+    layout.addView(space);
 }
 
 private void addButtonSpacing(LinearLayout layout) {
-    // ... helper method code ...
+    android.view.View space = new android.view.View(this);
+    space.setLayoutParams(new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT, 8));
+    layout.addView(space);
 }
+    
 }
-}
+
