@@ -25,6 +25,16 @@ import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 import java.io.File;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.GradientDrawable;
+import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Button;
+import android.view.Gravity;
+import android.graphics.Typeface;
 
 public class MainActivity extends Activity implements SimpleCallDetector.CallDetectionListener {
     private static final String TAG = "HelloHariMain";
@@ -1675,129 +1685,6 @@ private void updateRiskLevel(int riskScore, String analysis) {
         updateSimplifiedUI();
         Log.d(TAG, "Hello Hari AI Phase 3 resumed - UI refreshed");
     }
-// === UI HELPER METHODS ===
-
-private LinearLayout createCard() {
-    LinearLayout card = new LinearLayout(this);
-    card.setOrientation(LinearLayout.VERTICAL);
-    card.setBackgroundColor(Color.WHITE);
-    card.setPadding(20, 20, 20, 20);
-    
-    // Add modern card elevation effect with subtle border
-    android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
-    drawable.setColor(Color.WHITE);
-    drawable.setCornerRadius(16); // More rounded corners for modern look
-    drawable.setStroke(1, Color.parseColor("#E5E7EB")); // Modern light border
-    card.setBackground(drawable);
-    
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    card.setLayoutParams(params);
-    
-    return card;
-}
-
-private void addCardHeader(LinearLayout card, String icon, String title) {
-    LinearLayout headerRow = new LinearLayout(this);
-    headerRow.setOrientation(LinearLayout.HORIZONTAL);
-    headerRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
-    headerRow.setPadding(0, 0, 0, 16);
-    
-    TextView iconView = new TextView(this);
-    iconView.setText(icon);
-    iconView.setTextSize(22); // Slightly larger icons
-    iconView.setPadding(0, 0, 14, 0);
-    headerRow.addView(iconView);
-    
-    TextView titleView = new TextView(this);
-    titleView.setText(title);
-    titleView.setTextSize(18);
-    titleView.setTextColor(Color.parseColor("#1F2937")); // Modern dark text
-    titleView.setTypeface(null, android.graphics.Typeface.BOLD);
-    headerRow.addView(titleView);
-    
-    card.addView(headerRow);
-}
-
-private LinearLayout createStatusRow(String icon, String label) {
-    LinearLayout row = new LinearLayout(this);
-    row.setOrientation(LinearLayout.HORIZONTAL);
-    row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-    row.setPadding(0, 6, 0, 6); // Slightly more padding
-    
-    TextView iconView = new TextView(this);
-    iconView.setText(icon);
-    iconView.setTextSize(16);
-    iconView.setPadding(0, 0, 12, 0);
-    row.addView(iconView);
-    
-    TextView labelView = new TextView(this);
-    labelView.setText(label);
-    labelView.setTextSize(14);
-    labelView.setTextColor(Color.parseColor("#6B7280")); // Modern medium gray
-    labelView.setPadding(0, 0, 8, 0);
-    row.addView(labelView);
-    
-    return row;
-}
-
-private Button createActionButton(String text, String colorHex) {
-    Button button = new Button(this);
-    button.setText(text);
-    button.setTextColor(Color.WHITE);
-    button.setTextSize(16);
-    button.setTypeface(null, android.graphics.Typeface.BOLD);
-    button.setPadding(24, 18, 24, 18); // More padding for better touch targets
-    
-    // Create modern rounded button background with subtle shadow effect
-    android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
-    drawable.setColor(Color.parseColor(colorHex));
-    drawable.setCornerRadius(12); // More rounded for modern look
-    button.setBackground(drawable);
-    
-    // Add subtle elevation effect
-    if (android.os.Build.VERSION.SDK_INT >= 21) {
-        button.setElevation(4);
-        button.setTranslationZ(2);
-    }
-    
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    params.setMargins(0, 4, 0, 4); // Small margins for spacing
-    button.setLayoutParams(params);
-    
-    return button;
-}
-
-private void addCardSpacing(LinearLayout layout) {
-    android.view.View space = new android.view.View(this);
-    space.setLayoutParams(new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, 20)); // More spacing for modern look
-    layout.addView(space);
-}
-
-private void addButtonSpacing(LinearLayout layout) {
-    android.view.View space = new android.view.View(this);
-    space.setLayoutParams(new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, 12)); // More spacing between buttons
-    layout.addView(space);
-}
-
-// Method to export logs (basic implementation)
-private void exportLogs(String logContent) {
-    try {
-        // Create a simple toast for now - in production this would save to file
-        android.widget.Toast.makeText(this, 
-            "Logs ready for export (" + logContent.length() + " characters)", 
-            android.widget.Toast.LENGTH_LONG).show();
-        
-        addToCallLog("📤 Logs exported successfully");
-    } catch (Exception e) {
-        android.widget.Toast.makeText(this, 
-            "Export failed: " + e.getMessage(), 
-            android.widget.Toast.LENGTH_SHORT).show();
-    }
-}
 
  // === MATERIAL DESIGN UI HELPERS ===
 
