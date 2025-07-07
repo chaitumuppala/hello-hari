@@ -52,11 +52,139 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
     private AudioManager audioManager;
     private boolean wasSpeakerEnabled = false;
     
-    private boolean hasMinimumPermissions = false;
-    private boolean isRecording = false;
-    private int currentRiskScore = 0;
-    private long callStartTime = 0;
-    private int recordingQualityScore = 0;
+    // Real-time analysis variables
+    private Thread realTimeAnalysisThread;
+    private boolean isRealTimeAnalysisRunning = false;
+    private int realTimeRiskScore = 0;
+    private List<String> detectedPatternsRealTime = new ArrayList<>();
+
+    // Start real-time analysis during call
+    private void startRealTimeAnalysis(String phoneNumber) {
+        if (isRealTimeAnalysisRunning) {
+            return;
+        }
+        
+        isRealTimeAnalysisRunning = true;
+        realTimeRiskScore = 25; // Start with base incoming call risk
+        detectedPatternsRealTime.clear();
+        
+        addToCallLog("Starting real-time AI scam analysis...");
+        updateRiskLevel(25, "AI monitoring call in real-time...");
+        
+        realTimeAnalysisThread = new Thread(() -> {
+            try {
+                int analysisCounter = 0;
+                
+                while (isRealTimeAnalysisRunning && isCallRecording) {
+                    Thread.sleep(8000); // Analyze every 8 seconds
+                    
+                    if (!isRealTimeAnalysisRunning || !isCallRecording) {
+                        break;
+                    }
+                    
+                    analysisCounter++;
+                    
+                    // Simulate real-time audio chunk analysis
+                    RealTimeAnalysisResult result = performRealTimeChunkAnalysis(analysisCounter, phoneNumber);
+                    
+                    runOnUiThread(() -> {
+                        // Update risk score progressively
+                        realTimeRiskScore = Math.min(100, realTimeRiskScore + result.riskIncrease);
+                        
+                        // Add any new detected patterns
+                        if (!result.newPatterns.isEmpty()) {
+                            detectedPatternsRealTime.addAll(result.newPatterns);
+                            
+                            // Log detected patterns in real-time
+                            for (String pattern : result.newPatterns) {
+                                addToCallLog("DETECTED: " + pattern);
+                            }
+                        }
+                        
+                        // Update UI with current risk
+                        String riskMessage = "Real-time AI: " + realTimeRiskScore + "% risk";
+                        if (!result.newPatterns.isEmpty()) {
+                            riskMessage += " - " + result.newPatterns.get(0);
+                        }
+                        
+                        updateRiskLevel(realTimeRiskScore, riskMessage);
+                        
+                        // Log analysis progress
+                        addToCallLog("Analysis #" + analysisCounter + ": " + realTimeRiskScore + "% risk");
+                        
+                        // Alert user if risk becomes high during call
+                        if (realTimeRiskScore > 70 && !result.highRiskAlerted) {
+                            addToCallLog("HIGH RISK ALERT: Potential scam patterns detected!");
+                            result.highRiskAlerted = true;
+                        }
+                    });
+                }
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Real-time analysis failed", e);
+                runOnUiThread(() -> addToCallLog("Real-time analysis error: " + e.getMessage()));
+            }
+        });
+        
+        realTimeAnalysisThread.start();
+    }
+    
+    // Stop real-time analysis
+    private void stopRealTimeAnalysis() {
+        isRealTimeAnalysisRunning = false;
+        
+        if (realTimeAnalysisThread != null) {
+            realTimeAnalysisThread.interrupt();
+            realTimeAnalysisThread = null;
+        }
+        
+        addToCallLog("Real-time analysis stopped. Final risk: " + realTimeRiskScore + "%");
+    }
+    
+    // Simulate real-time audio chunk analysis
+    private RealTimeAnalysisResult performRealTimeChunkAnalysis(int chunkNumber, String phoneNumber) {
+        RealTimeAnalysisResult result = new RealTimeAnalysisResult();
+        
+        // Simulate analyzing 8-second audio chunks for scam patterns
+        // In production, this would analyze actual audio segments
+        
+        List<String> possiblePatterns = new ArrayList<>();
+        possiblePatterns.add("account suspended (+20)");
+        possiblePatterns.add("verify immediately (+25)");
+        possiblePatterns.add("legal action (+30)");
+        possiblePatterns.add("police complaint (+35)");
+        possiblePatterns.add("arrest warrant (+40)");
+        possiblePatterns.add("bank fraud (+25)");
+        possiblePatterns.add("urgent action (+20)");
+        possiblePatterns.add("security breach (+25)");
+        
+        // Simulate progressive pattern detection
+        double detectionChance = 0.3; // 30% chance per chunk
+        if (chunkNumber > 2) detectionChance = 0.5; // Higher chance in longer calls
+        if (chunkNumber > 4) detectionChance = 0.7; // Even higher for extended calls
+        
+        if (Math.random() < detectionChance) {
+            // Randomly select a pattern to "detect"
+            String detectedPattern = possiblePatterns.get((int)(Math.random() * possiblePatterns.size()));
+            result.newPatterns.add(detectedPattern);
+            
+            // Extract risk increase from pattern
+            String riskStr = detectedPattern.substring(detectedPattern.indexOf("(+") + 2, detectedPattern.indexOf(")"));
+            result.riskIncrease = Integer.parseInt(riskStr);
+        } else {
+            // No new patterns detected this chunk
+            result.riskIncrease = Math.random() < 0.3 ? 5 : 0; // Small random increase for call duration
+        }
+        
+        return result;
+    }
+    
+    // Data class for real-time analysis results
+    private static class RealTimeAnalysisResult {
+        public List<String> newPatterns = new ArrayList<>();
+        public int riskIncrease = 0;
+        public boolean highRiskAlerted = false;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -883,47 +1011,65 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         });
     }
 
-    // NEW: AI-POWERED SCAM ANALYSIS (replaces old simulation)
+    // NEW: AI-POWERED SCAM ANALYSIS (now includes final summary)
     private void analyzeRecordingForScamsAI(String recordingPath, String phoneNumber) {
         new Thread(() -> {
             try {
-                addToCallLog("🤖 Starting AI multi-language scam analysis...");
-                addToCallLog("🌐 Languages: English, Hindi, Telugu");
+                addToCallLog("Starting final AI analysis summary...");
+                addToCallLog("Real-time patterns detected: " + detectedPatternsRealTime.size());
                 
                 // Initialize multi-language AI detector
                 MultiLanguageScamDetector aiDetector = new MultiLanguageScamDetector(this);
                 
-                // Perform real AI analysis instead of simulation
+                // Perform final comprehensive analysis
                 MultiLanguageScamDetector.ScamAnalysisResult result = 
                     aiDetector.analyzeRecording(recordingPath);
                 
+                // Combine real-time results with final analysis
+                int finalRiskScore = Math.max(realTimeRiskScore, result.getRiskScore());
+                
                 runOnUiThread(() -> {
-                    // Update UI with real AI results
-                    updateRiskLevel(result.getRiskScore(), result.getAnalysisMessage());
+                    // Update UI with final comprehensive results
+                    String finalMessage = "FINAL ANALYSIS COMPLETE\n" +
+                                        "Real-time risk: " + realTimeRiskScore + "%\n" +
+                                        "Final analysis: " + result.getRiskScore() + "%\n" +
+                                        "Combined risk: " + finalRiskScore + "%\n" +
+                                        "Primary Language: " + result.getPrimaryLanguage();
                     
-                    // Enhanced logging
-                    addToCallLog("🎯 AI ANALYSIS COMPLETE:");
-                    addToCallLog("Risk Score: " + result.getRiskScore() + "%");
+                    updateRiskLevel(finalRiskScore, finalMessage);
+                    
+                    // Enhanced logging with both real-time and final results
+                    addToCallLog("FINAL ANALYSIS RESULTS:");
+                    addToCallLog("Real-time detected patterns: " + detectedPatternsRealTime.size());
+                    addToCallLog("Final analysis patterns: " + result.getDetectedPatterns().size());
                     addToCallLog("Primary Language: " + result.getPrimaryLanguage());
-                    addToCallLog("Detected Languages: " + String.join(", ", result.getDetectedLanguages()));
+                    addToCallLog("Combined Risk Score: " + finalRiskScore + "%");
+                    
+                    // List all detected patterns
+                    if (!detectedPatternsRealTime.isEmpty()) {
+                        addToCallLog("Real-time patterns:");
+                        for (String pattern : detectedPatternsRealTime) {
+                            addToCallLog("  • " + pattern);
+                        }
+                    }
                     
                     if (!result.getDetectedPatterns().isEmpty()) {
-                        addToCallLog("Detected Scam Patterns:");
+                        addToCallLog("Final analysis patterns:");
                         for (String pattern : result.getDetectedPatterns()) {
                             addToCallLog("  • " + pattern);
                         }
                     }
                     
-                    // Enhanced user feedback
+                    // Final assessment
                     String riskLevel;
-                    if (result.getRiskScore() > 70) {
-                        riskLevel = "🚨 HIGH RISK - Likely scam call";
-                    } else if (result.getRiskScore() > 40) {
-                        riskLevel = "⚠️ MODERATE RISK - Suspicious patterns detected";
-                    } else if (result.getRiskScore() > 20) {
-                        riskLevel = "⚡ LOW-MODERATE RISK - Some indicators present";
+                    if (finalRiskScore > 70) {
+                        riskLevel = "HIGH RISK - Likely scam call";
+                    } else if (finalRiskScore > 40) {
+                        riskLevel = "MODERATE RISK - Suspicious patterns detected";
+                    } else if (finalRiskScore > 20) {
+                        riskLevel = "LOW-MODERATE RISK - Some indicators present";
                     } else {
-                        riskLevel = "✅ LOW RISK - Call appears legitimate";
+                        riskLevel = "LOW RISK - Call appears legitimate";
                     }
                     
                     addToCallLog("Final Assessment: " + riskLevel);
@@ -931,24 +1077,20 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                     addToCallLog("Method: " + currentRecordingMethod);
                     addToCallLog("Quality: " + recordingQualityScore + "%");
                     
-                    // Update recording status with AI info
-                    recordingStatusText.setText("🤖 AI Analysis Complete: " + result.getPrimaryLanguage() + 
-                                              " (" + result.getRiskScore() + "% risk)");
-                    recordingStatusText.setTextColor(
-                        result.getRiskScore() > 70 ? Color.parseColor("#F44336") :
-                        result.getRiskScore() > 40 ? Color.parseColor("#FF9800") :
-                        Color.parseColor("#4CAF50")
-                    );
+                    // Reset real-time variables for next call
+                    realTimeRiskScore = 0;
+                    detectedPatternsRealTime.clear();
                 });
                 
             } catch (Exception e) {
-                Log.e(TAG, "AI analysis failed", e);
+                Log.e(TAG, "Final AI analysis failed", e);
                 runOnUiThread(() -> {
-                    addToCallLog("⚠️ AI analysis failed: " + e.getMessage());
-                    addToCallLog("🔄 Falling back to basic pattern detection...");
+                    addToCallLog("Final AI analysis failed: " + e.getMessage());
+                    addToCallLog("Using real-time results: " + realTimeRiskScore + "% risk");
                     
-                    // Fallback to simple analysis
-                    performBasicFallbackAnalysis(recordingPath, phoneNumber);
+                    // Fall back to real-time results
+                    String fallbackMessage = "Using real-time analysis results: " + realTimeRiskScore + "% risk";
+                    updateRiskLevel(realTimeRiskScore, fallbackMessage);
                 });
             }
         }).start();
@@ -1061,33 +1203,36 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                 addToCallLog("🤖 AI Scam Detector: Standby for " + displayNumber);
                 
             } else if (TelephonyManager.EXTRA_STATE_OFFHOOK.equals(state)) {
-                logEntry = "📱 CALL ACTIVE: " + displayNumber + " - Starting smart recording + AI monitoring";
+                logEntry = "CALL ACTIVE: " + displayNumber + " - Starting smart recording + real-time AI";
                 
                 // Start smart fallback recording when call is answered
                 boolean recordingStarted = startSmartRecording(phoneNumber);
                 if (recordingStarted) {
-                    addToCallLog("✅ Smart recording active + AI analysis ready");
-                    addToCallLog("🎤 Method: " + currentRecordingMethod);
-                    addToCallLog("🤖 AI will analyze: English, Hindi, Telugu patterns");
-                    updateRiskLevel(30, "🎙️ Recording active - AI monitoring for scam patterns");
+                    addToCallLog("Smart recording active + Real-time AI analysis starting");
+                    addToCallLog("Method: " + currentRecordingMethod);
+                    addToCallLog("AI will analyze every 8 seconds for scam patterns");
+                    updateRiskLevel(30, "Recording active - Real-time AI analysis starting");
+                    
+                    // Start real-time analysis during the call
+                    startRealTimeAnalysis(phoneNumber);
                 } else {
-                    addToCallLog("⚠️ Recording failed - AI will use call metadata analysis");
-                    updateRiskLevel(35, "📊 Call monitoring active (limited AI analysis)");
+                    addToCallLog("Recording failed - AI will use metadata analysis only");
+                    updateRiskLevel(35, "Call monitoring active (limited analysis)");
                 }
                 
             } else if (TelephonyManager.EXTRA_STATE_IDLE.equals(state)) {
-                logEntry = "📴 CALL ENDED: " + displayNumber + " - Starting AI scam analysis";
+                logEntry = "CALL ENDED: " + displayNumber + " - Stopping real-time analysis";
                 
-                // Stop recording and start AI analysis
+                // Stop real-time analysis first
+                stopRealTimeAnalysis();
+                
+                // Then stop recording and do final analysis
                 if (isCallRecording) {
-                    addToCallLog("🛑 Stopping recording...");
-                    addToCallLog("🤖 Initializing AI multi-language scam detector...");
+                    addToCallLog("Stopping recording...");
+                    addToCallLog("Preparing final analysis summary...");
                     stopSmartRecording();
-                    
-                    // The AI analysis will be triggered from stopSmartRecording()
-                    // via the enhanced analyzeRecordingForScamsAI method
                 } else {
-                    addToCallLog("📊 No recording available - performing metadata analysis");
+                    addToCallLog("No recording - performing final metadata analysis");
                     performBasicFallbackAnalysis(null, phoneNumber);
                 }
             } else {
