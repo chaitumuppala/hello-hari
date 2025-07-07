@@ -1,19 +1,24 @@
 package com.hellohari;
 
+import android.view.Gravity;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
-import android.widget.TextView;
+import android.util.Log;
+import android.view.Gravity;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.TextView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import android.util.Log;
@@ -25,15 +30,6 @@ import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 import java.io.File;
-import android.graphics.Color;
-import android.graphics.PorterDuff;
-import android.graphics.drawable.GradientDrawable;
-import android.widget.ProgressBar;
-import android.widget.ScrollView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.Button;
-import android.view.Gravity;
 import android.graphics.Typeface;
 
 public class MainActivity extends Activity implements SimpleCallDetector.CallDetectionListener {
