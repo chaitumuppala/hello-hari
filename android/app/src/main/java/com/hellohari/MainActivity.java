@@ -591,6 +591,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                     }
                     
                     analysisCounter++;
+                    final int currentAnalysisCount = analysisCounter; // Make final for lambda
                     
                     // Simulate real-time audio chunk analysis
                     RealTimeAnalysisResult result = performRealTimeChunkAnalysis(analysisCounter, phoneNumber);
@@ -617,8 +618,8 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                         
                         updateRiskLevel(realTimeRiskScore, riskMessage);
                         
-                        // Log analysis progress
-                        addToCallLog("Analysis #" + analysisCounter + ": " + realTimeRiskScore + "% risk");
+                        // Log analysis progress using final variable
+                        addToCallLog("Analysis #" + currentAnalysisCount + ": " + realTimeRiskScore + "% risk");
                         
                         // Alert user if risk becomes high during call
                         if (realTimeRiskScore > 70 && !result.highRiskAlerted) {
