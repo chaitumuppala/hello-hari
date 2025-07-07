@@ -170,7 +170,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
     private void createHeader() {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.VERTICAL);
-        header.setBackgroundColor(Color.parseColor("#1565C0"));
+        header.setBackgroundColor(Color.parseColor("#3B82F6"));
         header.setPadding(24, 48, 24, 32);
         
         LinearLayout titleRow = new LinearLayout(this);
@@ -363,7 +363,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         detailsRow.addView(globeIcon);
         
         TextView langStatus = new TextView(this);
-        langStatus.setText("EN/HI/TE Detection");
+        langStatus.setText("English/Hindi/Telugu Detection");
         langStatus.setTextSize(12);
         langStatus.setTextColor(Color.parseColor("#1E3A8A"));
         detailsRow.addView(langStatus);
@@ -394,7 +394,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         riskLevelText = new TextView(this);
         riskLevelText.setText("0%");
         riskLevelText.setTextSize(14);
-        riskLevelText.setTextColor(Color.parseColor("#059669"));
+        riskLevelText.setTextColor(Color.parseColor("#10B981"));
         riskLevelText.setTypeface(null, Typeface.BOLD);
         riskHeader.addView(riskLevelText);
         
@@ -403,7 +403,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         riskMeter = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         riskMeter.setMax(100);
         riskMeter.setProgress(0);
-        riskMeter.getProgressDrawable().setColorFilter(Color.parseColor("#059669"), PorterDuff.Mode.SRC_IN);
+        riskMeter.getProgressDrawable().setColorFilter(Color.parseColor("#10B981"), PorterDuff.Mode.SRC_IN);
         LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 24);
         riskMeter.setLayoutParams(progressParams);
@@ -436,9 +436,9 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         row1.setOrientation(LinearLayout.HORIZONTAL);
         row1.setWeightSum(2.0f);
         
-        row1.addView(createFeatureItem("🧠", "Real-time", "8-sec analysis", "#2563EB"));
+        row1.addView(createFeatureItem("🧠", "Real-time", "8-sec analysis", "#3B82F6"));
         addHorizontalSpacing(row1, 16);
-        row1.addView(createFeatureItem("🌐", "Multi-language", "EN/HI/TE", "#7C3AED"));
+        row1.addView(createFeatureItem("🌐", "Multi-language", "English/Hindi/Telugu", "#8B5CF6"));
         
         card.addView(row1);
         addSpacing(card, 16);
@@ -447,9 +447,9 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         row2.setOrientation(LinearLayout.HORIZONTAL);
         row2.setWeightSum(2.0f);
         
-        row2.addView(createFeatureItem("🎤", "Smart Recording", "4-tier fallback", "#059669"));
+        row2.addView(createFeatureItem("🎤", "Smart Recording", "4-tier fallback", "#10B981"));
         addHorizontalSpacing(row2, 16);
-        row2.addView(createFeatureItem("🔒", "Privacy First", "Local only", "#DC2626"));
+        row2.addView(createFeatureItem("🔒", "Data Storage", "Local only", "#EF4444"));
         
         card.addView(row2);
         parent.addView(card);
@@ -518,7 +518,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         actionsRow.setOrientation(LinearLayout.HORIZONTAL);
         actionsRow.setWeightSum(2.0f);
         
-        Button historyButton = createActionButton("📞 Call History", "#2563EB");
+        Button historyButton = createActionButton("📞 Call History", "#3B82F6");
         historyButton.setOnClickListener(v -> {
             try {
                 showCallHistory();
@@ -740,13 +740,18 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         try {
             runOnUiThread(() -> {
                 try {
+                    // Only update UI if we're in main view to prevent button label interference
+                    if (currentView != ViewState.MAIN) {
+                        return;
+                    }
+                    
                     if (isProtectionActive) {
-                        statusIndicator.setTextColor(Color.parseColor("#059669"));
+                        statusIndicator.setTextColor(Color.parseColor("#10B981"));
                         protectionStatusText.setText("Protection Active");
-                        protectionStatusText.setTextColor(Color.parseColor("#059669"));
+                        protectionStatusText.setTextColor(Color.parseColor("#10B981"));
                         
                         GradientDrawable stopButtonDrawable = new GradientDrawable();
-                        stopButtonDrawable.setColor(Color.parseColor("#DC2626"));
+                        stopButtonDrawable.setColor(Color.parseColor("#EF4444"));
                         stopButtonDrawable.setCornerRadius(12);
                         mainActionButton.setBackground(stopButtonDrawable);
                         mainActionButton.setText("Stop Protection");
@@ -762,7 +767,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                         protectionStatusText.setTextColor(Color.parseColor("#374151"));
                         
                         GradientDrawable startButtonDrawable = new GradientDrawable();
-                        startButtonDrawable.setColor(Color.parseColor("#059669"));
+                        startButtonDrawable.setColor(Color.parseColor("#10B981"));
                         startButtonDrawable.setCornerRadius(12);
                         mainActionButton.setBackground(startButtonDrawable);
                         mainActionButton.setText("Start Protection");
@@ -810,13 +815,13 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
             title.setPadding(0, 0, 0, 16);
             systemStatusCard.addView(title);
             
-            systemStatusCard.addView(createStatusItem("🟢", "Call Monitoring", "Active", "#059669"));
+            systemStatusCard.addView(createStatusItem("🟢", "Call Monitoring", "Active", "#10B981"));
             addSpacing(systemStatusCard, 8);
             
-            systemStatusCard.addView(createStatusItem("🎤", "Recording System", currentRecordingMethod, "#2563EB"));
+            systemStatusCard.addView(createStatusItem("🎤", "Recording System", currentRecordingMethod, "#3B82F6"));
             addSpacing(systemStatusCard, 8);
             
-            systemStatusCard.addView(createStatusItem("🧠", "Detection Engine", "Ready", "#7C3AED"));
+            systemStatusCard.addView(createStatusItem("🧠", "Detection Engine", "Ready", "#8B5CF6"));
             
             systemStatusCard.setVisibility(View.VISIBLE);
         } catch (Exception e) {
@@ -881,25 +886,40 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         try {
             mainContainer.removeAllViews();
             
+            // Header with improved back button
             LinearLayout header = new LinearLayout(this);
             header.setOrientation(LinearLayout.VERTICAL);
-            header.setBackgroundColor(Color.parseColor("#1565C0"));
+            header.setBackgroundColor(Color.parseColor("#3B82F6"));
             header.setPadding(24, 48, 24, 32);
+            
+            // Back button container with centered alignment
+            LinearLayout backButtonContainer = new LinearLayout(this);
+            backButtonContainer.setOrientation(LinearLayout.HORIZONTAL);
+            backButtonContainer.setGravity(Gravity.CENTER);
+            backButtonContainer.setPadding(0, 0, 0, 16);
             
             Button backButton = new Button(this);
             backButton.setText("← Back");
             backButton.setTextColor(Color.parseColor("#E3F2FD"));
-            backButton.setBackgroundColor(Color.TRANSPARENT);
+            backButton.setBackgroundColor(Color.parseColor("#2563EB"));
             backButton.setTextSize(14);
+            backButton.setPadding(24, 12, 24, 12);
+            
+            GradientDrawable backButtonBg = new GradientDrawable();
+            backButtonBg.setColor(Color.parseColor("#2563EB"));
+            backButtonBg.setCornerRadius(8);
+            backButton.setBackground(backButtonBg);
+            
             backButton.setOnClickListener(v -> createMainView());
-            backButton.setPadding(0, 0, 0, 8);
-            header.addView(backButton);
+            backButtonContainer.addView(backButton);
+            header.addView(backButtonContainer);
             
             TextView historyTitle = new TextView(this);
             historyTitle.setText("Call History");
             historyTitle.setTextSize(24);
             historyTitle.setTextColor(Color.WHITE);
             historyTitle.setTypeface(null, Typeface.BOLD);
+            historyTitle.setGravity(Gravity.CENTER);
             header.addView(historyTitle);
             
             mainContainer.addView(header);
@@ -959,25 +979,40 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         try {
             mainContainer.removeAllViews();
             
+            // Header with improved back button
             LinearLayout header = new LinearLayout(this);
             header.setOrientation(LinearLayout.VERTICAL);
-            header.setBackgroundColor(Color.parseColor("#1565C0"));
+            header.setBackgroundColor(Color.parseColor("#3B82F6"));
             header.setPadding(24, 48, 24, 32);
+            
+            // Back button container with centered alignment
+            LinearLayout backButtonContainer = new LinearLayout(this);
+            backButtonContainer.setOrientation(LinearLayout.HORIZONTAL);
+            backButtonContainer.setGravity(Gravity.CENTER);
+            backButtonContainer.setPadding(0, 0, 0, 16);
             
             Button backButton = new Button(this);
             backButton.setText("← Back");
             backButton.setTextColor(Color.parseColor("#E3F2FD"));
-            backButton.setBackgroundColor(Color.TRANSPARENT);
+            backButton.setBackgroundColor(Color.parseColor("#2563EB"));
             backButton.setTextSize(14);
+            backButton.setPadding(24, 12, 24, 12);
+            
+            GradientDrawable backButtonBg = new GradientDrawable();
+            backButtonBg.setColor(Color.parseColor("#2563EB"));
+            backButtonBg.setCornerRadius(8);
+            backButton.setBackground(backButtonBg);
+            
             backButton.setOnClickListener(v -> createMainView());
-            backButton.setPadding(0, 0, 0, 8);
-            header.addView(backButton);
+            backButtonContainer.addView(backButton);
+            header.addView(backButtonContainer);
             
             TextView logsTitle = new TextView(this);
             logsTitle.setText("Detection Logs");
             logsTitle.setTextSize(24);
             logsTitle.setTextColor(Color.WHITE);
             logsTitle.setTypeface(null, Typeface.BOLD);
+            logsTitle.setGravity(Gravity.CENTER);
             header.addView(logsTitle);
             
             mainContainer.addView(header);
@@ -1017,7 +1052,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         LinearLayout entryCard = createCard();
         entryCard.setPadding(16, 16, 16, 16);
         
-        String borderColor = "#059669";
+        String borderColor = "#10B981";
         if (entry.riskLevel > 70) borderColor = "#EF4444";
         else if (entry.riskLevel > 40) borderColor = "#F59E0B";
         else if (entry.riskLevel > 20) borderColor = "#EAB308";
@@ -1244,13 +1279,13 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                     
                     int color;
                     if (riskScore > 70) {
-                        color = Color.parseColor("#DC2626");
+                        color = Color.parseColor("#EF4444");
                     } else if (riskScore > 40) {
-                        color = Color.parseColor("#EA580C");
+                        color = Color.parseColor("#F59E0B");
                     } else if (riskScore > 20) {
-                        color = Color.parseColor("#D97706");
+                        color = Color.parseColor("#EAB308");
                     } else {
-                        color = Color.parseColor("#059669");
+                        color = Color.parseColor("#10B981");
                     }
                     
                     if (riskLevelText != null) {
@@ -1279,11 +1314,11 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                 if (riskScore > 70) {
                     showRiskAlert("🚨 HIGH RISK: Potential Scam", 
                                  "Digital arrest or authority impersonation detected", 
-                                 "#FEE2E2", "#DC2626");
+                                 "#FEE2E2", "#EF4444");
                 } else if (riskScore > 40) {
                     showRiskAlert("⚠️ Suspicious Patterns", 
                                  "Urgency keywords and authority claims detected", 
-                                 "#FEF3C7", "#D97706");
+                                 "#FEF3C7", "#F59E0B");
                 }
             }
         } catch (Exception e) {
