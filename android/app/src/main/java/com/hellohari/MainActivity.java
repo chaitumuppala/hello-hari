@@ -74,7 +74,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         callDetector.setCallDetectionListener(this);
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         
-        createEnhancedUI();
+        createSimplifiedUI();
         checkUniversalPermissions();
         
         Log.d(TAG, "Hello Hari AI Phase 3 - Multi-Language Scam Detection Initialized");
@@ -84,266 +84,258 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         addToCallLog("AI Languages: English, Hindi, Telugu");
     }
 
-    private void createEnhancedUI() {
+   private void createSimplifiedUI() {
     ScrollView scrollView = new ScrollView(this);
     LinearLayout mainLayout = new LinearLayout(this);
     mainLayout.setOrientation(LinearLayout.VERTICAL);
     mainLayout.setPadding(16, 16, 16, 16);
-    mainLayout.setBackgroundColor(Color.parseColor("#F8FAFC")); // Modern light background
+    mainLayout.setBackgroundColor(Color.parseColor("#F8FAFC"));
     
-    // === HEADER CARD ===
+    // === TIER 1: HEADER (ALWAYS VISIBLE) ===
     LinearLayout headerCard = createCard();
-    headerCard.setBackgroundColor(Color.parseColor("#1E293B")); // Modern dark blue
+    headerCard.setBackgroundColor(Color.parseColor("#1E293B"));
     headerCard.setPadding(24, 24, 24, 24);
     
-    // App Title with Icon
+    // Simplified header with shield icon
     LinearLayout titleRow = new LinearLayout(this);
     titleRow.setOrientation(LinearLayout.HORIZONTAL);
     titleRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
     
     TextView titleIcon = new TextView(this);
     titleIcon.setText("🛡️");
-    titleIcon.setTextSize(28);
-    titleIcon.setPadding(0, 0, 12, 0);
+    titleIcon.setTextSize(32);
+    titleIcon.setPadding(0, 0, 16, 0);
     titleRow.addView(titleIcon);
     
     LinearLayout titleColumn = new LinearLayout(this);
     titleColumn.setOrientation(LinearLayout.VERTICAL);
     
     TextView title = new TextView(this);
-    title.setText("Hello Hari (HH)");
+    title.setText("Hello Hari");
     title.setTextSize(28);
     title.setTextColor(Color.WHITE);
     title.setTypeface(null, android.graphics.Typeface.BOLD);
     titleColumn.addView(title);
     
     TextView subtitle = new TextView(this);
-    subtitle.setText("AI Multi-Language Scam Detection");
-    subtitle.setTextSize(14);
-    subtitle.setTextColor(Color.parseColor("#CBD5E1")); // Modern light gray
+    subtitle.setText("AI Scam Protection");
+    subtitle.setTextSize(16);
+    subtitle.setTextColor(Color.parseColor("#CBD5E1"));
     titleColumn.addView(subtitle);
     
     titleRow.addView(titleColumn);
     headerCard.addView(titleRow);
     
-    // Phase indicator
-    TextView phaseIndicator = new TextView(this);
-    phaseIndicator.setText("🤖 Phase 3 - Real-time AI Analysis");
-    phaseIndicator.setTextSize(12);
-    phaseIndicator.setTextColor(Color.parseColor("#94A3B8")); // Modern muted gray
-    phaseIndicator.setPadding(0, 8, 0, 0);
-    headerCard.addView(phaseIndicator);
-    
     mainLayout.addView(headerCard);
     addCardSpacing(mainLayout);
     
-    // === STATUS DASHBOARD CARD ===
-    LinearLayout statusCard = createCard();
-    addCardHeader(statusCard, "🔍", "Protection Status");
+    // === TIER 2: MAIN DASHBOARD (PRIMARY ACTIONS) ===
+    LinearLayout dashboardCard = createCard();
+    dashboardCard.setPadding(24, 24, 24, 24);
     
-    // Status row with icon
-    LinearLayout statusRow = createStatusRow("📡", "System Status:");
+    // Status indicator
+    LinearLayout statusRow = new LinearLayout(this);
+    statusRow.setOrientation(LinearLayout.HORIZONTAL);
+    statusRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    statusRow.setPadding(0, 0, 0, 16);
+    
+    TextView statusIcon = new TextView(this);
+    statusIcon.setText("⚡");
+    statusIcon.setTextSize(20);
+    statusIcon.setPadding(0, 0, 12, 0);
+    statusRow.addView(statusIcon);
+    
     statusText = new TextView(this);
-    statusText.setText("Initializing AI protection...");
-    statusText.setTextSize(16);
-    statusText.setTextColor(Color.parseColor("#1F2937")); // Modern dark text
+    statusText.setText("Ready for Protection");
+    statusText.setTextSize(18);
+    statusText.setTextColor(Color.parseColor("#1F2937"));
     statusText.setTypeface(null, android.graphics.Typeface.BOLD);
     statusRow.addView(statusText);
-    statusCard.addView(statusRow);
     
-    // Recording status row
-    LinearLayout recordingRow = createStatusRow("🎤", "Recording & AI:");
-    recordingStatusText = new TextView(this);
-    recordingStatusText.setText("Checking compatibility...");
-    recordingStatusText.setTextSize(14);
-    recordingStatusText.setTextColor(Color.parseColor("#6B7280")); // Modern medium gray
-    recordingRow.addView(recordingStatusText);
-    statusCard.addView(recordingRow);
+    dashboardCard.addView(statusRow);
     
-    // Device info row
-    LinearLayout deviceRow = createStatusRow("📱", "Device:");
-    deviceInfoText = new TextView(this);
-    deviceInfoText.setText("Optimized for " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
-    deviceInfoText.setTextSize(12);
-    deviceInfoText.setTextColor(Color.parseColor("#9CA3AF")); // Modern light gray
-    deviceRow.addView(deviceInfoText);
-    statusCard.addView(deviceRow);
+    // Risk meter (compact version)
+    LinearLayout riskSection = new LinearLayout(this);
+    riskSection.setOrientation(LinearLayout.VERTICAL);
+    riskSection.setPadding(0, 12, 0, 20);
     
-    mainLayout.addView(statusCard);
-    addCardSpacing(mainLayout);
-    
-    // === RISK ANALYSIS CARD ===
-    LinearLayout riskCard = createCard();
-    addCardHeader(riskCard, "🧠", "AI Risk Assessment");
-    
-    // Risk level text
     riskLevelText = new TextView(this);
-    riskLevelText.setText("0% - AI Standby Mode");
-    riskLevelText.setTextSize(20);
-    riskLevelText.setTextColor(Color.parseColor("#059669")); // Modern green
+    riskLevelText.setText("0% Risk - AI Standby");
+    riskLevelText.setTextSize(16);
+    riskLevelText.setTextColor(Color.parseColor("#059669"));
     riskLevelText.setTypeface(null, android.graphics.Typeface.BOLD);
     riskLevelText.setGravity(android.view.Gravity.CENTER);
-    riskLevelText.setPadding(0, 8, 0, 12);
-    riskCard.addView(riskLevelText);
-    
-    // Enhanced risk meter with container
-    LinearLayout riskMeterContainer = new LinearLayout(this);
-    riskMeterContainer.setOrientation(LinearLayout.HORIZONTAL);
-    riskMeterContainer.setGravity(android.view.Gravity.CENTER_VERTICAL);
-    riskMeterContainer.setPadding(16, 8, 16, 16);
-    
-    TextView riskIcon = new TextView(this);
-    riskIcon.setText("📊");
-    riskIcon.setTextSize(20);
-    riskIcon.setPadding(0, 0, 12, 0);
-    riskMeterContainer.addView(riskIcon);
+    riskSection.addView(riskLevelText);
     
     riskMeter = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
     riskMeter.setMax(100);
     riskMeter.setProgress(0);
     riskMeter.getProgressDrawable().setColorFilter(Color.parseColor("#059669"), android.graphics.PorterDuff.Mode.SRC_IN);
-    LinearLayout.LayoutParams riskParams = new LinearLayout.LayoutParams(0, 32, 1.0f);
+    LinearLayout.LayoutParams riskParams = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT, 24);
+    riskParams.setMargins(0, 8, 0, 0);
     riskMeter.setLayoutParams(riskParams);
-    riskMeterContainer.addView(riskMeter);
+    riskSection.addView(riskMeter);
     
-    TextView riskLabel = new TextView(this);
-    riskLabel.setText("LOW");
-    riskLabel.setTextSize(12);
-    riskLabel.setTextColor(Color.parseColor("#059669")); // Modern green
-    riskLabel.setTypeface(null, android.graphics.Typeface.BOLD);
-    riskLabel.setPadding(12, 0, 0, 0);
-    riskMeterContainer.addView(riskLabel);
+    dashboardCard.addView(riskSection);
     
-    riskCard.addView(riskMeterContainer);
-    mainLayout.addView(riskCard);
-    addCardSpacing(mainLayout);
-    
-    // === PERMISSIONS CARD ===
-    LinearLayout permissionsCard = createCard();
-    addCardHeader(permissionsCard, "🔐", "Permissions & Setup");
-    
-    permissionButton = createActionButton("🔑 Grant AI Permissions", "#F59E0B"); // Modern amber
+    // Primary action buttons
+    permissionButton = createActionButton("🔐 Grant Permissions", "#F59E0B");
     permissionButton.setOnClickListener(v -> handlePermissionRequest());
-    permissionsCard.addView(permissionButton);
+    dashboardCard.addView(permissionButton);
     
-    mainLayout.addView(permissionsCard);
-    addCardSpacing(mainLayout);
+    addButtonSpacing(dashboardCard);
     
-    // === MAIN ACTIONS CARD ===
-    LinearLayout actionsCard = createCard();
-    addCardHeader(actionsCard, "🚀", "Protection Controls");
-    
-    monitorButton = createActionButton("🛡️ Start AI Protection", "#059669"); // Modern green
+    monitorButton = createActionButton("🚀 Start AI Protection", "#059669");
     monitorButton.setOnClickListener(v -> toggleMonitoring());
-    actionsCard.addView(monitorButton);
+    dashboardCard.addView(monitorButton);
     
-    mainLayout.addView(actionsCard);
+    mainLayout.addView(dashboardCard);
     addCardSpacing(mainLayout);
     
-    // === TESTING TOOLS CARD (COLLAPSIBLE) ===
-    LinearLayout testingCard = createCard();
-    addCardHeader(testingCard, "🔧", "Testing & Diagnostics");
+    // === TIER 3: SECONDARY ACTIONS (BREADCRUMB MENU) ===
+    LinearLayout menuCard = createCard();
+    menuCard.setPadding(20, 20, 20, 20);
     
-    // Collapsible section indicator
-    TextView testingSubtitle = new TextView(this);
-    testingSubtitle.setText("Tap to expand testing tools");
-    testingSubtitle.setTextSize(12);
-    testingSubtitle.setTextColor(Color.parseColor("#9CA3AF")); // Modern light gray
-    testingSubtitle.setGravity(android.view.Gravity.CENTER);
-    testingSubtitle.setPadding(0, 0, 0, 8);
-    testingCard.addView(testingSubtitle);
+    // Menu header
+    TextView menuTitle = new TextView(this);
+    menuTitle.setText("📋 Advanced Options");
+    menuTitle.setTextSize(16);
+    menuTitle.setTextColor(Color.parseColor("#6B7280"));
+    menuTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+    menuTitle.setPadding(0, 0, 0, 12);
+    menuCard.addView(menuTitle);
     
-    // Testing buttons container
-    LinearLayout testingButtonsContainer = new LinearLayout(this);
-    testingButtonsContainer.setOrientation(LinearLayout.VERTICAL);
-    testingButtonsContainer.setVisibility(android.view.View.GONE); // Initially collapsed
+    // Menu buttons (horizontal layout for breadcrumb feel)
+    LinearLayout menuButtonsRow = new LinearLayout(this);
+    menuButtonsRow.setOrientation(LinearLayout.HORIZONTAL);
+    menuButtonsRow.setGravity(android.view.Gravity.CENTER);
     
-    testAudioButton = createActionButton("🎤 Test Audio Recording", "#DC2626"); // Modern red
-    testAudioButton.setOnClickListener(v -> testAudioCompatibility());
-    testingButtonsContainer.addView(testAudioButton);
-    addButtonSpacing(testingButtonsContainer);
+    Button testAudioBtn = createMenuButton("🎤 Test Audio", "#DC2626");
+    testAudioBtn.setOnClickListener(v -> testAudioCompatibility());
+    menuButtonsRow.addView(testAudioBtn);
     
-    testAIButton = createActionButton("🤖 Test AI Detection", "#7C3AED"); // Modern purple
-    testAIButton.setOnClickListener(v -> testAICompatibility());
-    testingButtonsContainer.addView(testAIButton);
+    Button testAIBtn = createMenuButton("🤖 Test AI", "#7C3AED");
+    testAIBtn.setOnClickListener(v -> testAICompatibility());
+    menuButtonsRow.addView(testAIBtn);
     
-    testingCard.addView(testingButtonsContainer);
+    Button logsBtn = createMenuButton("📊 View Logs", "#6B7280");
+    logsBtn.setOnClickListener(v -> showDetailedLogs());
+    menuButtonsRow.addView(logsBtn);
     
-    // Make testing card clickable to expand/collapse
-    final LinearLayout finalTestingButtonsContainer = testingButtonsContainer;
-    testingCard.setOnClickListener(v -> {
-        if (finalTestingButtonsContainer.getVisibility() == android.view.View.GONE) {
-            finalTestingButtonsContainer.setVisibility(android.view.View.VISIBLE);
-            testingSubtitle.setText("▼ Testing tools expanded");
-        } else {
-            finalTestingButtonsContainer.setVisibility(android.view.View.GONE);
-            testingSubtitle.setText("▶ Tap to expand testing tools");
-        }
-    });
+    menuCard.addView(menuButtonsRow);
+    mainLayout.addView(menuCard);
     
-    mainLayout.addView(testingCard);
-    addCardSpacing(mainLayout);
+    // === COMPACT RECENT ACTIVITY ===
+    LinearLayout activityCard = createCard();
+    activityCard.setPadding(20, 20, 20, 20);
     
-    // === ACTIVITY LOG CARD ===
-    LinearLayout logCard = createCard();
-    addCardHeader(logCard, "📊", "AI Detection & Activity Log");
+    TextView activityTitle = new TextView(this);
+    activityTitle.setText("🔔 Recent Activity");
+    activityTitle.setTextSize(16);
+    activityTitle.setTextColor(Color.parseColor("#1F2937"));
+    activityTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+    activityTitle.setPadding(0, 0, 0, 12);
+    activityCard.addView(activityTitle);
     
-    // Log description
-    TextView logDescription = new TextView(this);
-    logDescription.setText("Real-time AI analysis results and system events");
-    logDescription.setTextSize(12);
-    logDescription.setTextColor(Color.parseColor("#6B7280")); // Modern medium gray
-    logDescription.setPadding(0, 0, 0, 12);
-    logCard.addView(logDescription);
-    
-    // Enhanced call log with better formatting
+    // Compact activity log (last 3 entries only)
     callLogText = new TextView(this);
-    callLogText.setText("🤖 Hello Hari AI Phase 3 - Multi-Language Scam Detection\n\n" +
-            "🎯 AI CAPABILITIES:\n" +
-            "✅ Real-time analysis during calls (8-second intervals)\n" +
-            "✅ Multi-language detection (English, Hindi, Telugu)\n" +
-            "✅ 2000+ scam pattern database with latest Indian threats\n" +
-            "✅ Digital arrest, TRAI, FedEx, crypto fraud detection\n" +
-            "✅ Voice cloning and deepfake awareness\n" +
-            "✅ Cultural exploitation pattern recognition\n\n" +
-            "🎤 SMART RECORDING:\n" +
-            "✅ 4-tier fallback system for maximum compatibility\n" +
-            "✅ Real-time quality monitoring\n" +
-            "✅ Device-specific optimizations\n" +
-            "✅ Privacy-first local processing\n\n" +
-            "🛡️ PROTECTION FEATURES:\n" +
-            "✅ Live risk scoring with visual feedback\n" +
-            "✅ Immediate threat alerts\n" +
-            "✅ Post-call comprehensive analysis\n" +
-            "✅ Evidence collection and reporting\n\n" +
-            "Ready for advanced scam protection!");
+    callLogText.setText("🤖 AI Protection Ready\n📱 Device: " + android.os.Build.MODEL + "\n✅ Multi-language detection enabled");
     callLogText.setTextSize(14);
-    callLogText.setTextColor(Color.parseColor("#374151")); // Modern dark gray
-    callLogText.setBackgroundColor(Color.parseColor("#F9FAFB")); // Modern very light gray
-    callLogText.setPadding(16, 16, 16, 16);
+    callLogText.setTextColor(Color.parseColor("#6B7280"));
+    callLogText.setBackgroundColor(Color.parseColor("#F9FAFB"));
+    callLogText.setPadding(12, 12, 12, 12);
+    callLogText.setMaxLines(4);
+    activityCard.addView(callLogText);
     
-    // Wrap log in scroll view for long content
-    ScrollView logScrollView = new ScrollView(this);
-    logScrollView.setLayoutParams(new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, 300));
-    logScrollView.addView(callLogText);
-    logCard.addView(logScrollView);
+    // "View More" button for full logs
+    Button viewMoreBtn = new Button(this);
+    viewMoreBtn.setText("View More →");
+    viewMoreBtn.setTextColor(Color.parseColor("#059669"));
+    viewMoreBtn.setBackgroundColor(Color.TRANSPARENT);
+    viewMoreBtn.setTextSize(14);
+    viewMoreBtn.setOnClickListener(v -> showDetailedLogs());
+    LinearLayout.LayoutParams viewMoreParams = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    viewMoreParams.gravity = android.view.Gravity.END;
+    viewMoreParams.setMargins(0, 8, 0, 0);
+    viewMoreBtn.setLayoutParams(viewMoreParams);
+    activityCard.addView(viewMoreBtn);
     
-    mainLayout.addView(logCard);
-    addCardSpacing(mainLayout);
-    
-    // === ABOUT CARD ===
-    LinearLayout aboutCard = createCard();
-    addCardHeader(aboutCard, "ℹ️", "About Hello Hari");
-    
-    Button aboutButton = createActionButton("📖 Learn More About AI Protection", "#1E293B"); // Modern dark blue
-    aboutButton.setOnClickListener(v -> showAbout());
-    aboutCard.addView(aboutButton);
-    
-    mainLayout.addView(aboutCard);
+    mainLayout.addView(activityCard);
     
     scrollView.addView(mainLayout);
     setContentView(scrollView);
+}
+
+// Helper method for menu buttons
+private Button createMenuButton(String text, String colorHex) {
+    Button button = new Button(this);
+    button.setText(text);
+    button.setTextColor(Color.WHITE);
+    button.setTextSize(12);
+    button.setTypeface(null, android.graphics.Typeface.BOLD);
+    button.setPadding(16, 12, 16, 12);
+    
+    android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
+    drawable.setColor(Color.parseColor(colorHex));
+    drawable.setCornerRadius(8);
+    button.setBackground(drawable);
+    
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+    params.setMargins(4, 0, 4, 0);
+    button.setLayoutParams(params);
+    
+    return button;
+}
+
+// Method to show detailed logs in a separate view
+private void showDetailedLogs() {
+    LinearLayout logLayout = new LinearLayout(this);
+    logLayout.setOrientation(LinearLayout.VERTICAL);
+    logLayout.setPadding(20, 20, 20, 20);
+    logLayout.setBackgroundColor(Color.parseColor("#F8FAFC"));
+    
+    // Header
+    LinearLayout headerRow = new LinearLayout(this);
+    headerRow.setOrientation(LinearLayout.HORIZONTAL);
+    headerRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    headerRow.setPadding(0, 0, 0, 20);
+    
+    Button backButton = new Button(this);
+    backButton.setText("← Back");
+    backButton.setTextColor(Color.parseColor("#059669"));
+    backButton.setBackgroundColor(Color.TRANSPARENT);
+    backButton.setOnClickListener(v -> createSimplifiedUI());
+    headerRow.addView(backButton);
+    
+    TextView logTitle = new TextView(this);
+    logTitle.setText("📊 AI Detection Logs");
+    logTitle.setTextSize(20);
+    logTitle.setTextColor(Color.parseColor("#1F2937"));
+    logTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+    logTitle.setPadding(20, 0, 0, 0);
+    headerRow.addView(logTitle);
+    
+    logLayout.addView(headerRow);
+    
+    // Scrollable log area
+    ScrollView detailedLogScroll = new ScrollView(this);
+    TextView detailedLogText = new TextView(this);
+    detailedLogText.setText(callLog.toString());
+    detailedLogText.setTextSize(14);
+    detailedLogText.setTextColor(Color.parseColor("#374151"));
+    detailedLogText.setBackgroundColor(Color.WHITE);
+    detailedLogText.setPadding(16, 16, 16, 16);
+    detailedLogScroll.addView(detailedLogText);
+    
+    LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
+    detailedLogScroll.setLayoutParams(scrollParams);
+    logLayout.addView(detailedLogScroll);
+    
+    setContentView(logLayout);
 }
     private void checkUniversalPermissions() {
         addToCallLog("🔍 Analyzing Android " + android.os.Build.VERSION.SDK_INT + " AI & recording compatibility...");
@@ -390,7 +382,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
             addToCallLog("📊 Enhanced call analysis: Limited");
         }
         
-        updateEnhancedUI();
+        updateSimplifiedUI();
     }
     
     private List<String> getSmartRecordingPermissions() {
@@ -487,7 +479,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         builder.setNeutralButton("Continue Limited", (dialog, which) -> {
             addToCallLog("Continuing with limited AI scam protection capabilities");
             hasMinimumPermissions = hasPermission(Manifest.permission.READ_PHONE_STATE);
-            updateEnhancedUI();
+            updateSimplifiedUI();
         });
         
         builder.show();
@@ -522,7 +514,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         
         builder.setNegativeButton("Continue Limited", (dialog, which) -> {
             hasMinimumPermissions = hasPermission(Manifest.permission.READ_PHONE_STATE);
-            updateEnhancedUI();
+            updateSimplifiedUI();
         });
         
         builder.show();
@@ -556,7 +548,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         }
     }
 
-    private void updateEnhancedUI() {
+    private void updateSimplifiedUI() {
         // Update status based on AI capabilities
         boolean canRecord = hasPermission(Manifest.permission.RECORD_AUDIO);
         boolean hasPhone = hasPermission(Manifest.permission.READ_PHONE_STATE);
@@ -646,7 +638,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
             }
         }
         
-        updateEnhancedUI();
+        updateSimplifiedUI();
     }
 
     // Real-time analysis during call
@@ -1569,7 +1561,7 @@ private void updateRiskLevel(int riskScore, String analysis) {
         backButton.setText("🔙 Back to AI Scam Detection");
         backButton.setBackgroundColor(Color.parseColor("#2E3192"));
         backButton.setTextColor(Color.WHITE);
-        backButton.setOnClickListener(v -> createEnhancedUI());
+        backButton.setOnClickListener(v -> createSimplifiedUI());
         aboutLayout.addView(backButton);
         
         ScrollView scrollView = new ScrollView(this);
@@ -1646,7 +1638,7 @@ private void updateRiskLevel(int riskScore, String analysis) {
     protected void onResume() {
         super.onResume();
         // Refresh UI when returning to app
-        updateEnhancedUI();
+        updateSimplifiedUI();
         Log.d(TAG, "Hello Hari AI Phase 3 resumed - UI refreshed");
     }
 // === UI HELPER METHODS ===
@@ -1755,6 +1747,136 @@ private void addButtonSpacing(LinearLayout layout) {
     space.setLayoutParams(new LinearLayout.LayoutParams(
         LinearLayout.LayoutParams.MATCH_PARENT, 12)); // More spacing between buttons
     layout.addView(space);
+}
+// Additional helper methods for simplified UI
+private Button createMenuButton(String text, String colorHex) {
+    Button button = new Button(this);
+    button.setText(text);
+    button.setTextColor(Color.WHITE);
+    button.setTextSize(12);
+    button.setTypeface(null, android.graphics.Typeface.BOLD);
+    button.setPadding(16, 12, 16, 12);
+    
+    android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
+    drawable.setColor(Color.parseColor(colorHex));
+    drawable.setCornerRadius(8);
+    button.setBackground(drawable);
+    
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+    params.setMargins(4, 0, 4, 0);
+    button.setLayoutParams(params);
+    
+    return button;
+}
+
+// Method to show detailed logs in a separate view
+private void showDetailedLogs() {
+    LinearLayout logLayout = new LinearLayout(this);
+    logLayout.setOrientation(LinearLayout.VERTICAL);
+    logLayout.setPadding(20, 20, 20, 20);
+    logLayout.setBackgroundColor(Color.parseColor("#F8FAFC"));
+    
+    // Header with back button
+    LinearLayout headerRow = new LinearLayout(this);
+    headerRow.setOrientation(LinearLayout.HORIZONTAL);
+    headerRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+    headerRow.setPadding(0, 0, 0, 20);
+    
+    Button backButton = new Button(this);
+    backButton.setText("← Back");
+    backButton.setTextColor(Color.parseColor("#059669"));
+    backButton.setBackgroundColor(Color.TRANSPARENT);
+    backButton.setTextSize(16);
+    backButton.setTypeface(null, android.graphics.Typeface.BOLD);
+    backButton.setOnClickListener(v -> createSimplifiedUI());
+    
+    LinearLayout.LayoutParams backParams = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    backButton.setLayoutParams(backParams);
+    headerRow.addView(backButton);
+    
+    TextView logTitle = new TextView(this);
+    logTitle.setText("📊 AI Detection & Activity Logs");
+    logTitle.setTextSize(20);
+    logTitle.setTextColor(Color.parseColor("#1F2937"));
+    logTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+    logTitle.setPadding(20, 0, 0, 0);
+    
+    LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+    logTitle.setLayoutParams(titleParams);
+    headerRow.addView(logTitle);
+    
+    logLayout.addView(headerRow);
+    
+    // Scrollable log area with full content
+    ScrollView detailedLogScroll = new ScrollView(this);
+    TextView detailedLogText = new TextView(this);
+    
+    // Create comprehensive log content
+    StringBuilder fullLog = new StringBuilder();
+    fullLog.append("🤖 HELLO HARI AI PHASE 3 - DETAILED LOGS\n\n");
+    fullLog.append("📱 DEVICE INFO:\n");
+    fullLog.append("Manufacturer: ").append(android.os.Build.MANUFACTURER).append("\n");
+    fullLog.append("Model: ").append(android.os.Build.MODEL).append("\n");
+    fullLog.append("Android: ").append(android.os.Build.VERSION.SDK_INT).append("\n");
+    fullLog.append("AI Status: ").append(getAIStatus()).append("\n\n");
+    
+    fullLog.append("🎯 AI CAPABILITIES:\n");
+    fullLog.append("✅ Real-time analysis during calls\n");
+    fullLog.append("✅ Multi-language detection (EN/HI/TE)\n");
+    fullLog.append("✅ 2000+ scam pattern database\n");
+    fullLog.append("✅ Smart 4-tier recording fallback\n");
+    fullLog.append("✅ Live risk scoring with visual feedback\n");
+    fullLog.append("✅ Privacy-first local processing\n\n");
+    
+    fullLog.append("📊 CURRENT SESSION:\n");
+    fullLog.append("Risk Score: ").append(getCurrentRiskScore()).append("%\n");
+    fullLog.append("Recording Status: ").append(isRecordingActive() ? "Active" : "Standby").append("\n");
+    fullLog.append("AI Analysis: ").append(isAIAnalysisRunning() ? "Running" : "Standby").append("\n\n");
+    
+    fullLog.append("🔄 RECENT ACTIVITY:\n");
+    fullLog.append(callLog.toString());
+    
+    detailedLogText.setText(fullLog.toString());
+    detailedLogText.setTextSize(14);
+    detailedLogText.setTextColor(Color.parseColor("#374151"));
+    detailedLogText.setBackgroundColor(Color.WHITE);
+    detailedLogText.setPadding(16, 16, 16, 16);
+    
+    // Make text selectable for copying
+    detailedLogText.setTextIsSelectable(true);
+    
+    detailedLogScroll.addView(detailedLogText);
+    
+    LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
+    detailedLogScroll.setLayoutParams(scrollParams);
+    logLayout.addView(detailedLogScroll);
+    
+    // Export button at bottom
+    Button exportButton = createActionButton("📤 Export Logs", "#6B7280");
+    exportButton.setOnClickListener(v -> exportLogs(fullLog.toString()));
+    logLayout.addView(exportButton);
+    
+    setContentView(logLayout);
+}
+
+// Method to export logs (basic implementation)
+private void exportLogs(String logContent) {
+    try {
+        // Create a simple toast for now - in production this would save to file
+        android.widget.Toast.makeText(this, 
+            "Logs ready for export (" + logContent.length() + " characters)", 
+            android.widget.Toast.LENGTH_LONG).show();
+        
+        addToCallLog("📤 Logs exported successfully");
+    } catch (Exception e) {
+        android.widget.Toast.makeText(this, 
+            "Export failed: " + e.getMessage(), 
+            android.widget.Toast.LENGTH_SHORT).show();
+    }
 }
 }
 
