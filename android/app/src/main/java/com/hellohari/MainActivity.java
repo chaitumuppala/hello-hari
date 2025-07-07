@@ -1,19 +1,22 @@
 package com.hellohari;
 
-import android.view.Gravity;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
+import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.media.AudioManager;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -21,601 +24,646 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import android.util.Log;
-import android.media.AudioManager;
-import android.media.MediaRecorder;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import java.util.ArrayList;
-import java.util.List;
+
 import java.io.File;
-import android.view.View;
-import android.graphics.Typeface;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends Activity implements SimpleCallDetector.CallDetectionListener {
     private static final String TAG = "HelloHariMain";
     private static final int PERMISSION_REQUEST_CODE = 123;
     
-    // UI Components
+    // UI State Management
+    private enum ViewState {
+        MAIN, CALL_HISTORY, LOGS
+    }
+    
+    private ViewState currentView = ViewState.MAIN;
+    
+    // Core Components
     private SimpleCallDetector callDetector;
-    private TextView statusText;
-    private TextView callLogText;
-    private TextView recordingStatusText;
-    private TextView riskLevelText;
-    private TextView deviceInfoText;
-    private Button monitorButton;
-    private Button permissionButton;
-    private Button testAudioButton;
-    private Button testAIButton;
-    private ProgressBar riskMeter;
-    private StringBuilder callLog;
-    
-    // Permission and state variables
-    private boolean hasMinimumPermissions = false;
-    private int currentRiskScore = 0;
-    
-    // Smart Recording variables
-    private MediaRecorder callRecorder;
-    private String currentRecordingPath;
-    private boolean isCallRecording = false;
-    private String currentCallNumber;
-    private String currentRecordingMethod = "None";
     private AudioManager audioManager;
-    private boolean wasSpeakerEnabled = false;
-    private int recordingQualityScore = 0;
-    private long callStartTime = 0;
     
-    // Real-time AI analysis variables
+    // UI Components
+    private LinearLayout mainContainer;
+    private TextView statusIndicator;
+    private TextView protectionStatusText;
+    private Button mainActionButton;
+    private TextView riskLevelText;
+    private ProgressBar riskMeter;
+    private LinearLayout currentCallCard;
+    private TextView callNumberText;
+    private TextView callDurationText;
+    private TextView analysisStatusText;
+    private LinearLayout riskAlertCard;
+    private LinearLayout systemStatusCard;
+    
+    // State Variables
+    private boolean hasMinimumPermissions = false;
+    private boolean isProtectionActive = false;
+    private int currentRiskScore = 0;
+    private String currentCallNumber;
+    private String currentRecordingMethod = "Ready";
+    private long callStartTime = 0;
+    private boolean isCallRecording = false;
+    private int recordingQualityScore = 0;
+    
+    // Real-time analysis
     private Thread realTimeAnalysisThread;
     private boolean isRealTimeAnalysisRunning = false;
     private int realTimeRiskScore = 0;
     private List<String> detectedPatternsRealTime = new ArrayList<>();
-
-      @Override
+    
+    // Logs and History
+    private StringBuilder technicalLogs = new StringBuilder();
+    private List<CallHistoryEntry> callHistory = new ArrayList<>();
+    
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
-    
-    callLog = new StringBuilder();
-    callDetector = new SimpleCallDetector(this);
-    callDetector.setCallDetectionListener(this);
-    audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
-    
-    createModernUI(); // CHANGED FROM createSimplifiedUI()
-    checkUniversalPermissions();
-    
-    Log.d(TAG, "Hello Hari Phase 3 - Multi-Language Scam Detection Initialized");
-    addToCallLog("🛡️ Hello Hari protection system started");
-    addToCallLog("Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
+        super.onCreate(savedInstanceState);
+        
+        // Initialize core components
+        callDetector = new SimpleCallDetector(this);
+        callDetector.setCallDetectionListener(this);
+        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        
+        // Setup UI
+        createModernUI();
+        checkPermissions();
+        
+        // Initialize logs
+        addToTechnicalLogs("🛡️ Hello Hari protection system initialized");
+        addToTechnicalLogs("Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
+        
+        Log.d(TAG, "Hello Hari - Modern UI initialized");
     }
-
+    
     private void createModernUI() {
-    ScrollView scrollView = new ScrollView(this);
-    LinearLayout mainLayout = new LinearLayout(this);
-    mainLayout.setOrientation(LinearLayout.VERTICAL);
-    mainLayout.setPadding(0, 0, 0, 0); // Full screen layout
-    mainLayout.setBackgroundColor(Color.parseColor("#F8FAFC")); // Light gray background
-    
-    // === TOP HEADER WITH PROPER MATERIAL DESIGN ===
-    LinearLayout headerSection = new LinearLayout(this);
-    headerSection.setOrientation(LinearLayout.VERTICAL);
-    headerSection.setBackgroundColor(Color.parseColor("#1565C0")); // Material Blue 800
-    headerSection.setPadding(24, 48, 24, 32); // Extra top padding for status bar
-    
-    // App title row
-    LinearLayout titleRow = new LinearLayout(this);
-    titleRow.setOrientation(LinearLayout.HORIZONTAL);
-    titleRow.setGravity(Gravity.CENTER_VERTICAL);
-    
-    TextView appIcon = new TextView(this);
-    appIcon.setText("🛡️");
-    appIcon.setTextSize(28);
-    appIcon.setPadding(0, 0, 16, 0);
-    titleRow.addView(appIcon);
-    
-    TextView appTitle = new TextView(this);
-    appTitle.setText("Hello Hari");
-    appTitle.setTextSize(24);
-    appTitle.setTextColor(Color.WHITE);
-    appTitle.setTypeface(null, Typeface.BOLD);
-    titleRow.addView(appTitle);
-    
-    headerSection.addView(titleRow);
-    
-    // Status indicator in header
-    TextView headerStatus = new TextView(this);
-    headerStatus.setText("Call Protection");
-    headerStatus.setTextSize(16);
-    headerStatus.setTextColor(Color.parseColor("#E3F2FD"));
-    headerStatus.setPadding(44, 8, 0, 0); // Align with title
-    headerSection.addView(headerStatus);
-    
-    mainLayout.addView(headerSection);
-    
-    // === MAIN CONTENT AREA ===
-    LinearLayout contentLayout = new LinearLayout(this);
-    contentLayout.setOrientation(LinearLayout.VERTICAL);
-    contentLayout.setPadding(16, 24, 16, 16);
-    
-    // === PROTECTION STATUS CARD ===
-    LinearLayout statusCard = createElevatedCard();
-    statusCard.setPadding(24, 24, 24, 24);
-    
-    // Status row with icon and text
-    LinearLayout statusRow = new LinearLayout(this);
-    statusRow.setOrientation(LinearLayout.HORIZONTAL);
-    statusRow.setGravity(Gravity.CENTER_VERTICAL);
-    statusRow.setPadding(0, 0, 0, 16);
-    
-    TextView statusIcon = new TextView(this);
-    statusIcon.setText("🟢");
-    statusIcon.setTextSize(20);
-    statusIcon.setPadding(0, 0, 12, 0);
-    statusRow.addView(statusIcon);
-    
-    statusText = new TextView(this);
-    statusText.setText("Protection Ready");
-    statusText.setTextSize(18);
-    statusText.setTextColor(Color.parseColor("#1B5E20")); // Dark green
-    statusText.setTypeface(null, Typeface.BOLD);
-    statusRow.addView(statusText);
-    
-    statusCard.addView(statusRow);
-    
-    // Risk level display
-    TextView riskLabel = new TextView(this);
-    riskLabel.setText("Risk Level");
-    riskLabel.setTextSize(14);
-    riskLabel.setTextColor(Color.parseColor("#757575"));
-    riskLabel.setPadding(0, 8, 0, 8);
-    statusCard.addView(riskLabel);
-    
-    riskLevelText = new TextView(this);
-    riskLevelText.setText("0% - No Risk Detected");
-    riskLevelText.setTextSize(16);
-    riskLevelText.setTextColor(Color.parseColor("#2E7D32"));
-    riskLevelText.setTypeface(null, Typeface.BOLD);
-    statusCard.addView(riskLevelText);
-    
-    // Risk meter
-    riskMeter = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-    riskMeter.setMax(100);
-    riskMeter.setProgress(0);
-    riskMeter.getProgressDrawable().setColorFilter(Color.parseColor("#4CAF50"), PorterDuff.Mode.SRC_IN);
-    LinearLayout.LayoutParams riskParams = new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, 24);
-    riskParams.setMargins(0, 12, 0, 0);
-    riskMeter.setLayoutParams(riskParams);
-    statusCard.addView(riskMeter);
-    
-    contentLayout.addView(statusCard);
-    addSpacing(contentLayout, 20);
-    
-    // === MAIN ACTION BUTTONS ===
-    // Permission button (if needed)
-    permissionButton = createPrimaryButton("Grant Permissions", "#FF6D00", true);
-    permissionButton.setOnClickListener(v -> handlePermissionRequest());
-    contentLayout.addView(permissionButton);
-    addSpacing(contentLayout, 12);
-    
-    // Main monitor button
-    monitorButton = createPrimaryButton("Start Monitoring", "#2E7D32", false);
-    monitorButton.setOnClickListener(v -> toggleMonitoring());
-    contentLayout.addView(monitorButton);
-    addSpacing(contentLayout, 24);
-    
-    // === FEATURE CARDS SECTION ===
-    TextView featuresTitle = new TextView(this);
-    featuresTitle.setText("Features");
-    featuresTitle.setTextSize(18);
-    featuresTitle.setTextColor(Color.parseColor("#212121"));
-    featuresTitle.setTypeface(null, Typeface.BOLD);
-    featuresTitle.setPadding(8, 0, 0, 16);
-    contentLayout.addView(featuresTitle);
-    
-    // Features grid (2 columns)
-    LinearLayout featuresGrid = new LinearLayout(this);
-    featuresGrid.setOrientation(LinearLayout.HORIZONTAL);
-    featuresGrid.setWeightSum(2.0f);
-    
-    // Real-time Protection feature
-    LinearLayout realtimeCard = createFeatureCard(
-        "⚡", "Real-time Analysis", "Live call monitoring", "#1976D2");
-    featuresGrid.addView(realtimeCard);
-    addHorizontalSpacing(featuresGrid, 12);
-    
-    // Multi-language feature  
-    LinearLayout languageCard = createFeatureCard(
-        "🌐", "Multi-language", "English, Hindi, Telugu", "#7B1FA2");
-    featuresGrid.addView(languageCard);
-    
-    contentLayout.addView(featuresGrid);
-    addSpacing(contentLayout, 16);
-    
-    // Second row of features
-    LinearLayout featuresGrid2 = new LinearLayout(this);
-    featuresGrid2.setOrientation(LinearLayout.HORIZONTAL);
-    featuresGrid2.setWeightSum(2.0f);
-    
-    // Smart Recording feature
-    LinearLayout recordingCard = createFeatureCard(
-        "🎤", "Smart Recording", "4-tier fallback system", "#D32F2F");
-    featuresGrid2.addView(recordingCard);
-    addHorizontalSpacing(featuresGrid2, 12);
-    
-    // Privacy feature
-    LinearLayout privacyCard = createFeatureCard(
-        "🔒", "Privacy First", "All data stays local", "#388E3C");
-    featuresGrid2.addView(privacyCard);
-    
-    contentLayout.addView(featuresGrid2);
-    addSpacing(contentLayout, 24);
-    
-    // === QUICK ACTIONS ===
-    TextView actionsTitle = new TextView(this);
-    actionsTitle.setText("Quick Actions");
-    actionsTitle.setTextSize(18);
-    actionsTitle.setTextColor(Color.parseColor("#212121"));
-    actionsTitle.setTypeface(null, Typeface.BOLD);
-    actionsTitle.setPadding(8, 0, 0, 16);
-    contentLayout.addView(actionsTitle);
-    
-    LinearLayout actionsRow = new LinearLayout(this);
-    actionsRow.setOrientation(LinearLayout.HORIZONTAL);
-    actionsRow.setWeightSum(3.0f);
-    
-    Button testAudioBtn = createActionChip("🎤 Test Audio", "#F57C00");
-    testAudioBtn.setOnClickListener(v -> testAudioCompatibility());
-    actionsRow.addView(testAudioBtn);
-    addHorizontalSpacing(actionsRow, 8);
-    
-    Button testDetectionBtn = createActionChip("🔍 Test Detection", "#303F9F");
-    testDetectionBtn.setOnClickListener(v -> testAICompatibility());
-    actionsRow.addView(testDetectionBtn);
-    addHorizontalSpacing(actionsRow, 8);
-    
-    Button viewLogsBtn = createActionChip("📊 View Logs", "#5D4037");
-    viewLogsBtn.setOnClickListener(v -> showDetailedLogs());
-    actionsRow.addView(viewLogsBtn);
-    
-    contentLayout.addView(actionsRow);
-    addSpacing(contentLayout, 24);
-    
-    // === SYSTEM INFO (COMPACT) ===
-    LinearLayout systemCard = createElevatedCard();
-    systemCard.setPadding(20, 16, 20, 16);
-    
-    TextView systemTitle = new TextView(this);
-    systemTitle.setText("System Status");
-    systemTitle.setTextSize(16);
-    systemTitle.setTextColor(Color.parseColor("#424242"));
-    systemTitle.setTypeface(null, Typeface.BOLD);
-    systemTitle.setPadding(0, 0, 0, 12);
-    systemCard.addView(systemTitle);
-    
-    // Recording status (compact)
-    recordingStatusText = new TextView(this);
-    recordingStatusText.setText("🎤 Recording: Ready");
-    recordingStatusText.setTextSize(14);
-    recordingStatusText.setTextColor(Color.parseColor("#2E7D32"));
-    systemCard.addView(recordingStatusText);
-    
-    // Device info (minimal)
-    deviceInfoText = new TextView(this);
-    deviceInfoText.setText("📱 " + android.os.Build.MODEL);
-    deviceInfoText.setTextSize(12);
-    deviceInfoText.setTextColor(Color.parseColor("#757575"));
-    deviceInfoText.setPadding(0, 4, 0, 0);
-    systemCard.addView(deviceInfoText);
-    
-    contentLayout.addView(systemCard);
-    addSpacing(contentLayout, 16);
-    
-    // === RECENT ACTIVITY (MINIMAL) ===
-    callLogText = new TextView(this);
-    callLogText.setText("🟢 Protection system initialized\n📡 Ready to monitor calls");
-    callLogText.setTextSize(13);
-    callLogText.setTextColor(Color.parseColor("#616161"));
-    callLogText.setBackgroundColor(Color.parseColor("#F5F5F5"));
-    callLogText.setPadding(16, 12, 16, 12);
-    callLogText.setMaxLines(2);
-    GradientDrawable logBg = new GradientDrawable();
-    logBg.setColor(Color.parseColor("#F5F5F5"));
-    logBg.setCornerRadius(8);
-    callLogText.setBackground(logBg);
-    contentLayout.addView(callLogText);
-    
-    // View detailed logs link
-    Button viewDetailedBtn = new Button(this);
-    viewDetailedBtn.setText("View Detailed Logs");
-    viewDetailedBtn.setTextColor(Color.parseColor("#1976D2"));
-    viewDetailedBtn.setBackgroundColor(Color.TRANSPARENT);
-    viewDetailedBtn.setTextSize(14);
-    viewDetailedBtn.setAllCaps(false);
-    viewDetailedBtn.setOnClickListener(v -> showDetailedLogs());
-    LinearLayout.LayoutParams viewParams = new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    viewParams.gravity = Gravity.END;
-    viewParams.setMargins(0, 8, 0, 0);
-    viewDetailedBtn.setLayoutParams(viewParams);
-    contentLayout.addView(viewDetailedBtn);
-    
-    addSpacing(contentLayout, 24); // Bottom padding
-    
-    mainLayout.addView(contentLayout);
-    scrollView.addView(mainLayout);
-    setContentView(scrollView);
-}
-
-// === HELPER METHODS FOR NEW DESIGN ===
-
-private LinearLayout createElevatedCard() {
-    LinearLayout card = new LinearLayout(this);
-    card.setOrientation(LinearLayout.VERTICAL);
-    
-    GradientDrawable drawable = new GradientDrawable();
-    drawable.setColor(Color.WHITE);
-    drawable.setCornerRadius(12);
-    drawable.setStroke(1, Color.parseColor("#E0E0E0"));
-    card.setBackground(drawable);
-    
-    if (android.os.Build.VERSION.SDK_INT >= 21) {
-        card.setElevation(4);
-        card.setTranslationZ(2);
+        // Main scroll container
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setBackgroundColor(Color.parseColor("#F8FAFC"));
+        
+        mainContainer = new LinearLayout(this);
+        mainContainer.setOrientation(LinearLayout.VERTICAL);
+        mainContainer.setPadding(0, 0, 0, 0);
+        
+        createMainView();
+        
+        scrollView.addView(mainContainer);
+        setContentView(scrollView);
     }
     
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    card.setLayoutParams(params);
+    private void createMainView() {
+        mainContainer.removeAllViews();
+        currentView = ViewState.MAIN;
+        
+        // Header
+        createHeader();
+        
+        // Content area
+        LinearLayout contentArea = new LinearLayout(this);
+        contentArea.setOrientation(LinearLayout.VERTICAL);
+        contentArea.setPadding(16, 16, 16, 16);
+        
+        // Protection status card
+        createProtectionStatusCard(contentArea);
+        addSpacing(contentArea, 16);
+        
+        // Current call card (shown only during calls)
+        createCurrentCallCard(contentArea);
+        
+        // Features card
+        createFeaturesCard(contentArea);
+        addSpacing(contentArea, 16);
+        
+        // System status (when protection is active)
+        createSystemStatusCard(contentArea);
+        
+        // Quick actions
+        createQuickActions(contentArea);
+        addSpacing(contentArea, 16);
+        
+        // Status footer
+        createStatusFooter(contentArea);
+        
+        mainContainer.addView(contentArea);
+    }
     
-    return card;
-}
-
-private Button createPrimaryButton(String text, String colorHex, boolean outlined) {
-    Button button = new Button(this);
-    button.setText(text);
-    button.setTextSize(16);
-    button.setTypeface(null, Typeface.BOLD);
-    button.setAllCaps(false); // Use normal case, not all caps
-    button.setPadding(24, 16, 24, 16);
+    private void createHeader() {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setBackgroundColor(Color.parseColor("#1565C0"));
+        header.setPadding(24, 48, 24, 32);
+        
+        // Title row
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        
+        TextView appIcon = new TextView(this);
+        appIcon.setText("🛡️");
+        appIcon.setTextSize(28);
+        appIcon.setPadding(0, 0, 16, 0);
+        titleRow.addView(appIcon);
+        
+        TextView appTitle = new TextView(this);
+        appTitle.setText("Hello Hari");
+        appTitle.setTextSize(24);
+        appTitle.setTextColor(Color.WHITE);
+        appTitle.setTypeface(null, Typeface.BOLD);
+        titleRow.addView(appTitle);
+        
+        header.addView(titleRow);
+        
+        // Subtitle
+        TextView subtitle = new TextView(this);
+        subtitle.setText("Your smart call guardian");
+        subtitle.setTextSize(16);
+        subtitle.setTextColor(Color.parseColor("#E3F2FD"));
+        subtitle.setPadding(44, 8, 0, 0);
+        header.addView(subtitle);
+        
+        mainContainer.addView(header);
+    }
     
-    GradientDrawable drawable = new GradientDrawable();
+    private void createProtectionStatusCard(LinearLayout parent) {
+        LinearLayout card = createCard();
+        card.setPadding(24, 24, 24, 24);
+        
+        // Status row
+        LinearLayout statusRow = new LinearLayout(this);
+        statusRow.setOrientation(LinearLayout.HORIZONTAL);
+        statusRow.setGravity(Gravity.CENTER_VERTICAL);
+        statusRow.setPadding(0, 0, 0, 16);
+        
+        // Status indicator dot
+        statusIndicator = new TextView(this);
+        statusIndicator.setText("●");
+        statusIndicator.setTextSize(16);
+        statusIndicator.setTextColor(Color.parseColor("#9CA3AF"));
+        statusIndicator.setPadding(0, 0, 12, 0);
+        statusRow.addView(statusIndicator);
+        
+        // Status text
+        protectionStatusText = new TextView(this);
+        protectionStatusText.setText("Setup Required");
+        protectionStatusText.setTextSize(18);
+        protectionStatusText.setTextColor(Color.parseColor("#374151"));
+        protectionStatusText.setTypeface(null, Typeface.BOLD);
+        statusRow.addView(protectionStatusText);
+        
+        // Settings icon (placeholder)
+        LinearLayout spacer = new LinearLayout(this);
+        LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(0, 0, 1.0f);
+        spacer.setLayoutParams(spacerParams);
+        statusRow.addView(spacer);
+        
+        TextView settingsIcon = new TextView(this);
+        settingsIcon.setText("⚙️");
+        settingsIcon.setTextSize(16);
+        settingsIcon.setTextColor(Color.parseColor("#9CA3AF"));
+        statusRow.addView(settingsIcon);
+        
+        card.addView(statusRow);
+        
+        // Permission banner (when needed)
+        createPermissionBanner(card);
+        
+        // Main action button
+        mainActionButton = createPrimaryButton("Grant Permissions", "#F59E0B", false);
+        mainActionButton.setOnClickListener(v -> handleMainAction());
+        card.addView(mainActionButton);
+        
+        parent.addView(card);
+    }
     
-    if (outlined) {
-        drawable.setColor(Color.TRANSPARENT);
-        drawable.setStroke(2, Color.parseColor(colorHex));
-        button.setTextColor(Color.parseColor(colorHex));
-    } else {
-        drawable.setColor(Color.parseColor(colorHex));
+    private void createPermissionBanner(LinearLayout parent) {
+        // This will be dynamically shown/hidden
+        // Implementation placeholder for permission warning
+    }
+    
+    private void createCurrentCallCard(LinearLayout parent) {
+        currentCallCard = createCard();
+        currentCallCard.setPadding(24, 24, 24, 24);
+        currentCallCard.setVisibility(View.GONE);
+        
+        // Call info header
+        LinearLayout callHeader = new LinearLayout(this);
+        callHeader.setOrientation(LinearLayout.HORIZONTAL);
+        callHeader.setGravity(Gravity.CENTER_VERTICAL);
+        callHeader.setPadding(0, 0, 0, 16);
+        
+        TextView phoneIcon = new TextView(this);
+        phoneIcon.setText("📞");
+        phoneIcon.setTextSize(24);
+        phoneIcon.setPadding(0, 0, 12, 0);
+        callHeader.addView(phoneIcon);
+        
+        LinearLayout callInfo = new LinearLayout(this);
+        callInfo.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams callInfoParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        callInfo.setLayoutParams(callInfoParams);
+        
+        TextView callStatus = new TextView(this);
+        callStatus.setText("Incoming Call");
+        callStatus.setTextSize(16);
+        callStatus.setTextColor(Color.parseColor("#111827"));
+        callStatus.setTypeface(null, Typeface.BOLD);
+        callInfo.addView(callStatus);
+        
+        callNumberText = new TextView(this);
+        callNumberText.setText("+91 99999 99999");
+        callNumberText.setTextSize(14);
+        callNumberText.setTextColor(Color.parseColor("#6B7280"));
+        callInfo.addView(callNumberText);
+        
+        callHeader.addView(callInfo);
+        
+        // Call duration
+        LinearLayout durationContainer = new LinearLayout(this);
+        durationContainer.setOrientation(LinearLayout.VERTICAL);
+        durationContainer.setGravity(Gravity.END);
+        
+        TextView durationLabel = new TextView(this);
+        durationLabel.setText("Duration");
+        durationLabel.setTextSize(12);
+        durationLabel.setTextColor(Color.parseColor("#9CA3AF"));
+        durationContainer.addView(durationLabel);
+        
+        callDurationText = new TextView(this);
+        callDurationText.setText("00:00");
+        callDurationText.setTextSize(14);
+        callDurationText.setTypeface(Typeface.MONOSPACE);
+        callDurationText.setTextColor(Color.parseColor("#374151"));
+        durationContainer.addView(durationLabel);
+        
+        callHeader.addView(durationContainer);
+        currentCallCard.addView(callHeader);
+        
+        // Analysis status
+        createAnalysisStatus(currentCallCard);
+        
+        // Risk meter
+        createRiskMeter(currentCallCard);
+        
+        // Risk alerts (dynamic)
+        createRiskAlerts(currentCallCard);
+        
+        parent.addView(currentCallCard);
+        addSpacing(parent, 16);
+    }
+    
+    private void createAnalysisStatus(LinearLayout parent) {
+        LinearLayout analysisCard = new LinearLayout(this);
+        analysisCard.setOrientation(LinearLayout.VERTICAL);
+        analysisCard.setBackgroundColor(Color.parseColor("#EFF6FF"));
+        analysisCard.setPadding(12, 12, 12, 12);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor("#EFF6FF"));
+        bg.setCornerRadius(8);
+        analysisCard.setBackground(bg);
+        analysisCard.setPadding(0, 0, 0, 16);
+        
+        LinearLayout statusRow = new LinearLayout(this);
+        statusRow.setOrientation(LinearLayout.HORIZONTAL);
+        statusRow.setGravity(Gravity.CENTER_VERTICAL);
+        statusRow.setPadding(0, 0, 0, 8);
+        
+        TextView brainIcon = new TextView(this);
+        brainIcon.setText("🧠");
+        brainIcon.setTextSize(16);
+        brainIcon.setPadding(0, 0, 8, 0);
+        statusRow.addView(brainIcon);
+        
+        analysisStatusText = new TextView(this);
+        analysisStatusText.setText("Analyzing in Real-time...");
+        analysisStatusText.setTextSize(14);
+        analysisStatusText.setTextColor(Color.parseColor("#1E40AF"));
+        analysisStatusText.setTypeface(null, Typeface.BOLD);
+        statusRow.addView(analysisStatusText);
+        
+        analysisCard.addView(statusRow);
+        
+        // Technical details row
+        LinearLayout detailsRow = new LinearLayout(this);
+        detailsRow.setOrientation(LinearLayout.HORIZONTAL);
+        detailsRow.setGravity(Gravity.CENTER_VERTICAL);
+        
+        TextView micIcon = new TextView(this);
+        micIcon.setText("🎤");
+        micIcon.setTextSize(12);
+        micIcon.setPadding(0, 0, 4, 0);
+        detailsRow.addView(micIcon);
+        
+        TextView recordingStatus = new TextView(this);
+        recordingStatus.setText("Recording: VOICE_RECOGNITION");
+        recordingStatus.setTextSize(12);
+        recordingStatus.setTextColor(Color.parseColor("#1E3A8A"));
+        recordingStatus.setPadding(0, 0, 12, 0);
+        detailsRow.addView(recordingStatus);
+        
+        TextView globeIcon = new TextView(this);
+        globeIcon.setText("🌐");
+        globeIcon.setTextSize(12);
+        globeIcon.setPadding(0, 0, 4, 0);
+        detailsRow.addView(globeIcon);
+        
+        TextView langStatus = new TextView(this);
+        langStatus.setText("EN/HI/TE Detection");
+        langStatus.setTextSize(12);
+        langStatus.setTextColor(Color.parseColor("#1E3A8A"));
+        detailsRow.addView(langStatus);
+        
+        analysisCard.addView(detailsRow);
+        parent.addView(analysisCard);
+    }
+    
+    private void createRiskMeter(LinearLayout parent) {
+        addSpacing(parent, 16);
+        
+        LinearLayout riskContainer = new LinearLayout(this);
+        riskContainer.setOrientation(LinearLayout.VERTICAL);
+        
+        LinearLayout riskHeader = new LinearLayout(this);
+        riskHeader.setOrientation(LinearLayout.HORIZONTAL);
+        riskHeader.setPadding(0, 0, 0, 8);
+        
+        TextView riskLabel = new TextView(this);
+        riskLabel.setText("Scam Risk Level");
+        riskLabel.setTextSize(14);
+        riskLabel.setTextColor(Color.parseColor("#374151"));
+        riskLabel.setTypeface(null, Typeface.BOLD);
+        LinearLayout.LayoutParams riskLabelParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        riskLabel.setLayoutParams(riskLabelParams);
+        riskHeader.addView(riskLabel);
+        
+        riskLevelText = new TextView(this);
+        riskLevelText.setText("0%");
+        riskLevelText.setTextSize(14);
+        riskLevelText.setTextColor(Color.parseColor("#059669"));
+        riskLevelText.setTypeface(null, Typeface.BOLD);
+        riskHeader.addView(riskLevelText);
+        
+        riskContainer.addView(riskHeader);
+        
+        // Progress bar
+        riskMeter = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        riskMeter.setMax(100);
+        riskMeter.setProgress(0);
+        riskMeter.getProgressDrawable().setColorFilter(Color.parseColor("#059669"), PorterDuff.Mode.SRC_IN);
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 24);
+        riskMeter.setLayoutParams(progressParams);
+        riskContainer.addView(riskMeter);
+        
+        parent.addView(riskContainer);
+    }
+    
+    private void createRiskAlerts(LinearLayout parent) {
+        riskAlertCard = new LinearLayout(this);
+        riskAlertCard.setOrientation(LinearLayout.VERTICAL);
+        riskAlertCard.setVisibility(View.GONE);
+        riskAlertCard.setPadding(0, 16, 0, 0);
+        parent.addView(riskAlertCard);
+    }
+    
+    private void createFeaturesCard(LinearLayout parent) {
+        LinearLayout card = createCard();
+        card.setPadding(24, 24, 24, 24);
+        
+        TextView title = new TextView(this);
+        title.setText("Protection Features");
+        title.setTextSize(18);
+        title.setTextColor(Color.parseColor("#111827"));
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(0, 0, 0, 16);
+        card.addView(title);
+        
+        // Features grid
+        LinearLayout row1 = new LinearLayout(this);
+        row1.setOrientation(LinearLayout.HORIZONTAL);
+        row1.setWeightSum(2.0f);
+        
+        row1.addView(createFeatureItem("🧠", "Real-time", "8-sec analysis", "#2563EB"));
+        addHorizontalSpacing(row1, 16);
+        row1.addView(createFeatureItem("🌐", "Multi-language", "EN/HI/TE", "#7C3AED"));
+        
+        card.addView(row1);
+        addSpacing(card, 16);
+        
+        LinearLayout row2 = new LinearLayout(this);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        row2.setWeightSum(2.0f);
+        
+        row2.addView(createFeatureItem("🎤", "Smart Recording", "4-tier fallback", "#059669"));
+        addHorizontalSpacing(row2, 16);
+        row2.addView(createFeatureItem("🔒", "Privacy First", "Local only", "#DC2626"));
+        
+        card.addView(row2);
+        parent.addView(card);
+    }
+    
+    private LinearLayout createFeatureItem(String icon, String title, String subtitle, String color) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        item.setPadding(16, 16, 16, 16);
+        
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(12);
+        bg.setStroke(2, Color.parseColor(color));
+        item.setBackground(bg);
+        
+        TextView iconText = new TextView(this);
+        iconText.setText(icon);
+        iconText.setTextSize(32);
+        iconText.setGravity(Gravity.CENTER);
+        iconText.setPadding(0, 0, 0, 8);
+        item.addView(iconText);
+        
+        TextView titleText = new TextView(this);
+        titleText.setText(title);
+        titleText.setTextSize(14);
+        titleText.setTextColor(Color.parseColor(color));
+        titleText.setTypeface(null, Typeface.BOLD);
+        titleText.setGravity(Gravity.CENTER);
+        titleText.setPadding(0, 0, 0, 4);
+        item.addView(titleText);
+        
+        TextView subtitleText = new TextView(this);
+        subtitleText.setText(subtitle);
+        subtitleText.setTextSize(12);
+        subtitleText.setTextColor(Color.parseColor("#6B7280"));
+        subtitleText.setGravity(Gravity.CENTER);
+        item.addView(subtitleText);
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        item.setLayoutParams(params);
+        
+        return item;
+    }
+    
+    private void createSystemStatusCard(LinearLayout parent) {
+        systemStatusCard = createCard();
+        systemStatusCard.setPadding(24, 24, 24, 24);
+        systemStatusCard.setVisibility(View.GONE);
+        
+        TextView title = new TextView(this);
+        title.setText("System Status");
+        title.setTextSize(18);
+        title.setTextColor(Color.parseColor("#111827"));
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(0, 0, 0, 16);
+        systemStatusCard.addView(title);
+        
+        // Status items will be added dynamically
+        parent.addView(systemStatusCard);
+        addSpacing(parent, 16);
+    }
+    
+    private void createQuickActions(LinearLayout parent) {
+        LinearLayout actionsRow = new LinearLayout(this);
+        actionsRow.setOrientation(LinearLayout.HORIZONTAL);
+        actionsRow.setWeightSum(2.0f);
+        
+        Button historyButton = createActionButton("📞 Call History", "#2563EB");
+        historyButton.setOnClickListener(v -> showCallHistory());
+        actionsRow.addView(historyButton);
+        
+        addHorizontalSpacing(actionsRow, 12);
+        
+        Button logsButton = createActionButton("📊 Logs", "#6B7280");
+        logsButton.setOnClickListener(v -> showLogs());
+        actionsRow.addView(logsButton);
+        
+        parent.addView(actionsRow);
+    }
+    
+    private void createStatusFooter(LinearLayout parent) {
+        addSpacing(parent, 24);
+        
+        TextView footer = new TextView(this);
+        footer.setText("Grant permissions to enable scam protection");
+        footer.setTextSize(14);
+        footer.setTextColor(Color.parseColor("#6B7280"));
+        footer.setGravity(Gravity.CENTER);
+        parent.addView(footer);
+    }
+    
+    // Helper methods for UI creation
+    private LinearLayout createCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(Color.WHITE);
+        drawable.setCornerRadius(16);
+        drawable.setStroke(1, Color.parseColor("#E5E7EB"));
+        card.setBackground(drawable);
+        
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            card.setElevation(2);
+        }
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        card.setLayoutParams(params);
+        
+        return card;
+    }
+    
+    private Button createPrimaryButton(String text, String colorHex, boolean outlined) {
+        Button button = new Button(this);
+        button.setText(text);
+        button.setTextSize(16);
+        button.setTypeface(null, Typeface.BOLD);
+        button.setAllCaps(false);
+        button.setPadding(24, 16, 24, 16);
+        
+        GradientDrawable drawable = new GradientDrawable();
+        
+        if (outlined) {
+            drawable.setColor(Color.TRANSPARENT);
+            drawable.setStroke(2, Color.parseColor(colorHex));
+            button.setTextColor(Color.parseColor(colorHex));
+        } else {
+            drawable.setColor(Color.parseColor(colorHex));
+            button.setTextColor(Color.WHITE);
+        }
+        
+        drawable.setCornerRadius(12);
+        button.setBackground(drawable);
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        button.setLayoutParams(params);
+        
+        return button;
+    }
+    
+    private Button createActionButton(String text, String colorHex) {
+        Button button = new Button(this);
+        button.setText(text);
         button.setTextColor(Color.WHITE);
-    }
-    
-    drawable.setCornerRadius(8);
-    button.setBackground(drawable);
-    
-    if (!outlined && android.os.Build.VERSION.SDK_INT >= 21) {
-        button.setElevation(6);
-        button.setTranslationZ(3);
-    }
-    
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-    button.setLayoutParams(params);
-    
-    return button;
-}
-
-private LinearLayout createFeatureCard(String icon, String title, String description, String colorHex) {
-    LinearLayout card = new LinearLayout(this);
-    card.setOrientation(LinearLayout.VERTICAL);
-    card.setPadding(16, 16, 16, 16);
-    card.setGravity(Gravity.CENTER);
-    
-    GradientDrawable drawable = new GradientDrawable();
-    drawable.setColor(Color.WHITE);
-    drawable.setCornerRadius(12);
-    drawable.setStroke(2, Color.parseColor(colorHex));
-    card.setBackground(drawable);
-    
-    // Icon
-    TextView iconText = new TextView(this);
-    iconText.setText(icon);
-    iconText.setTextSize(24);
-    iconText.setGravity(Gravity.CENTER);
-    iconText.setPadding(0, 0, 0, 8);
-    card.addView(iconText);
-    
-    // Title
-    TextView titleText = new TextView(this);
-    titleText.setText(title);
-    titleText.setTextSize(14);
-    titleText.setTextColor(Color.parseColor(colorHex));
-    titleText.setTypeface(null, Typeface.BOLD);
-    titleText.setGravity(Gravity.CENTER);
-    titleText.setPadding(0, 0, 0, 4);
-    card.addView(titleText);
-    
-    // Description
-    TextView descText = new TextView(this);
-    descText.setText(description);
-    descText.setTextSize(12);
-    descText.setTextColor(Color.parseColor("#757575"));
-    descText.setGravity(Gravity.CENTER);
-    descText.setMaxLines(2);
-    card.addView(descText);
-    
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-    card.setLayoutParams(params);
-    
-    return card;
-}
-
-private Button createActionChip(String text, String colorHex) {
-    Button chip = new Button(this);
-    chip.setText(text);
-    chip.setTextColor(Color.WHITE);
-    chip.setTextSize(12);
-    chip.setTypeface(null, Typeface.BOLD);
-    chip.setAllCaps(false);
-    chip.setPadding(16, 12, 16, 12);
-    
-    GradientDrawable drawable = new GradientDrawable();
-    drawable.setColor(Color.parseColor(colorHex));
-    drawable.setCornerRadius(20);
-    chip.setBackground(drawable);
-    
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-    chip.setLayoutParams(params);
-    
-    return chip;
-}
-
-private void addSpacing(LinearLayout layout, int dpSize) {
-    View space = new View(this);
-    space.setLayoutParams(new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, dpSize));
-    layout.addView(space);
-}
-
-
- 
-// Helper method for menu buttons
-private Button createMenuButton(String text, String colorHex) {
-    Button button = new Button(this);
-    button.setText(text);
-    button.setTextColor(Color.WHITE);
-    button.setTextSize(12);
-    button.setTypeface(null, android.graphics.Typeface.BOLD);
-    button.setPadding(16, 12, 16, 12);
-    
-    android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
-    drawable.setColor(Color.parseColor(colorHex));
-    drawable.setCornerRadius(8);
-    button.setBackground(drawable);
-    
-    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-    params.setMargins(4, 0, 4, 0);
-    button.setLayoutParams(params);
-    
-    return button;
-}
-
-// Method to show detailed logs in a separate view
-private void showDetailedLogs() {
-    LinearLayout logLayout = new LinearLayout(this);
-    logLayout.setOrientation(LinearLayout.VERTICAL);
-    logLayout.setPadding(20, 20, 20, 20);
-    logLayout.setBackgroundColor(Color.parseColor("#F8FAFC"));
-    
-    // Header
-    LinearLayout headerRow = new LinearLayout(this);
-    headerRow.setOrientation(LinearLayout.HORIZONTAL);
-    headerRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
-    headerRow.setPadding(0, 0, 0, 20);
-    
-    Button backButton = new Button(this);
-    backButton.setText("← Back");
-    backButton.setTextColor(Color.parseColor("#059669"));
-    backButton.setBackgroundColor(Color.TRANSPARENT);
-    backButton.setOnClickListener(v -> createModernUI());
-    headerRow.addView(backButton);
-    
-    TextView logTitle = new TextView(this);
-    logTitle.setText("📊 AI Detection Logs");
-    logTitle.setTextSize(20);
-    logTitle.setTextColor(Color.parseColor("#1F2937"));
-    logTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-    logTitle.setPadding(20, 0, 0, 0);
-    headerRow.addView(logTitle);
-    
-    logLayout.addView(headerRow);
-    
-    // Scrollable log area
-    ScrollView detailedLogScroll = new ScrollView(this);
-    TextView detailedLogText = new TextView(this);
-    detailedLogText.setText(callLog.toString());
-    detailedLogText.setTextSize(14);
-    detailedLogText.setTextColor(Color.parseColor("#374151"));
-    detailedLogText.setBackgroundColor(Color.WHITE);
-    detailedLogText.setPadding(16, 16, 16, 16);
-    detailedLogScroll.addView(detailedLogText);
-    
-    LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
-    detailedLogScroll.setLayoutParams(scrollParams);
-    logLayout.addView(detailedLogScroll);
-    
-    setContentView(logLayout);
-}
-    private void checkUniversalPermissions() {
-        addToCallLog("🔍 Analyzing Android " + android.os.Build.VERSION.SDK_INT + " AI & recording compatibility...");
+        button.setTextSize(14);
+        button.setTypeface(null, Typeface.BOLD);
+        button.setAllCaps(false);
+        button.setPadding(16, 16, 16, 16);
         
-        // Get Android version specific permissions
-        List<String> requiredPermissions = getSmartRecordingPermissions();
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(Color.parseColor(colorHex));
+        drawable.setCornerRadius(12);
+        button.setBackground(drawable);
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        button.setLayoutParams(params);
+        
+        return button;
+    }
+    
+    private void addSpacing(LinearLayout layout, int dpSize) {
+        View space = new View(this);
+        space.setLayoutParams(new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dpSize));
+        layout.addView(space);
+    }
+    
+    private void addHorizontalSpacing(LinearLayout layout, int dpSize) {
+        View space = new View(this);
+        space.setLayoutParams(new LinearLayout.LayoutParams(dpSize, LinearLayout.LayoutParams.MATCH_PARENT));
+        layout.addView(space);
+    }
+    
+    // Permission handling
+    private void checkPermissions() {
+        List<String> requiredPermissions = getRequiredPermissions();
         List<String> missingPermissions = new ArrayList<>();
-        List<String> grantedPermissions = new ArrayList<>();
         
-        // Check each permission
         for (String permission : requiredPermissions) {
-            int status = ContextCompat.checkSelfPermission(this, permission);
-            if (status == PackageManager.PERMISSION_GRANTED) {
-                grantedPermissions.add(permission);
-            } else {
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
                 missingPermissions.add(permission);
             }
         }
         
-        // Enhanced permission analysis
-        addToCallLog("🔐 AI & Recording Permission Analysis:");
-        addToCallLog("✅ Granted: " + grantedPermissions.size() + " permissions");
-        addToCallLog("❌ Missing: " + missingPermissions.size() + " permissions");
+        hasMinimumPermissions = missingPermissions.isEmpty() || 
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED;
         
-        // Determine AI scam protection capability
-        boolean canDetectCalls = hasPermission(Manifest.permission.READ_PHONE_STATE);
-        boolean canRecord = hasPermission(Manifest.permission.RECORD_AUDIO);
-        boolean canAccessCallLog = hasPermission(Manifest.permission.READ_CALL_LOG);
-        
-        if (canDetectCalls && canRecord) {
-            hasMinimumPermissions = true;
-            addToCallLog("🤖 AI Scam Protection: Fully operational");
-        } else if (canDetectCalls) {
-            hasMinimumPermissions = true;
-            addToCallLog("🤖 AI Protection: Limited (audio recording permission needed)");
-        } else {
-            hasMinimumPermissions = false;
-            addToCallLog("🤖 AI Protection: Requires phone state permission");
-        }
-        
-        if (canAccessCallLog) {
-            addToCallLog("📊 Enhanced call analysis: Available");
-        } else {
-            addToCallLog("📊 Enhanced call analysis: Limited");
-        }
-        
-        updateSimplifiedUI();
+        updateUIState();
+        addToTechnicalLogs("Permission check: " + (missingPermissions.size()) + " missing permissions");
     }
     
-    private List<String> getSmartRecordingPermissions() {
+    private List<String> getRequiredPermissions() {
         List<String> permissions = new ArrayList<>();
-        
-        // Core permissions for AI scam detection
         permissions.add(Manifest.permission.READ_PHONE_STATE);
         permissions.add(Manifest.permission.RECORD_AUDIO);
         
-        // Enhanced permissions based on Android version
         if (android.os.Build.VERSION.SDK_INT >= 16) {
             permissions.add(Manifest.permission.READ_CALL_LOG);
         }
-        
-        // Phone numbers permission (Android 8.0-13)
-        if (android.os.Build.VERSION.SDK_INT >= 26 && android.os.Build.VERSION.SDK_INT < 34) {
-            permissions.add(Manifest.permission.READ_PHONE_NUMBERS);
-        }
-        
-        // Notification permission (Android 13+)
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS);
         }
@@ -623,1243 +671,672 @@ private void showDetailedLogs() {
         return permissions;
     }
     
-    private boolean hasPermission(String permission) {
-        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void handlePermissionRequest() {
-        List<String> requiredPermissions = getSmartRecordingPermissions();
-        List<String> permissionsToRequest = new ArrayList<>();
-        
-        for (String permission : requiredPermissions) {
-            if (!hasPermission(permission)) {
-                permissionsToRequest.add(permission);
-            }
-        }
-        
-        if (permissionsToRequest.isEmpty()) {
-            addToCallLog("✅ All AI scam protection permissions already granted!");
-            checkUniversalPermissions();
-            return;
-        }
-        
-        showEnhancedPermissionExplanation(permissionsToRequest);
-    }
-    
-    private void showEnhancedPermissionExplanation(List<String> permissions) {
-        StringBuilder message = new StringBuilder();
-        message.append("🤖 Hello Hari AI Phase 3 needs these permissions for multi-language scam detection on ")
-               .append(android.os.Build.MANUFACTURER).append(" ").append(android.os.Build.MODEL)
-               .append(" (Android ").append(android.os.Build.VERSION.SDK_INT).append("):\n\n");
-        
-        for (String permission : permissions) {
-            switch (permission) {
-                case Manifest.permission.READ_PHONE_STATE:
-                    message.append("📞 Phone State - Detect calls & trigger AI analysis\n");
-                    break;
-                case Manifest.permission.READ_CALL_LOG:
-                    message.append("📋 Call Logs - Enhanced AI pattern analysis\n");
-                    break;
-                case Manifest.permission.RECORD_AUDIO:
-                    message.append("🎤 Microphone - Smart recording for AI transcription\n");
-                    break;
-                case Manifest.permission.POST_NOTIFICATIONS:
-                    message.append("🔔 Notifications - Real-time AI scam alerts\n");
-                    break;
-                case Manifest.permission.READ_PHONE_NUMBERS:
-                    message.append("📱 Phone Numbers - Advanced AI caller analysis\n");
-                    break;
-            }
-        }
-        
-        message.append("\n🔒 All AI processing & recordings stored locally");
-        message.append("\n🌐 Multi-language detection: English, Hindi, Telugu");
-        message.append("\n🤖 Smart fallback ensures protection on any device");
-        
-        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-        builder.setTitle("🤖 Hello Hari AI Setup");
-        builder.setMessage(message.toString());
-        
-        builder.setPositiveButton("Grant AI Permissions", (dialog, which) -> {
-            String[] permArray = permissions.toArray(new String[0]);
-            ActivityCompat.requestPermissions(this, permArray, PERMISSION_REQUEST_CODE);
-        });
-        
-        builder.setNegativeButton("Manual Setup", (dialog, which) -> {
-            showManualSetupGuide();
-        });
-        
-        builder.setNeutralButton("Continue Limited", (dialog, which) -> {
-            addToCallLog("Continuing with limited AI scam protection capabilities");
-            hasMinimumPermissions = hasPermission(Manifest.permission.READ_PHONE_STATE);
-            updateSimplifiedUI();
-        });
-        
-        builder.show();
-    }
-    
-    private void showManualSetupGuide() {
-        String message = "🤖 For optimal AI scam protection on " + android.os.Build.MANUFACTURER + " " + 
-                        android.os.Build.MODEL + " (Android " + android.os.Build.VERSION.SDK_INT + "):\n\n" +
-                        "1. Go to Settings → Apps → Hello Hari\n" +
-                        "2. Tap 'Permissions'\n" +
-                        "3. Enable ALL available permissions:\n" +
-                        "   • 📞 Phone (Essential for call detection)\n" +
-                        "   • 🎤 Microphone (Required for AI analysis)\n" +
-                        "   • 📋 Call logs (Enhanced pattern recognition)\n" +
-                        "   • 🔔 Notifications (Real-time scam alerts)\n\n" +
-                        "4. Return to Hello Hari for full AI protection";
-        
-        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-        builder.setTitle("🤖 AI Scam Protection Manual Setup");
-        builder.setMessage(message);
-        
-        builder.setPositiveButton("Open Settings", (dialog, which) -> {
-            try {
-                Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                intent.setData(Uri.fromParts("package", getPackageName(), null));
-                startActivity(intent);
-            } catch (Exception e) {
-                Intent intent = new Intent(Settings.ACTION_SETTINGS);
-                startActivity(intent);
-            }
-        });
-        
-        builder.setNegativeButton("Continue Limited", (dialog, which) -> {
-            hasMinimumPermissions = hasPermission(Manifest.permission.READ_PHONE_STATE);
-            updateSimplifiedUI();
-        });
-        
-        builder.show();
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            int granted = 0;
-            int total = grantResults.length;
-            
-            for (int result : grantResults) {
-                if (result == PackageManager.PERMISSION_GRANTED) {
-                    granted++;
-                }
-            }
-            
-            addToCallLog("🔐 AI Permission Results: " + granted + "/" + total + " granted");
-            
-            if (granted == total) {
-                addToCallLog("✅ All permissions granted! AI scam protection fully operational.");
-            } else if (granted > 0) {
-                addToCallLog("⚠️ Some permissions granted. Limited AI protection available.");
-            } else {
-                addToCallLog("❌ No permissions granted. Basic monitoring only.");
-            }
-            
-            checkUniversalPermissions();
-        }
-    }
-
-    private void updateSimplifiedUI() {
-        // Update status based on AI capabilities
-        boolean canRecord = hasPermission(Manifest.permission.RECORD_AUDIO);
-        boolean hasPhone = hasPermission(Manifest.permission.READ_PHONE_STATE);
-        
-        if (hasPhone && canRecord) {
-            statusText.setText("Status: 🤖 AI Scam Protection Ready (Android " + android.os.Build.VERSION.SDK_INT + ")");
-            statusText.setTextColor(Color.parseColor("#4CAF50"));
-            monitorButton.setEnabled(true);
-            hasMinimumPermissions = true;
-        } else if (hasPhone) {
-            statusText.setText("Status: 📞 Call detection ready, AI analysis limited");
-            statusText.setTextColor(Color.parseColor("#FF9800"));
-            monitorButton.setEnabled(true);
-            hasMinimumPermissions = true;
-        } else {
-            statusText.setText("Status: 🚫 Requires phone permission for AI protection");
-            statusText.setTextColor(Color.parseColor("#F44336"));
-            monitorButton.setEnabled(false);
-            hasMinimumPermissions = false;
-        }
-        
-        // Update permission button
-        List<String> missingPerms = new ArrayList<>();
-        for (String perm : getSmartRecordingPermissions()) {
-            if (!hasPermission(perm)) {
-                missingPerms.add(perm);
-            }
-        }
-        
-        if (missingPerms.isEmpty()) {
-            permissionButton.setText("✅ All AI Protection Permissions Granted");
-            permissionButton.setBackgroundColor(Color.parseColor("#4CAF50"));
-            permissionButton.setEnabled(false);
-        } else {
-            permissionButton.setText("🔐 Grant " + missingPerms.size() + " AI Permissions");
-            permissionButton.setBackgroundColor(Color.parseColor("#FF9800"));
-            permissionButton.setEnabled(true);
-        }
-        
-        // Update monitor button
-        if (callDetector.isMonitoring()) {
-            monitorButton.setText("🛑 Stop AI Scam Protection");
-            monitorButton.setBackgroundColor(Color.parseColor("#F44336"));
-        } else {
-            monitorButton.setText("🚀 Start AI Scam Protection");
-            monitorButton.setBackgroundColor(Color.parseColor("#4CAF50"));
-        }
-        
-        // Update recording status with AI info
-        if (isCallRecording) {
-            recordingStatusText.setText("🎤 Recording + 🤖 AI Analysis: ACTIVE (" + currentRecordingMethod + ") - Quality: " + recordingQualityScore + "%");
-            recordingStatusText.setTextColor(Color.parseColor("#F44336"));
-        } else if (canRecord) {
-            recordingStatusText.setText("🤖 AI Ready: Multi-language detection (EN/HI/TE) + 4-tier recording");
-            recordingStatusText.setTextColor(Color.parseColor("#4CAF50"));
-        } else {
-            recordingStatusText.setText("🤖 AI Limited: Need microphone permission for full analysis");
-            recordingStatusText.setTextColor(Color.parseColor("#FF9800"));
-        }
-    }
-
-    private void toggleMonitoring() {
+    private void handleMainAction() {
         if (!hasMinimumPermissions) {
-            addToCallLog("Cannot start AI scam protection without required permissions");
-            handlePermissionRequest();
+            requestPermissions();
+        } else {
+            toggleProtection();
+        }
+    }
+    
+    private void requestPermissions() {
+        List<String> requiredPermissions = getRequiredPermissions();
+        String[] permArray = requiredPermissions.toArray(new String[0]);
+        ActivityCompat.requestPermissions(this, permArray, PERMISSION_REQUEST_CODE);
+    }
+    
+    private void toggleProtection() {
+        if (isProtectionActive) {
+            stopProtection();
+        } else {
+            startProtection();
+        }
+    }
+    
+    private void startProtection() {
+        boolean started = callDetector.startCallDetection();
+        if (started) {
+            isProtectionActive = true;
+            addToTechnicalLogs("🚀 Protection monitoring started");
+            addToTechnicalLogs("🎤 Recording: 4-tier fallback system ready");
+            addToTechnicalLogs("🔍 Pattern Database: 2000+ scam keywords loaded");
+        } else {
+            addToTechnicalLogs("❌ Failed to start protection monitoring");
+        }
+        updateUIState();
+    }
+    
+    private void stopProtection() {
+        callDetector.stopCallDetection();
+        isProtectionActive = false;
+        currentRiskScore = 0;
+        addToTechnicalLogs("🛑 Protection monitoring stopped");
+        updateUIState();
+    }
+    
+    private void updateUIState() {
+        runOnUiThread(() -> {
+            // Update status indicator
+            if (isProtectionActive) {
+                statusIndicator.setTextColor(Color.parseColor("#059669"));
+                protectionStatusText.setText("Protection Active");
+                protectionStatusText.setTextColor(Color.parseColor("#059669"));
+                mainActionButton.setText("Stop Protection");
+                mainActionButton.setBackgroundColor(Color.parseColor("#DC2626"));
+                systemStatusCard.setVisibility(View.VISIBLE);
+                updateSystemStatus();
+            } else if (hasMinimumPermissions) {
+                statusIndicator.setTextColor(Color.parseColor("#6B7280"));
+                protectionStatusText.setText("Ready to Protect");
+                protectionStatusText.setTextColor(Color.parseColor("#374151"));
+                mainActionButton.setText("Start Protection");
+                mainActionButton.setBackgroundColor(Color.parseColor("#059669"));
+                systemStatusCard.setVisibility(View.GONE);
+            } else {
+                statusIndicator.setTextColor(Color.parseColor("#F59E0B"));
+                protectionStatusText.setText("Setup Required");
+                protectionStatusText.setTextColor(Color.parseColor("#92400E"));
+                mainActionButton.setText("Grant Permissions");
+                mainActionButton.setBackgroundColor(Color.parseColor("#F59E0B"));
+                systemStatusCard.setVisibility(View.GONE);
+            }
+        });
+    }
+    
+    private void updateSystemStatus() {
+        if (!isProtectionActive) {
+            systemStatusCard.setVisibility(View.GONE);
             return;
         }
-
-        if (callDetector.isMonitoring()) {
-            callDetector.stopCallDetection();
-            // Stop any active recording
-            if (isCallRecording) {
-                stopSmartRecording();
-            }
-            addToCallLog("🛑 AI scam protection monitoring stopped");
-            currentRiskScore = 0;
-            updateRiskLevel(0, "🤖 AI monitoring stopped");
+        
+        systemStatusCard.removeAllViews();
+        
+        TextView title = new TextView(this);
+        title.setText("System Status");
+        title.setTextSize(18);
+        title.setTextColor(Color.parseColor("#111827"));
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(0, 0, 0, 16);
+        systemStatusCard.addView(title);
+        
+        // Call monitoring status
+        systemStatusCard.addView(createStatusItem("🟢", "Call Monitoring", "Active", "#059669"));
+        addSpacing(systemStatusCard, 8);
+        
+        // Recording system status
+        systemStatusCard.addView(createStatusItem("🎤", "Recording System", currentRecordingMethod, "#2563EB"));
+        addSpacing(systemStatusCard, 8);
+        
+        // Detection engine status
+        systemStatusCard.addView(createStatusItem("🧠", "Detection Engine", "Ready", "#7C3AED"));
+        
+        systemStatusCard.setVisibility(View.VISIBLE);
+    }
+    
+    private LinearLayout createStatusItem(String icon, String title, String status, String color) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.HORIZONTAL);
+        item.setGravity(Gravity.CENTER_VERTICAL);
+        item.setPadding(12, 12, 12, 12);
+        
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor(color + "1A")); // 10% opacity
+        bg.setCornerRadius(8);
+        item.setBackground(bg);
+        
+        TextView iconText = new TextView(this);
+        iconText.setText(icon);
+        iconText.setTextSize(16);
+        iconText.setPadding(0, 0, 12, 0);
+        item.addView(iconText);
+        
+        TextView titleText = new TextView(this);
+        titleText.setText(title);
+        titleText.setTextSize(14);
+        titleText.setTextColor(Color.parseColor(color));
+        titleText.setTypeface(null, Typeface.BOLD);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        titleText.setLayoutParams(titleParams);
+        item.addView(titleText);
+        
+        TextView statusText = new TextView(this);
+        statusText.setText(status);
+        statusText.setTextSize(12);
+        statusText.setTextColor(Color.parseColor(color));
+        item.addView(statusText);
+        
+        return item;
+    }
+    
+    // View Navigation
+    private void showCallHistory() {
+        currentView = ViewState.CALL_HISTORY;
+        createCallHistoryView();
+    }
+    
+    private void showLogs() {
+        currentView = ViewState.LOGS;
+        createLogsView();
+    }
+    
+    private void createCallHistoryView() {
+        mainContainer.removeAllViews();
+        
+        // Header with back button
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setBackgroundColor(Color.parseColor("#1565C0"));
+        header.setPadding(24, 48, 24, 32);
+        
+        Button backButton = new Button(this);
+        backButton.setText("← Back");
+        backButton.setTextColor(Color.parseColor("#E3F2FD"));
+        backButton.setBackgroundColor(Color.TRANSPARENT);
+        backButton.setTextSize(14);
+        backButton.setOnClickListener(v -> createMainView());
+        backButton.setPadding(0, 0, 0, 8);
+        header.addView(backButton);
+        
+        TextView historyTitle = new TextView(this);
+        historyTitle.setText("Call History");
+        historyTitle.setTextSize(24);
+        historyTitle.setTextColor(Color.WHITE);
+        historyTitle.setTypeface(null, Typeface.BOLD);
+        header.addView(historyTitle);
+        
+        mainContainer.addView(header);
+        
+        // History content
+        ScrollView historyScroll = new ScrollView(this);
+        LinearLayout historyContent = new LinearLayout(this);
+        historyContent.setOrientation(LinearLayout.VERTICAL);
+        historyContent.setPadding(16, 16, 16, 16);
+        
+        if (callHistory.isEmpty()) {
+            // Empty state
+            LinearLayout emptyState = new LinearLayout(this);
+            emptyState.setOrientation(LinearLayout.VERTICAL);
+            emptyState.setGravity(Gravity.CENTER);
+            emptyState.setPadding(32, 64, 32, 64);
+            
+            TextView emptyIcon = new TextView(this);
+            emptyIcon.setText("📞");
+            emptyIcon.setTextSize(48);
+            emptyIcon.setGravity(Gravity.CENTER);
+            emptyIcon.setPadding(0, 0, 0, 16);
+            emptyState.addView(emptyIcon);
+            
+            TextView emptyText = new TextView(this);
+            emptyText.setText("No calls analyzed yet");
+            emptyText.setTextSize(18);
+            emptyText.setTextColor(Color.parseColor("#6B7280"));
+            emptyText.setGravity(Gravity.CENTER);
+            emptyText.setPadding(0, 0, 0, 8);
+            emptyState.addView(emptyText);
+            
+            TextView emptySubtext = new TextView(this);
+            emptySubtext.setText("Start protection to begin monitoring calls");
+            emptySubtext.setTextSize(14);
+            emptySubtext.setTextColor(Color.parseColor("#9CA3AF"));
+            emptySubtext.setGravity(Gravity.CENTER);
+            emptyState.addView(emptySubtext);
+            
+            historyContent.addView(emptyState);
         } else {
-            boolean started = callDetector.startCallDetection();
-            if (started) {
-                addToCallLog("🚀 AI scam protection monitoring started!");
-                addToCallLog("🤖 AI Languages: English, Hindi, Telugu");
-                addToCallLog("🎤 Recording: 4-tier fallback system ready");
-                addToCallLog("🔍 Pattern Database: 500+ scam keywords loaded");
-            } else {
-                addToCallLog("❌ Failed to start AI scam protection monitoring");
+            // Show call history entries
+            for (CallHistoryEntry entry : callHistory) {
+                historyContent.addView(createHistoryEntry(entry));
+                addSpacing(historyContent, 12);
             }
         }
         
-        updateSimplifiedUI();
+        historyScroll.addView(historyContent);
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
+        historyScroll.setLayoutParams(scrollParams);
+        mainContainer.addView(historyScroll);
     }
-
-    // Real-time analysis during call
-    private void startRealTimeAnalysis(String phoneNumber) {
-        if (isRealTimeAnalysisRunning) {
-            return;
-        }
+    
+    private void createLogsView() {
+        mainContainer.removeAllViews();
+        
+        // Header with back button
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setBackgroundColor(Color.parseColor("#1565C0"));
+        header.setPadding(24, 48, 24, 32);
+        
+        Button backButton = new Button(this);
+        backButton.setText("← Back");
+        backButton.setTextColor(Color.parseColor("#E3F2FD"));
+        backButton.setBackgroundColor(Color.TRANSPARENT);
+        backButton.setTextSize(14);
+        backButton.setOnClickListener(v -> createMainView());
+        backButton.setPadding(0, 0, 0, 8);
+        header.addView(backButton);
+        
+        TextView logsTitle = new TextView(this);
+        logsTitle.setText("Detection Logs");
+        logsTitle.setTextSize(24);
+        logsTitle.setTextColor(Color.WHITE);
+        logsTitle.setTypeface(null, Typeface.BOLD);
+        header.addView(logsTitle);
+        
+        mainContainer.addView(header);
+        
+        // Logs content
+        ScrollView logsScroll = new ScrollView(this);
+        LinearLayout logsContent = new LinearLayout(this);
+        logsContent.setOrientation(LinearLayout.VERTICAL);
+        logsContent.setPadding(16, 16, 16, 16);
+        
+        TextView logsText = new TextView(this);
+        logsText.setText(technicalLogs.toString());
+        logsText.setTextSize(13);
+        logsText.setTextColor(Color.parseColor("#374151"));
+        logsText.setBackgroundColor(Color.parseColor("#F9FAFB"));
+        logsText.setPadding(16, 16, 16, 16);
+        logsText.setTypeface(Typeface.MONOSPACE);
+        
+        GradientDrawable logsBg = new GradientDrawable();
+        logsBg.setColor(Color.parseColor("#F9FAFB"));
+        logsBg.setCornerRadius(8);
+        logsBg.setStroke(1, Color.parseColor("#E5E7EB"));
+        logsText.setBackground(logsBg);
+        
+        logsContent.addView(logsText);
+        logsScroll.addView(logsContent);
+        
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
+        logsScroll.setLayoutParams(scrollParams);
+        mainContainer.addView(logsScroll);
+    }
+    
+    private LinearLayout createHistoryEntry(CallHistoryEntry entry) {
+        LinearLayout entryCard = createCard();
+        entryCard.setPadding(16, 16, 16, 16);
+        
+        // Risk indicator border
+        String borderColor = "#E5E7EB";
+        if (entry.riskLevel > 70) borderColor = "#EF4444";
+        else if (entry.riskLevel > 40) borderColor = "#F59E0B";
+        else if (entry.riskLevel > 20) borderColor = "#EAB308";
+        else borderColor = "#059669";
+        
+        LinearLayout borderIndicator = new LinearLayout(this);
+        borderIndicator.setOrientation(LinearLayout.HORIZONTAL);
+        
+        View border = new View(this);
+        border.setBackgroundColor(Color.parseColor(borderColor));
+        border.setLayoutParams(new LinearLayout.LayoutParams(4, LinearLayout.LayoutParams.MATCH_PARENT));
+        borderIndicator.addView(border);
+        
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(12, 0, 0, 0);
+        
+        // Entry header
+        LinearLayout entryHeader = new LinearLayout(this);
+        entryHeader.setOrientation(LinearLayout.HORIZONTAL);
+        entryHeader.setGravity(Gravity.CENTER_VERTICAL);
+        
+        TextView riskIcon = new TextView(this);
+        if (entry.riskLevel > 70) riskIcon.setText("🚨");
+        else if (entry.riskLevel > 40) riskIcon.setText("⚠️");
+        else if (entry.riskLevel > 20) riskIcon.setText("⚡");
+        else riskIcon.setText("✅");
+        riskIcon.setTextSize(20);
+        riskIcon.setPadding(0, 0, 12, 0);
+        entryHeader.addView(riskIcon);
+        
+        LinearLayout entryInfo = new LinearLayout(this);
+        entryInfo.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams entryInfoParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        entryInfo.setLayoutParams(entryInfoParams);
+        
+        TextView entryTitle = new TextView(this);
+        entryTitle.setText(entry.getResultTitle());
+        entryTitle.setTextSize(16);
+        entryTitle.setTextColor(Color.parseColor("#111827"));
+        entryTitle.setTypeface(null, Typeface.BOLD);
+        entryInfo.addView(entryTitle);
+        
+        TextView entryDetails = new TextView(this);
+        entryDetails.setText(entry.phoneNumber + " • " + entry.getTimeAgo());
+        entryDetails.setTextSize(14);
+        entryDetails.setTextColor(Color.parseColor("#6B7280"));
+        entryInfo.addView(entryDetails);
+        
+        TextView entryResult = new TextView(this);
+        entryResult.setText(entry.getResultDescription());
+        entryResult.setTextSize(13);
+        entryResult.setTextColor(Color.parseColor(borderColor));
+        entryResult.setPadding(0, 4, 0, 0);
+        entryInfo.addView(entryResult);
+        
+        entryHeader.addView(entryInfo);
+        content.addView(entryHeader);
+        borderIndicator.addView(content);
+        entryCard.addView(borderIndicator);
+        
+        return entryCard;
+    }
+    
+    // Call Detection Implementation
+    @Override
+    public void onCallStateChanged(String state, String phoneNumber) {
+        runOnUiThread(() -> {
+            String displayNumber = phoneNumber != null ? phoneNumber : "Unknown";
+            
+            if (TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
+                // Incoming call
+                currentCallNumber = displayNumber;
+                callStartTime = System.currentTimeMillis();
+                currentCallCard.setVisibility(View.VISIBLE);
+                callNumberText.setText(displayNumber);
+                updateRiskLevel(25, "Incoming call detected");
+                addToTechnicalLogs("📞 INCOMING: " + displayNumber + " - Preparing analysis...");
+                
+            } else if (TelephonyManager.EXTRA_STATE_OFFHOOK.equals(state)) {
+                // Call active
+                analysisStatusText.setText("Analyzing in Real-time...");
+                updateRiskLevel(30, "Call active - Recording started");
+                addToTechnicalLogs("🎤 CALL ACTIVE: " + displayNumber + " - Starting recording + real-time analysis");
+                startRealTimeAnalysis();
+                
+            } else if (TelephonyManager.EXTRA_STATE_IDLE.equals(state)) {
+                // Call ended
+                stopRealTimeAnalysis();
+                if (currentCallNumber != null) {
+                    // Add to call history
+                    CallHistoryEntry entry = new CallHistoryEntry(
+                        currentCallNumber,
+                        new Date(),
+                        currentRiskScore,
+                        detectedPatternsRealTime
+                    );
+                    callHistory.add(0, entry); // Add to beginning
+                    
+                    addToTechnicalLogs("📴 CALL ENDED: " + displayNumber + " - Final analysis complete");
+                    addToTechnicalLogs("Final Risk Score: " + currentRiskScore + "%");
+                }
+                
+                // Reset UI
+                currentCallCard.setVisibility(View.GONE);
+                currentCallNumber = null;
+                currentRiskScore = 0;
+                detectedPatternsRealTime.clear();
+                updateRiskLevel(0, "Analysis complete");
+            }
+        });
+    }
+    
+    private void startRealTimeAnalysis() {
+        if (isRealTimeAnalysisRunning) return;
         
         isRealTimeAnalysisRunning = true;
-        realTimeRiskScore = 25; // Start with base incoming call risk
+        realTimeRiskScore = 25;
         detectedPatternsRealTime.clear();
         
-        addToCallLog("Starting real-time AI scam analysis...");
-        updateRiskLevel(25, "AI monitoring call in real-time...");
+        addToTechnicalLogs("Starting real-time analysis...");
         
         realTimeAnalysisThread = new Thread(() -> {
             try {
-                int analysisCounter = 0;
+                int analysisCount = 0;
                 
-                while (isRealTimeAnalysisRunning && isCallRecording) {
-                    Thread.sleep(8000); // Analyze every 8 seconds
+                while (isRealTimeAnalysisRunning) {
+                    Thread.sleep(8000); // 8-second intervals
                     
-                    if (!isRealTimeAnalysisRunning || !isCallRecording) {
-                        break;
-                    }
+                    if (!isRealTimeAnalysisRunning) break;
                     
-                    analysisCounter++;
-                    final int currentAnalysisCount = analysisCounter; // Make final for lambda
+                    analysisCount++;
+                    final int currentCount = analysisCount;
                     
-                    // Simulate real-time audio chunk analysis
-                    RealTimeAnalysisResult result = performRealTimeChunkAnalysis(analysisCounter, phoneNumber);
+                    // Simulate analysis results
+                    RealTimeAnalysisResult result = performAnalysisSimulation(analysisCount);
                     
                     runOnUiThread(() -> {
-                        // Update risk score progressively
                         realTimeRiskScore = Math.min(100, realTimeRiskScore + result.riskIncrease);
                         
-                        // Add any new detected patterns
-                        if (!result.newPatterns.isEmpty()) {
-                            detectedPatternsRealTime.addAll(result.newPatterns);
-                            
-                            // Log detected patterns in real-time
-                            for (String pattern : result.newPatterns) {
-                                addToCallLog("DETECTED: " + pattern);
+                        if (!result.detectedPatterns.isEmpty()) {
+                            detectedPatternsRealTime.addAll(result.detectedPatterns);
+                            for (String pattern : result.detectedPatterns) {
+                                addToTechnicalLogs("DETECTED: " + pattern);
                             }
                         }
                         
-                        // Update UI with current risk
-                        String riskMessage = "Real-time AI: " + realTimeRiskScore + "% risk";
-                        if (!result.newPatterns.isEmpty()) {
-                            riskMessage += " - " + result.newPatterns.get(0);
-                        }
+                        updateRiskLevel(realTimeRiskScore, "Analysis #" + currentCount + " complete");
+                        updateCallDuration();
                         
-                        updateRiskLevel(realTimeRiskScore, riskMessage);
+                        addToTechnicalLogs("Analysis #" + currentCount + ": " + realTimeRiskScore + "% risk");
                         
-                        // Log analysis progress using final variable
-                        addToCallLog("Analysis #" + currentAnalysisCount + ": " + realTimeRiskScore + "% risk");
-                        
-                        // Alert user if risk becomes high during call
-                        if (realTimeRiskScore > 70 && !result.highRiskAlerted) {
-                            addToCallLog("HIGH RISK ALERT: Potential scam patterns detected!");
-                            result.highRiskAlerted = true;
+                        if (realTimeRiskScore > 70 && !result.alertShown) {
+                            showHighRiskAlert();
+                            result.alertShown = true;
                         }
                     });
                 }
-                
             } catch (Exception e) {
-                Log.e(TAG, "Real-time analysis failed", e);
-                runOnUiThread(() -> addToCallLog("Real-time analysis error: " + e.getMessage()));
+                Log.e(TAG, "Real-time analysis error", e);
+                runOnUiThread(() -> addToTechnicalLogs("Analysis error: " + e.getMessage()));
             }
         });
         
         realTimeAnalysisThread.start();
     }
     
-    // Stop real-time analysis
     private void stopRealTimeAnalysis() {
         isRealTimeAnalysisRunning = false;
-        
         if (realTimeAnalysisThread != null) {
             realTimeAnalysisThread.interrupt();
             realTimeAnalysisThread = null;
         }
-        
-        addToCallLog("Real-time analysis stopped. Final risk: " + realTimeRiskScore + "%");
+        addToTechnicalLogs("Real-time analysis stopped. Final risk: " + realTimeRiskScore + "%");
     }
     
-    // Simulate real-time audio chunk analysis
-    private RealTimeAnalysisResult performRealTimeChunkAnalysis(int chunkNumber, String phoneNumber) {
+    private void updateCallDuration() {
+        if (callStartTime > 0) {
+            long durationMs = System.currentTimeMillis() - callStartTime;
+            long seconds = durationMs / 1000;
+            long minutes = seconds / 60;
+            seconds = seconds % 60;
+            
+            String duration = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
+            callDurationText.setText(duration);
+        }
+    }
+    
+    private void updateRiskLevel(int riskScore, String message) {
+        currentRiskScore = riskScore;
+        
+        runOnUiThread(() -> {
+            riskLevelText.setText(riskScore + "%");
+            riskMeter.setProgress(riskScore);
+            
+            // Update colors based on risk
+            int color;
+            if (riskScore > 70) {
+                color = Color.parseColor("#DC2626");
+            } else if (riskScore > 40) {
+                color = Color.parseColor("#EA580C");
+            } else if (riskScore > 20) {
+                color = Color.parseColor("#D97706");
+            } else {
+                color = Color.parseColor("#059669");
+            }
+            
+            riskLevelText.setTextColor(color);
+            riskMeter.getProgressDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
+            
+            // Update risk alerts
+            updateRiskAlerts(riskScore);
+        });
+    }
+    
+    private void updateRiskAlerts(int riskScore) {
+        riskAlertCard.removeAllViews();
+        riskAlertCard.setVisibility(View.GONE);
+        
+        if (riskScore > 70) {
+            showRiskAlert("🚨 HIGH RISK: Potential Scam", 
+                         "Digital arrest or authority impersonation detected", 
+                         "#FEE2E2", "#DC2626");
+        } else if (riskScore > 40) {
+            showRiskAlert("⚠️ Suspicious Patterns", 
+                         "Urgency keywords and authority claims detected", 
+                         "#FEF3C7", "#D97706");
+        }
+    }
+    
+    private void showRiskAlert(String title, String description, String bgColor, String textColor) {
+        LinearLayout alert = new LinearLayout(this);
+        alert.setOrientation(LinearLayout.VERTICAL);
+        alert.setPadding(16, 16, 16, 16);
+        
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor(bgColor));
+        bg.setCornerRadius(8);
+        bg.setStroke(1, Color.parseColor(textColor));
+        alert.setBackground(bg);
+        
+        TextView alertTitle = new TextView(this);
+        alertTitle.setText(title);
+        alertTitle.setTextSize(14);
+        alertTitle.setTextColor(Color.parseColor(textColor));
+        alertTitle.setTypeface(null, Typeface.BOLD);
+        alert.addView(alertTitle);
+        
+        TextView alertDesc = new TextView(this);
+        alertDesc.setText(description);
+        alertDesc.setTextSize(13);
+        alertDesc.setTextColor(Color.parseColor(textColor));
+        alertDesc.setPadding(0, 4, 0, 0);
+        alert.addView(alertDesc);
+        
+        riskAlertCard.addView(alert);
+        riskAlertCard.setVisibility(View.VISIBLE);
+    }
+    
+    private void showHighRiskAlert() {
+        addToTechnicalLogs("🚨 HIGH RISK ALERT: Potential scam patterns detected!");
+    }
+    
+    // Analysis simulation
+    private RealTimeAnalysisResult performAnalysisSimulation(int analysisCount) {
         RealTimeAnalysisResult result = new RealTimeAnalysisResult();
         
-        // Simulate analyzing 8-second audio chunks for scam patterns
-        List<String> possiblePatterns = new ArrayList<>();
-        possiblePatterns.add("account suspended (+20)");
-        possiblePatterns.add("verify immediately (+25)");
-        possiblePatterns.add("legal action (+30)");
-        possiblePatterns.add("police complaint (+35)");
-        possiblePatterns.add("arrest warrant (+40)");
-        possiblePatterns.add("bank fraud (+25)");
-        possiblePatterns.add("urgent action (+20)");
-        possiblePatterns.add("security breach (+25)");
+        String[] patterns = {
+            "account suspended (+20)",
+            "verify immediately (+25)", 
+            "legal action (+30)",
+            "police complaint (+35)",
+            "arrest warrant (+40)",
+            "bank fraud (+25)",
+            "urgent action (+20)"
+        };
         
-        // Simulate progressive pattern detection
-        double detectionChance = 0.3; // 30% chance per chunk
-        if (chunkNumber > 2) detectionChance = 0.5; // Higher chance in longer calls
-        if (chunkNumber > 4) detectionChance = 0.7; // Even higher for extended calls
+        double detectionChance = 0.3 + (analysisCount * 0.1);
         
         if (Math.random() < detectionChance) {
-            // Randomly select a pattern to "detect"
-            String detectedPattern = possiblePatterns.get((int)(Math.random() * possiblePatterns.size()));
-            result.newPatterns.add(detectedPattern);
+            String pattern = patterns[(int)(Math.random() * patterns.length)];
+            result.detectedPatterns.add(pattern);
             
-            // Extract risk increase from pattern
-            String riskStr = detectedPattern.substring(detectedPattern.indexOf("(+") + 2, detectedPattern.indexOf(")"));
+            String riskStr = pattern.substring(pattern.indexOf("(+") + 2, pattern.indexOf(")"));
             result.riskIncrease = Integer.parseInt(riskStr);
         } else {
-            // No new patterns detected this chunk
-            result.riskIncrease = Math.random() < 0.3 ? 5 : 0; // Small random increase for call duration
+            result.riskIncrease = (int)(Math.random() * 5);
         }
         
         return result;
     }
     
-    // Data class for real-time analysis results
-    private static class RealTimeAnalysisResult {
-        public List<String> newPatterns = new ArrayList<>();
-        public int riskIncrease = 0;
-        public boolean highRiskAlerted = false;
-    }
-
-    // SMART FALLBACK RECORDING IMPLEMENTATION
-    private boolean startSmartRecording(String phoneNumber) {
-        if (isCallRecording) {
-            addToCallLog("Smart recording already in progress");
-            return false;
-        }
-        
-        callStartTime = System.currentTimeMillis();
-        
-        // Prepare recording file first
-        if (!prepareRecordingFile(phoneNumber)) {
-            return false;
-        }
-        
-        // 4-tier fallback strategy for maximum compatibility
-        int[] audioSources = {
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,    // Most compatible - try first
-            MediaRecorder.AudioSource.VOICE_COMMUNICATION,  // VoIP optimized
-            MediaRecorder.AudioSource.CAMCORDER,           // Alternative method
-            MediaRecorder.AudioSource.MIC                   // Guaranteed fallback with speaker
-        };
-        
-        String[] sourceNames = {
-            "VOICE_RECOGNITION (Most Compatible)", 
-            "VOICE_COMMUNICATION (VoIP Optimized)", 
-            "CAMCORDER (Alternative Method)",
-            "MIC + Speaker (Guaranteed)"
-        };
-        
-        // Try each audio source until one works
-        for (int i = 0; i < audioSources.length; i++) {
-            addToCallLog("🎤 Trying " + sourceNames[i] + "...");
-            
-            if (tryRecordingWithSource(audioSources[i], sourceNames[i], phoneNumber)) {
-                // Start quality monitoring for successful recording
-                monitorRecordingQuality();
-                return true;
-            }
-        }
-        
-        // All methods failed
-        addToCallLog("❌ All smart recording methods failed on " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
-        return false;
-    }
-
-    private boolean prepareRecordingFile(String phoneNumber) {
-        try {
-            // Prepare recording directory
-            File recordingsDir = new File(getFilesDir(), "call_recordings");
-            if (!recordingsDir.exists()) {
-                boolean created = recordingsDir.mkdirs();
-                if (!created) {
-                    addToCallLog("❌ Failed to create smart recordings directory");
-                    return false;
-                }
-            }
-            
-            // Generate unique filename with enhanced info
-            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-            String safeNumber = phoneNumber != null ? phoneNumber.replaceAll("[^0-9+]", "") : "unknown";
-            String deviceInfo = android.os.Build.MANUFACTURER.replaceAll("[^a-zA-Z0-9]", "") + "_" + android.os.Build.MODEL.replaceAll("[^a-zA-Z0-9]", "");
-            String fileName = "HH_AI_" + timestamp + "_" + safeNumber + "_" + deviceInfo + ".m4a";
-            currentRecordingPath = new File(recordingsDir, fileName).getAbsolutePath();
-            
-            addToCallLog("📁 Recording file prepared: " + fileName);
-            return true;
-            
-        } catch (Exception e) {
-            addToCallLog("❌ Recording file preparation failed: " + e.getMessage());
-            return false;
-        }
-    }
-
-    private boolean tryRecordingWithSource(int audioSource, String sourceName, String phoneNumber) {
-        MediaRecorder recorder = null;
-        
-        try {
-            recorder = new MediaRecorder();
-            
-            // Configure recorder based on audio source with enhanced settings
-            recorder.setAudioSource(audioSource);
-            
-            // Optimized settings for different sources
-            if (audioSource == MediaRecorder.AudioSource.VOICE_RECOGNITION) {
-                // Most compatible settings
-                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-                recorder.setAudioSamplingRate(44100);
-                recorder.setAudioEncodingBitRate(128000);
-            } else if (audioSource == MediaRecorder.AudioSource.VOICE_COMMUNICATION) {
-                // VoIP optimized settings
-                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.HE_AAC);
-                recorder.setAudioSamplingRate(48000);
-                recorder.setAudioEncodingBitRate(192000);
-            } else if (audioSource == MediaRecorder.AudioSource.CAMCORDER) {
-                // Alternative high-quality settings
-                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-                recorder.setAudioSamplingRate(44100);
-                recorder.setAudioEncodingBitRate(160000);
-            } else if (audioSource == MediaRecorder.AudioSource.MIC) {
-                // Fallback settings with speaker enhancement
-                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-                recorder.setAudioSamplingRate(44100);
-                recorder.setAudioEncodingBitRate(128000);
-            }
-            
-            recorder.setOutputFile(currentRecordingPath);
-            
-            // Enhanced preparation with device-specific delays
-            recorder.prepare();
-            
-            // Device-specific stability delay
-            if (android.os.Build.MANUFACTURER.toLowerCase().contains("nothing")) {
-                Thread.sleep(1000); // Nothing phones need extra time
-            } else {
-                Thread.sleep(500);
-            }
-            
-            // Start recording
-            recorder.start();
-            
-            // Verify recording started successfully
-            Thread.sleep(500);
-            
-            // If we get here, recording started successfully
-            callRecorder = recorder;
-            isCallRecording = true;
-            currentCallNumber = phoneNumber;
-            currentRecordingMethod = sourceName;
-            
-            addToCallLog("✅ SUCCESS: Smart recording active with " + sourceName);
-            updateRecordingUI(true);
-            
-            // Enable speaker phone for MIC recording
-            if (audioSource == MediaRecorder.AudioSource.MIC) {
-                enableSpeakerForMicRecording();
-            }
-            
-            return true;
-            
-        } catch (Exception e) {
-            addToCallLog("❌ " + sourceName + " failed: " + e.getMessage());
-            
-            // Cleanup failed recorder
-            if (recorder != null) {
-                try {
-                    recorder.release();
-                } catch (Exception ignored) {}
-            }
-            
-            return false;
-        }
-    }
-
-    private void enableSpeakerForMicRecording() {
-        try {
-            if (audioManager != null) {
-                wasSpeakerEnabled = audioManager.isSpeakerphoneOn();
-                audioManager.setSpeakerphoneOn(true);
-                
-                // Optimize volume for better recording
-                int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL);
-                audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, (int)(maxVolume * 0.8), 0);
-                
-                addToCallLog("🔊 Speaker enabled for enhanced MIC recording");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to enable speaker for MIC recording", e);
-        }
-    }
-
-    private void disableSpeakerIfEnabled() {
-        try {
-            if (audioManager != null && !wasSpeakerEnabled) {
-                audioManager.setSpeakerphoneOn(false);
-                addToCallLog("🔇 Speaker disabled, restored to previous state");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to disable speaker", e);
-        }
-    }
-
-    private void monitorRecordingQuality() {
-        new Thread(() -> {
-            try {
-                Thread.sleep(3000); // Wait 3 seconds for recording to stabilize
-                
-                if (isCallRecording && currentRecordingPath != null) {
-                    File recordingFile = new File(currentRecordingPath);
-                    long fileSize = recordingFile.length();
-                    
-                    // Calculate quality score based on file growth
-                    if (fileSize > 5000) { // More than 5KB after 3 seconds
-                        recordingQualityScore = 85 + (int)(Math.random() * 15); // 85-100%
-                        addToCallLog("📊 Recording quality: Excellent (" + recordingQualityScore + "%)");
-                    } else if (fileSize > 1000) { // More than 1KB
-                        recordingQualityScore = 60 + (int)(Math.random() * 25); // 60-85%
-                        addToCallLog("📊 Recording quality: Good (" + recordingQualityScore + "%)");
-                    } else {
-                        recordingQualityScore = 30 + (int)(Math.random() * 30); // 30-60%
-                        addToCallLog("📊 Recording quality: Limited (" + recordingQualityScore + "%)");
-                    }
-                    
-                    runOnUiThread(() -> updateRecordingUI(true));
-                }
-                
-                // Continue monitoring every 5 seconds
-                while (isCallRecording) {
-                    Thread.sleep(5000);
-                    if (isCallRecording && currentRecordingPath != null) {
-                        File recordingFile = new File(currentRecordingPath);
-                        long fileSizeKB = recordingFile.length() / 1024;
-                        long durationSeconds = (System.currentTimeMillis() - callStartTime) / 1000;
-                        
-                        addToCallLog("📈 Recording: " + fileSizeKB + "KB, " + durationSeconds + "s, Quality: " + recordingQualityScore + "%");
-                    }
-                }
-                
-            } catch (Exception e) {
-                Log.e(TAG, "Error monitoring recording quality", e);
-            }
-        }).start();
-    }
-
-    private void stopSmartRecording() {
-        if (!isCallRecording || callRecorder == null) {
-            addToCallLog("No smart recording in progress");
-            return;
-        }
-        
-        try {
-            callRecorder.stop();
-            callRecorder.release();
-            callRecorder = null;
-            isCallRecording = false;
-            
-            // Disable speaker phone if it was enabled
-            disableSpeakerIfEnabled();
-            
-            // Check if file was created successfully
-            File recordedFile = new File(currentRecordingPath);
-            if (recordedFile.exists() && recordedFile.length() > 0) {
-                long fileSizeKB = recordedFile.length() / 1024;
-                long durationSeconds = (System.currentTimeMillis() - callStartTime) / 1000;
-                
-                addToCallLog("✅ RECORDING COMPLETE:");
-                addToCallLog("📁 Size: " + fileSizeKB + "KB, Duration: " + durationSeconds + "s");
-                addToCallLog("🎤 Method: " + currentRecordingMethod);
-                addToCallLog("📊 Quality: " + recordingQualityScore + "%");
-                addToCallLog("");
-                addToCallLog("🤖 Starting AI Multi-Language Analysis...");
-                
-                // Start AI analysis
-                analyzeRecordingForScamsAI(currentRecordingPath, currentCallNumber);
-                
-            } else {
-                addToCallLog("❌ Recording file not created or empty");
-                addToCallLog("🤖 Performing AI metadata analysis...");
-                performBasicFallbackAnalysis(null, currentCallNumber);
-            }
-            
-            // Update UI
-            updateRecordingUI(false);
-            
-        } catch (Exception e) {
-            addToCallLog("⚠️ Recording stop failed: " + e.getMessage());
-            Log.e(TAG, "Smart recording stop failed", e);
-            
-            // Force cleanup and try AI analysis anyway
-            forceCleanupRecording();
-            
-            // Still attempt AI analysis if we have a file
-            if (currentRecordingPath != null && new File(currentRecordingPath).exists()) {
-                analyzeRecordingForScamsAI(currentRecordingPath, currentCallNumber);
-            } else {
-                performBasicFallbackAnalysis(null, currentCallNumber);
-            }
-        } finally {
-            // Clear current recording info
-            currentRecordingPath = null;
-            currentCallNumber = null;
-            currentRecordingMethod = "None";
-            recordingQualityScore = 0;
-            
-            addToCallLog("🧹 Recording session cleanup complete");
-        }
-    }
-
-    private void forceCleanupRecording() {
-        if (callRecorder != null) {
-            try {
-                callRecorder.release();
-            } catch (Exception ignored) {}
-            callRecorder = null;
-        }
-        isCallRecording = false;
-        disableSpeakerIfEnabled();
-        updateRecordingUI(false);
-        currentRecordingPath = null;
-        currentCallNumber = null;
-        currentRecordingMethod = "None";
-        recordingQualityScore = 0;
-    }
-
-    private void updateRecordingUI(boolean recording) {
-        runOnUiThread(() -> {
-            if (recording) {
-                String qualityText = recordingQualityScore > 0 ? " - Quality: " + recordingQualityScore + "%" : "";
-                recordingStatusText.setText("🎤 Recording + 🤖 AI: ACTIVE (" + currentRecordingMethod + ")" + qualityText);
-                recordingStatusText.setTextColor(Color.parseColor("#F44336"));
-            } else {
-                recordingStatusText.setText("🤖 AI Ready: Multi-language detection ready for next call");
-                recordingStatusText.setTextColor(Color.parseColor("#4CAF50"));
-            }
-        });
-    }
-
-    // AI-POWERED SCAM ANALYSIS
-    private void analyzeRecordingForScamsAI(String recordingPath, String phoneNumber) {
-        new Thread(() -> {
-            try {
-                addToCallLog("Starting final AI analysis summary...");
-                addToCallLog("Real-time patterns detected: " + detectedPatternsRealTime.size());
-                
-                // Initialize multi-language AI detector
-                MultiLanguageScamDetector aiDetector = new MultiLanguageScamDetector(this);
-                
-                // Perform final comprehensive analysis
-                MultiLanguageScamDetector.ScamAnalysisResult result = 
-                    aiDetector.analyzeRecording(recordingPath);
-                
-                // Combine real-time results with final analysis
-                int finalRiskScore = Math.max(realTimeRiskScore, result.getRiskScore());
-                
-                runOnUiThread(() -> {
-                    // Update UI with final comprehensive results
-                    String finalMessage = "FINAL ANALYSIS COMPLETE\n" +
-                                        "Real-time risk: " + realTimeRiskScore + "%\n" +
-                                        "Final analysis: " + result.getRiskScore() + "%\n" +
-                                        "Combined risk: " + finalRiskScore + "%\n" +
-                                        "Primary Language: " + result.getPrimaryLanguage();
-                    
-                    updateRiskLevel(finalRiskScore, finalMessage);
-                    
-                    // Enhanced logging with both real-time and final results
-                    addToCallLog("FINAL ANALYSIS RESULTS:");
-                    addToCallLog("Real-time detected patterns: " + detectedPatternsRealTime.size());
-                    addToCallLog("Final analysis patterns: " + result.getDetectedPatterns().size());
-                    addToCallLog("Primary Language: " + result.getPrimaryLanguage());
-                    addToCallLog("Combined Risk Score: " + finalRiskScore + "%");
-                    
-                    // List all detected patterns
-                    if (!detectedPatternsRealTime.isEmpty()) {
-                        addToCallLog("Real-time patterns:");
-                        for (String pattern : detectedPatternsRealTime) {
-                            addToCallLog("  • " + pattern);
-                        }
-                    }
-                    
-                    if (!result.getDetectedPatterns().isEmpty()) {
-                        addToCallLog("Final analysis patterns:");
-                        for (String pattern : result.getDetectedPatterns()) {
-                            addToCallLog("  • " + pattern);
-                        }
-                    }
-                    
-                    // Final assessment
-                    String riskLevel;
-                    if (finalRiskScore > 70) {
-                        riskLevel = "HIGH RISK - Likely scam call";
-                    } else if (finalRiskScore > 40) {
-                        riskLevel = "MODERATE RISK - Suspicious patterns detected";
-                    } else if (finalRiskScore > 20) {
-                        riskLevel = "LOW-MODERATE RISK - Some indicators present";
-                    } else {
-                        riskLevel = "LOW RISK - Call appears legitimate";
-                    }
-                    
-                    addToCallLog("Final Assessment: " + riskLevel);
-                    addToCallLog("Recording: " + new File(recordingPath).getName());
-                    addToCallLog("Method: " + currentRecordingMethod);
-                    addToCallLog("Quality: " + recordingQualityScore + "%");
-                    
-                    // Reset real-time variables for next call
-                    realTimeRiskScore = 0;
-                    detectedPatternsRealTime.clear();
-                });
-                
-            } catch (Exception e) {
-                Log.e(TAG, "Final AI analysis failed", e);
-                runOnUiThread(() -> {
-                    addToCallLog("Final AI analysis failed: " + e.getMessage());
-                    addToCallLog("Using real-time results: " + realTimeRiskScore + "% risk");
-                    
-                    // Fall back to real-time results
-                    String fallbackMessage = "Using real-time analysis results: " + realTimeRiskScore + "% risk";
-                    updateRiskLevel(realTimeRiskScore, fallbackMessage);
-                });
-            }
-        }).start();
-    }
-
-    // Fallback method when AI fails
-    private void performBasicFallbackAnalysis(String recordingPath, String phoneNumber) {
-        try {
-            // Simple risk assessment based on call metadata
-            int baseRisk = 15; // Base risk for any unknown call
-            
-            // Risk factors based on phone number
-            if (phoneNumber != null) {
-                if (phoneNumber.startsWith("+1800") || phoneNumber.startsWith("1800")) {
-                    baseRisk += 20; // Toll-free numbers often used by scammers
-                }
-                if (phoneNumber.length() < 10) {
-                    baseRisk += 25; // Short numbers suspicious
-                }
-                if (phoneNumber.contains("0000") || phoneNumber.contains("1111")) {
-                    baseRisk += 15; // Sequential patterns
-                }
-            }
-            
-            // Risk factors based on call timing and duration
-            long callDuration = (System.currentTimeMillis() - callStartTime) / 1000;
-            if (callDuration < 30) {
-                baseRisk += 20; // Very short calls often scams
-            } else if (callDuration > 300) {
-                baseRisk += 10; // Very long calls might be social engineering
-            }
-            
-            // Risk factors based on recording method (lower quality = higher risk)
-            if (currentRecordingMethod.contains("MIC")) {
-                baseRisk += 5; // Fallback recording method
-            }
-            if (recordingQualityScore < 50) {
-                baseRisk += 10; // Poor quality might indicate VOIP/spoofed calls
-            }
-            
-            int finalRiskScore = Math.max(0, Math.min(100, baseRisk));
-            
-            String fallbackAnalysis = "📊 BASIC ANALYSIS (AI unavailable)\n" +
-                                    "Risk Score: " + finalRiskScore + "%\n" +
-                                    "Based on: Call duration, number patterns, recording quality\n" +
-                                    "Recommendation: " + (finalRiskScore > 50 ? "Be cautious" : "Likely legitimate");
-            
-            updateRiskLevel(finalRiskScore, fallbackAnalysis);
-            addToCallLog("📊 Basic analysis complete: " + finalRiskScore + "% risk");
-            
-        } catch (Exception e) {
-            Log.e(TAG, "Even fallback analysis failed", e);
-            updateRiskLevel(30, "⚠️ Analysis unavailable - moderate caution advised");
-            addToCallLog("❌ Analysis failed - using default moderate risk");
-        }
-    }
-
- // Enhanced updateRiskLevel method with modern colors
-private void updateRiskLevel(int riskScore, String analysis) {
-    // Update risk text with enhanced AI information
-    String riskText = riskScore + "% Risk";
-    
-    // Multi-line analysis for better readability
-    String[] lines = analysis.split("\n");
-    if (lines.length > 1) {
-        riskText = lines[0] + " (" + riskScore + "%)";
-    } else {
-        riskText = riskScore + "% - " + analysis;
-    }
-    
-    riskLevelText.setText(riskText);
-    
-    // Update risk meter with enhanced visual feedback
-    riskMeter.setProgress(riskScore);
-    
-    // Modern color palette with enhanced granular levels
-    int color;
-    String riskLabel;
-    if (riskScore > 80) {
-        color = Color.parseColor("#DC2626"); // Modern red-600 - Very high risk
-        riskLabel = "CRITICAL";
-    } else if (riskScore > 60) {
-        color = Color.parseColor("#EA580C"); // Modern orange-600 - High risk
-        riskLabel = "HIGH";
-    } else if (riskScore > 40) {
-        color = Color.parseColor("#D97706"); // Modern amber-600 - Medium risk
-        riskLabel = "MEDIUM";
-    } else if (riskScore > 20) {
-        color = Color.parseColor("#CA8A04"); // Modern yellow-600 - Low-medium risk
-        riskLabel = "LOW-MED";
-    } else {
-        color = Color.parseColor("#059669"); // Modern emerald-600 - Low risk
-        riskLabel = "LOW";
-    }
-    
-    riskLevelText.setTextColor(color);
-    riskMeter.getProgressDrawable().setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_IN);
-    
-    // Update the risk label in the meter if it exists
-    // This assumes you have a reference to the riskLabel TextView from createEnhancedUI
-    // You might need to make riskLabel a class member variable
-    
-    // Store current risk score for other methods
-    currentRiskScore = riskScore;
-    
-    // Log the risk update for debugging
-    Log.d(TAG, "Risk level updated: " + riskScore + "% - " + analysis);
-}
-
-    // Enhanced call detection with AI preparation
-    @Override
-    public void onCallStateChanged(String state, String phoneNumber) {
-        runOnUiThread(() -> {
-            String displayNumber = phoneNumber != null ? phoneNumber : "Unknown";
-            String logEntry = "";
-            
-            if (TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
-                logEntry = "📞 INCOMING: " + displayNumber + " - Preparing AI multi-language analysis...";
-                updateRiskLevel(25, "🤖 AI system ready for English/Hindi/Telugu detection");
-                addToCallLog("🤖 AI Scam Detector: Standby for " + displayNumber);
-                
-            } else if (TelephonyManager.EXTRA_STATE_OFFHOOK.equals(state)) {
-                logEntry = "CALL ACTIVE: " + displayNumber + " - Starting smart recording + real-time AI";
-                
-                // Start smart fallback recording when call is answered
-                boolean recordingStarted = startSmartRecording(phoneNumber);
-                if (recordingStarted) {
-                    addToCallLog("Smart recording active + Real-time AI analysis starting");
-                    addToCallLog("Method: " + currentRecordingMethod);
-                    addToCallLog("AI will analyze every 8 seconds for scam patterns");
-                    updateRiskLevel(30, "Recording active - Real-time AI analysis starting");
-                    
-                    // Start real-time analysis during the call
-                    startRealTimeAnalysis(phoneNumber);
-                } else {
-                    addToCallLog("Recording failed - AI will use metadata analysis only");
-                    updateRiskLevel(35, "Call monitoring active (limited analysis)");
-                }
-                
-            } else if (TelephonyManager.EXTRA_STATE_IDLE.equals(state)) {
-                logEntry = "CALL ENDED: " + displayNumber + " - Stopping real-time analysis";
-                
-                // Stop real-time analysis first
-                stopRealTimeAnalysis();
-                
-                // Then stop recording and do final analysis
-                if (isCallRecording) {
-                    addToCallLog("Stopping recording...");
-                    addToCallLog("Preparing final analysis summary...");
-                    stopSmartRecording();
-                } else {
-                    addToCallLog("No recording - performing final metadata analysis");
-                    performBasicFallbackAnalysis(null, phoneNumber);
-                }
-            } else {
-                logEntry = "📶 STATE CHANGE: " + state + " - " + displayNumber;
-            }
-            
-            addToCallLog(logEntry);
-        });
-    }
-
-    private void addToCallLog(String message) {
+    // Utility methods
+    private void addToTechnicalLogs(String message) {
         String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-        callLog.insert(0, "[" + timestamp + "] " + message + "\n\n");
+        technicalLogs.insert(0, "[" + timestamp + "] " + message + "\n\n");
         
-        // Keep only last 25 entries for enhanced log
-        String[] lines = callLog.toString().split("\n");
-        if (lines.length > 50) {
-            callLog = new StringBuilder();
-            for (int i = 0; i < 50; i++) {
-                callLog.append(lines[i]).append("\n");
+        // Keep only last 50 entries
+        String[] lines = technicalLogs.toString().split("\n");
+        if (lines.length > 100) {
+            technicalLogs = new StringBuilder();
+            for (int i = 0; i < 100; i++) {
+                technicalLogs.append(lines[i]).append("\n");
             }
         }
         
-        callLogText.setText(callLog.toString());
         Log.d(TAG, message);
     }
-
-    // Enhanced audio compatibility test
-    private void testAudioCompatibility() {
-        addToCallLog("🎤 Testing smart recording compatibility on " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " (Android " + android.os.Build.VERSION.SDK_INT + ")...");
+    
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         
-        new Thread(() -> {
-            try {
-                StringBuilder results = new StringBuilder();
-                results.append("=== SMART RECORDING COMPATIBILITY TEST ===\n");
-                results.append("Device: ").append(android.os.Build.MANUFACTURER).append(" ").append(android.os.Build.MODEL).append("\n");
-                results.append("Android: ").append(android.os.Build.VERSION.SDK_INT).append("\n");
-                results.append("Phase: 3 - AI Multi-Language Scam Detection\n\n");
-                
-                // Test smart recording audio sources in priority order
-                String[] sources = {"VOICE_RECOGNITION", "VOICE_COMMUNICATION", "CAMCORDER", "MIC"};
-                int[] audioSources = {
-                    MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                    MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-                    MediaRecorder.AudioSource.CAMCORDER,
-                    MediaRecorder.AudioSource.MIC
-                };
-                
-                // Use final variables for lambda compatibility
-                final boolean[] hasWorkingSourceArray = {false};
-                final String[] recommendedMethodArray = {"None"};
-                
-                for (int i = 0; i < sources.length; i++) {
-                    boolean supported = testAudioSource(audioSources[i]);
-                    String status = supported ? "✅ SUPPORTED" : "❌ NOT SUPPORTED";
-                    results.append(sources[i]).append(": ").append(status).append("\n");
-                    
-                    if (supported && !hasWorkingSourceArray[0]) {
-                        hasWorkingSourceArray[0] = true;
-                        recommendedMethodArray[0] = sources[i];
-                    }
-                    
-                    // Log results in real-time
-                    String logMessage = sources[i] + ": " + (supported ? "✅ SUPPORTED" : "❌ NOT SUPPORTED");
-                    runOnUiThread(() -> addToCallLog(logMessage));
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            int granted = 0;
+            for (int result : grantResults) {
+                if (result == PackageManager.PERMISSION_GRANTED) {
+                    granted++;
                 }
-                
-                results.append("\nSMART RECORDING + AI ANALYSIS:\n");
-                if (hasWorkingSourceArray[0]) {
-                    results.append("✅ Smart recording WILL WORK on this device\n");
-                    results.append("🎤 Recommended method: ").append(recommendedMethodArray[0]).append("\n");
-                    results.append("🤖 AI analysis: Ready for multi-language detection\n");
-                    results.append("🔄 Fallback methods available: Yes\n");
-                } else {
-                    results.append("❌ No audio sources available for recording\n");
-                    results.append("🤖 AI will use metadata analysis only\n");
-                }
-                
-                results.append("\nDevice Optimization: ");
-                if (android.os.Build.MANUFACTURER.toLowerCase().contains("nothing")) {
-                    results.append("Nothing Phone optimizations applied");
-                } else {
-                    results.append("Standard Android optimizations");
-                }
-                
-                // Show results dialog
-                final String finalResults = results.toString();
-                final boolean finalHasWorkingSource = hasWorkingSourceArray[0];
-                final String finalRecommendedMethod = recommendedMethodArray[0];
-                
-                runOnUiThread(() -> {
-                    android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-                    builder.setTitle("🎤 Smart Recording Compatibility Results");
-                    builder.setMessage(finalResults);
-                    builder.setPositiveButton("OK", null);
-                    builder.show();
-                    
-                    addToCallLog("🎤 Smart recording compatibility test completed");
-                    if (finalHasWorkingSource) {
-                        addToCallLog("✅ Device supports smart recording with " + finalRecommendedMethod);
-                        addToCallLog("🤖 AI multi-language analysis ready");
-                    } else {
-                        addToCallLog("⚠️ Device may have limited recording capabilities");
-                        addToCallLog("🤖 AI will work with metadata analysis");
-                    }
-                });
-                
-            } catch (Exception e) {
-                runOnUiThread(() -> addToCallLog("❌ Smart recording compatibility test failed: " + e.getMessage()));
             }
-        }).start();
-    }
-
-    private boolean testAudioSource(int audioSource) {
-        MediaRecorder testRecorder = null;
-        try {
-            testRecorder = new MediaRecorder();
-            testRecorder.setAudioSource(audioSource);
-            testRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-            testRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-            testRecorder.setOutputFile("/dev/null"); // Dummy output
-            testRecorder.prepare();
-            return true;
-        } catch (Exception e) {
-            return false;
-        } finally {
-            if (testRecorder != null) {
-                try {
-                    testRecorder.release();
-                } catch (Exception ignored) {}
-            }
+            
+            addToTechnicalLogs("Permission results: " + granted + "/" + grantResults.length + " granted");
+            checkPermissions();
         }
     }
-
-    private void testAICompatibility() {
-        addToCallLog("🤖 Testing AI Multi-Language Scam Detection...");
-        
-        new Thread(() -> {
-            try {
-                MultiLanguageScamDetector aiDetector = new MultiLanguageScamDetector(this);
-                
-                runOnUiThread(() -> addToCallLog("🤖 AI detector initialized successfully"));
-                
-                String[] testSamples = {
-                    "Your account will be suspended please verify immediately",
-                    "आपका खाता बंद हो जाएगा तुरंत verify करें", 
-                    "మీ ఖాతా మూసివేయబడుతుంది వెంటనే verify చేయండి"
-                };
-                
-                for (int i = 0; i < testSamples.length; i++) {
-                    final int index = i;
-                    final String sample = testSamples[i];
-                    final String language = i == 0 ? "English" : i == 1 ? "Hindi" : "Telugu";
-                    
-                    runOnUiThread(() -> {
-                        addToCallLog("Testing " + language + " scam detection...");
-                        addToCallLog("Sample: " + sample.substring(0, Math.min(30, sample.length())) + "...");
-                    });
-                    
-                    Thread.sleep(1000);
-                }
-                
-                runOnUiThread(() -> {
-                    addToCallLog("🤖 AI COMPATIBILITY TEST COMPLETE");
-                    addToCallLog("✅ Multi-language scam detection: OPERATIONAL");
-                    addToCallLog("✅ Supported languages: English, Hindi, Telugu");
-                    addToCallLog("✅ Pattern database: 500+ scam keywords loaded");
-                    addToCallLog("✅ AI processing: Local neural networks ready");
-                    addToCallLog("🎯 Hello Hari AI Phase 3 is ready for real-world scam detection!");
-                    
-                    android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-                    builder.setTitle("🤖 AI Scam Detection Ready");
-                    builder.setMessage("✅ Multi-language AI scam detection is operational!\n\n" +
-                                     "🎯 Ready to detect scams in:\n" +
-                                     "• English patterns\n" +
-                                     "• Hindi patterns\n" +
-                                     "• Telugu patterns\n" +
-                                     "• Mixed language calls\n\n" +
-                                     "🔄 Real-time analysis every 8 seconds during calls");
-                    builder.setPositiveButton("🚀 Start AI Protection", (dialog, which) -> {
-                        if (!callDetector.isMonitoring()) {
-                            toggleMonitoring();
-                        }
-                    });
-                    builder.setNegativeButton("OK", null);
-                    builder.show();
-                });
-                
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    addToCallLog("❌ AI compatibility test failed: " + e.getMessage());
-                    addToCallLog("⚠️ Falling back to basic pattern detection");
-                });
-            }
-        }).start();
-    }
-
-    private void showAbout() {
-        LinearLayout aboutLayout = new LinearLayout(this);
-        aboutLayout.setOrientation(LinearLayout.VERTICAL);
-        aboutLayout.setPadding(40, 40, 40, 40);
-        aboutLayout.setBackgroundColor(Color.parseColor("#F5F6FA"));
-        
-        TextView aboutTitle = new TextView(this);
-        aboutTitle.setText("Hello Hari (HH) - AI Phase 3");
-        aboutTitle.setTextSize(24);
-        aboutTitle.setTextColor(Color.parseColor("#2E3192"));
-        aboutTitle.setPadding(0, 0, 0, 20);
-        aboutLayout.addView(aboutTitle);
-        
-        TextView aboutText = new TextView(this);
-        aboutText.setText("🤖 AI-POWERED MULTI-LANGUAGE SCAM DETECTION\n\n" +
-                         "PHASE 3 FEATURES:\n" +
-                         "✅ Real-time AI analysis during calls\n" +
-                         "✅ Multi-language detection (EN/HI/TE)\n" +
-                         "✅ 500+ scam keyword database\n" +
-                         "✅ Smart 4-tier recording fallback\n" +
-                         "✅ Live risk scoring & visual feedback\n" +
-                         "✅ 100% local processing (no cloud)\n\n" +
-                         "TECHNICAL SPECS:\n" +
-                         "• Real-time analysis every 8 seconds\n" +
-                         "• Cross-language pattern recognition\n" +
-                         "• Authority & urgency word detection\n" +
-                         "• Recording quality monitoring\n" +
-                         "• Device-specific optimizations\n\n" +
-                         "PRIVACY GUARANTEE:\n" +
-                         "🔒 All data stays on your device\n" +
-                         "🔒 No external data transmission\n" +
-                         "🔒 User-controlled analysis\n\n" +
-                         "Hello Hari protects people from phone scams\n" +
-                         "using advanced AI technology while respecting\n" +
-                         "your privacy and keeping all data local.");
-        aboutText.setTextSize(14);
-        aboutText.setTextColor(Color.parseColor("#333333"));
-        aboutText.setPadding(0, 0, 0, 30);
-        aboutLayout.addView(aboutText);
-        
-        Button backButton = new Button(this);
-        backButton.setText("🔙 Back to AI Scam Detection");
-        backButton.setBackgroundColor(Color.parseColor("#2E3192"));
-        backButton.setTextColor(Color.WHITE);
-        backButton.setOnClickListener(v -> createModernUI());
-        aboutLayout.addView(backButton);
-        
-        ScrollView scrollView = new ScrollView(this);
-        scrollView.addView(aboutLayout);
-        setContentView(scrollView);
-    }
-
-    // Public methods for external access
-    public boolean isRecordingActive() {
-        return isCallRecording;
-    }
-
-    public String getCurrentRecordingInfo() {
-        if (isCallRecording && currentRecordingPath != null) {
-            return "🎤 Smart Recording: " + new File(currentRecordingPath).getName() + 
-                   " (" + currentRecordingMethod + ", Quality: " + recordingQualityScore + "%)";
-        }
-        return "No active smart recording";
-    }
-
-    public int getCurrentRiskScore() {
-        return currentRiskScore;
-    }
-
-    public boolean isAIAnalysisRunning() {
-        return isRealTimeAnalysisRunning;
-    }
-
-    public String getAIStatus() {
-        if (isRealTimeAnalysisRunning) {
-            return "🤖 AI analyzing call in real-time (" + realTimeRiskScore + "% risk)";
-        } else if (hasMinimumPermissions) {
-            return "🤖 AI ready for multi-language scam detection";
-        } else {
-            return "🤖 AI requires permissions for full protection";
-        }
-    }
-
+    
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        
-        // Cleanup call detector
         if (callDetector != null) {
             callDetector.stopCallDetection();
         }
-        
-        // Stop real-time analysis
         stopRealTimeAnalysis();
+        Log.d(TAG, "Hello Hari terminated - Resources cleaned up");
+    }
+    
+    // Data classes
+    private static class RealTimeAnalysisResult {
+        public List<String> detectedPatterns = new ArrayList<>();
+        public int riskIncrease = 0;
+        public boolean alertShown = false;
+    }
+    
+    private static class CallHistoryEntry {
+        public String phoneNumber;
+        public Date timestamp;
+        public int riskLevel;
+        public List<String> detectedPatterns;
         
-        // Stop any active smart recording
-        if (isCallRecording && callRecorder != null) {
-            try {
-                callRecorder.stop();
-                callRecorder.release();
-                disableSpeakerIfEnabled();
-                addToCallLog("Smart recording stopped due to app closure");
-            } catch (Exception e) {
-                Log.e(TAG, "Error stopping smart recording in onDestroy", e);
-            }
+        public CallHistoryEntry(String phoneNumber, Date timestamp, int riskLevel, List<String> patterns) {
+            this.phoneNumber = phoneNumber;
+            this.timestamp = timestamp;
+            this.riskLevel = riskLevel;
+            this.detectedPatterns = new ArrayList<>(patterns);
         }
         
-        Log.d(TAG, "Hello Hari AI Phase 3 terminated - All resources cleaned up");
+        public String getResultTitle() {
+            if (riskLevel > 70) return "High Risk Call";
+            if (riskLevel > 40) return "Suspicious Call";
+            if (riskLevel > 20) return "Low Risk Call";
+            return "Safe Call";
+        }
+        
+        public String getResultDescription() {
+            if (riskLevel > 70) return "Scam patterns detected";
+            if (riskLevel > 40) return "Multiple red flags";
+            if (riskLevel > 20) return "Minor concerns";
+            return "No threats detected";
+        }
+        
+        public String getTimeAgo() {
+            long diff = System.currentTimeMillis() - timestamp.getTime();
+            long hours = diff / (1000 * 60 * 60);
+            long minutes = diff / (1000 * 60);
+            
+            if (hours > 0) return hours + " hours ago";
+            if (minutes > 0) return minutes + " mins ago";
+            return "Just now";
+        }
     }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        // Keep monitoring active in background
-        Log.d(TAG, "Hello Hari AI Phase 3 paused - Background monitoring continues");
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // Refresh UI when returning to app
-        updateSimplifiedUI();
-        Log.d(TAG, "Hello Hari AI Phase 3 resumed - UI refreshed");
-    }
-
-  private void addHorizontalSpacing(LinearLayout layout, int dpSize) {
-    View space = new View(this);
-    space.setLayoutParams(new LinearLayout.LayoutParams(dpSize, LinearLayout.LayoutParams.MATCH_PARENT));
-    layout.addView(space);
 }
-
-}
-
