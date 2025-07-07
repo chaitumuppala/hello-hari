@@ -1,619 +1,6 @@
-package com.hellohari;
-
-import android.Manifest;
-import android.app.Activity;
-import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.graphics.PorterDuff;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
-import android.media.AudioManager;
-import android.os.Bundle;
-import android.telephony.TelephonyManager;
-import android.util.Log;
-import android.view.Gravity;
-import android.view.View;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
-import android.widget.ScrollView;
-import android.widget.TextView;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-
-public class MainActivity extends Activity implements SimpleCallDetector.CallDetectionListener {
-    private static final String TAG = "HelloHariMain";
-    private static final int PERMISSION_REQUEST_CODE = 123;
-    
-    // UI State Management
-    private enum ViewState {
-        MAIN, CALL_HISTORY, LOGS
-    }
-    
-    private ViewState currentView = ViewState.MAIN;
-    
-    // Core Components
-    private SimpleCallDetector callDetector;
-    private AudioManager audioManager;
-    
-    // UI Components
-    private LinearLayout mainContainer;
-    private TextView statusIndicator;
-    private TextView protectionStatusText;
-    private Button mainActionButton;
-    private TextView riskLevelText;
-    private ProgressBar riskMeter;
-    private LinearLayout currentCallCard;
-    private TextView callNumberText;
-    private TextView callDurationText;
-    private TextView analysisStatusText;
-    private LinearLayout riskAlertCard;
-    private LinearLayout systemStatusCard;
-    private TextView statusFooterText;
-    
-    // State Variables - FIXED: All properly declared
-    private boolean hasMinimumPermissions = false;
-    private boolean isProtectionActive = false;
-    private int currentRiskScore = 0;
-    private String currentCallNumber;
-    private String currentRecordingMethod = "Ready";
-    private long callStartTime = 0;
-    
-    // Real-time analysis
-    private Thread realTimeAnalysisThread;
-    private boolean isRealTimeAnalysisRunning = false;
-    private int realTimeRiskScore = 0;
-    private List<String> detectedPatternsRealTime = new ArrayList<>();
-    
-    // Logs and History
-    private StringBuilder technicalLogs = new StringBuilder();
-    private List<CallHistoryEntry> callHistory = new ArrayList<>();
-    
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        
-        try {
-            // Initialize core components
-            callDetector = new SimpleCallDetector(this);
-            callDetector.setCallDetectionListener(this);
-            audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
-            
-            // Setup UI with React component styling
-            createModernReactUI();
-            checkPermissions();
-            
-            // Initialize logs
-            addToTechnicalLogs("🛡️ Hello Hari protection system initialized");
-            addToTechnicalLogs("Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
-            
-            Log.d(TAG, "Hello Hari - React-style UI initialized successfully");
-        } catch (Exception e) {
-            Log.e(TAG, "Error in onCreate", e);
-            createFallbackUI();
-        }
-    }
-    
-    private void createFallbackUI() {
-        LinearLayout fallback = new LinearLayout(this);
-        fallback.setOrientation(LinearLayout.VERTICAL);
-        fallback.setPadding(16, 16, 16, 16);
-        fallback.setBackgroundColor(Color.parseColor("#F9FAFB"));
-        
-        TextView title = new TextView(this);
-        title.setText("Hello Hari - Initialization Error");
-        title.setTextSize(18);
-        title.setTextColor(Color.parseColor("#EF4444"));
-        title.setPadding(0, 20, 0, 20);
-        fallback.addView(title);
-        
-        Button retryButton = new Button(this);
-        retryButton.setText("Retry");
-        retryButton.setOnClickListener(v -> recreate());
-        fallback.addView(retryButton);
-        
-        setContentView(fallback);
-    }
-    
-    private void createModernReactUI() {
-        ScrollView scrollView = new ScrollView(this);
-        scrollView.setBackgroundColor(Color.parseColor("#F9FAFB")); // React: bg-gray-50
-        
-        mainContainer = new LinearLayout(this);
-        mainContainer.setOrientation(LinearLayout.VERTICAL);
-        mainContainer.setPadding(0, 0, 0, 0);
-        
-        createMainView();
-        
-        scrollView.addView(mainContainer);
-        setContentView(scrollView);
-    }
-    
-    private void createMainView() {
-        try {
-            mainContainer.removeAllViews();
-            currentView = ViewState.MAIN;
-            
-            createReactHeader();
-            
-            LinearLayout contentArea = new LinearLayout(this);
-            contentArea.setOrientation(LinearLayout.VERTICAL);
-            contentArea.setPadding(16, 16, 16, 16);
-            
-            // Max width container (React: max-w-md mx-auto)
-            LinearLayout maxWidthContainer = new LinearLayout(this);
-            maxWidthContainer.setOrientation(LinearLayout.VERTICAL);
-            maxWidthContainer.setGravity(Gravity.CENTER_HORIZONTAL);
-            
-            createProtectionStatusCard(maxWidthContainer);
-            addSpacing(maxWidthContainer, 16);
-            
-            createCurrentCallCard(maxWidthContainer);
-            
-            createFeaturesCard(maxWidthContainer);
-            addSpacing(maxWidthContainer, 16);
-            
-            createSystemStatusCard(maxWidthContainer);
-            
-            createQuickActions(maxWidthContainer);
-            addSpacing(maxWidthContainer, 16);
-            
-            createStatusFooter(maxWidthContainer);
-            
-            contentArea.addView(maxWidthContainer);
-            mainContainer.addView(contentArea);
-        } catch (Exception e) {
-            Log.e(TAG, "Error creating main view", e);
-        }
-    }
-    
-    private void createReactHeader() {
-        // React: bg-gradient-to-r from-blue-600 to-blue-700
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.VERTICAL);
-        
-        GradientDrawable headerBg = new GradientDrawable(
-            GradientDrawable.Orientation.LEFT_RIGHT,
-            new int[]{Color.parseColor("#2563EB"), Color.parseColor("#1D4ED8")}
-        );
-        header.setBackground(headerBg);
-        header.setPadding(24, 48, 24, 32);
-        
-        LinearLayout titleRow = new LinearLayout(this);
-        titleRow.setOrientation(LinearLayout.HORIZONTAL);
-        titleRow.setGravity(Gravity.CENTER_VERTICAL);
-        
-        // Shield icon
-        TextView shieldIcon = new TextView(this);
-        shieldIcon.setText("🛡️");
-        shieldIcon.setTextSize(32); // React: w-8 h-8
-        shieldIcon.setPadding(0, 0, 12, 0);
-        titleRow.addView(shieldIcon);
-        
-        TextView appTitle = new TextView(this);
-        appTitle.setText("Hello Hari");
-        appTitle.setTextSize(24); // React: text-2xl
-        appTitle.setTextColor(Color.WHITE);
-        appTitle.setTypeface(null, Typeface.BOLD); // React: font-bold
-        titleRow.addView(appTitle);
-        
-        header.addView(titleRow);
-        
-        TextView subtitle = new TextView(this);
-        subtitle.setText("Your smart call guardian");
-        subtitle.setTextSize(16);
-        subtitle.setTextColor(Color.parseColor("#DBEAFE")); // React: text-blue-100
-        subtitle.setPadding(44, 8, 0, 0);
-        header.addView(subtitle);
-        
-        mainContainer.addView(header);
-    }
-    
-    private void createProtectionStatusCard(LinearLayout parent) {
-        // React: bg-white rounded-2xl p-6 shadow-sm border border-gray-200
-        LinearLayout card = createReactCard();
-        card.setPadding(24, 24, 24, 24);
-        
-        LinearLayout statusRow = new LinearLayout(this);
-        statusRow.setOrientation(LinearLayout.HORIZONTAL);
-        statusRow.setGravity(Gravity.CENTER_VERTICAL);
-        statusRow.setPadding(0, 0, 0, 16);
-        
-        // Status indicator dot
-        statusIndicator = new TextView(this);
-        statusIndicator.setText("●");
-        statusIndicator.setTextSize(16);
-        statusIndicator.setTextColor(Color.parseColor("#9CA3AF")); // React: bg-gray-300
-        statusIndicator.setPadding(0, 0, 12, 0);
-        statusRow.addView(statusIndicator);
-        
-        protectionStatusText = new TextView(this);
-        protectionStatusText.setText("Setup Required");
-        protectionStatusText.setTextSize(18);
-        protectionStatusText.setTextColor(Color.parseColor("#111827")); // React: text-gray-900
-        protectionStatusText.setTypeface(null, Typeface.BOLD);
-        statusRow.addView(protectionStatusText);
-        
-        // Spacer
-        LinearLayout spacer = new LinearLayout(this);
-        LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(0, 0, 1.0f);
-        spacer.setLayoutParams(spacerParams);
-        statusRow.addView(spacer);
-        
-        // Settings icon
-        TextView settingsIcon = new TextView(this);
-        settingsIcon.setText("⚙️");
-        settingsIcon.setTextSize(16);
-        settingsIcon.setTextColor(Color.parseColor("#9CA3AF"));
-        statusRow.addView(settingsIcon);
-        
-        card.addView(statusRow);
-        
-        // Permission warning (React component style)
-        createPermissionWarning(card);
-        
-        // Main action button
-        mainActionButton = createReactButton("Grant Permissions", "#F59E0B", false);
-        mainActionButton.setOnClickListener(v -> handleMainAction());
-        card.addView(mainActionButton);
-        
-        parent.addView(card);
-    }
-    
-    private void createPermissionWarning(LinearLayout parent) {
-        // This will be shown/hidden based on permission state
-        LinearLayout warningCard = new LinearLayout(this);
-        warningCard.setOrientation(LinearLayout.VERTICAL);
-        warningCard.setPadding(12, 12, 12, 12);
-        warningCard.setVisibility(View.GONE); // Initially hidden
-        
-        // React: bg-orange-50 border border-orange-200 rounded-lg
-        GradientDrawable warningBg = new GradientDrawable();
-        warningBg.setColor(Color.parseColor("#FFF7ED"));
-        warningBg.setStroke(2, Color.parseColor("#FDBA74"));
-        warningBg.setCornerRadius(8);
-        warningCard.setBackground(warningBg);
-        
-        LinearLayout warningHeader = new LinearLayout(this);
-        warningHeader.setOrientation(LinearLayout.HORIZONTAL);
-        warningHeader.setGravity(Gravity.CENTER_VERTICAL);
-        warningHeader.setPadding(0, 0, 0, 8);
-        
-        TextView warningIcon = new TextView(this);
-        warningIcon.setText("⚠️");
-        warningIcon.setTextSize(16);
-        warningIcon.setPadding(0, 0, 8, 0);
-        warningHeader.addView(warningIcon);
-        
-        TextView warningTitle = new TextView(this);
-        warningTitle.setText("Permissions Needed");
-        warningTitle.setTextSize(14);
-        warningTitle.setTextColor(Color.parseColor("#EA580C")); // React: text-orange-800
-        warningTitle.setTypeface(null, Typeface.BOLD);
-        warningHeader.addView(warningTitle);
-        
-        warningCard.addView(warningHeader);
-        
-        TextView warningText = new TextView(this);
-        warningText.setText("Phone access and microphone required for scam detection");
-        warningText.setTextSize(12);
-        warningText.setTextColor(Color.parseColor("#C2410C")); // React: text-orange-700
-        warningCard.addView(warningText);
-        
-        warningCard.setTag("permissionWarning"); // For easy reference
-        parent.addView(warningCard);
-        addSpacing(parent, 16);
-    }
-    
-    private void createCurrentCallCard(LinearLayout parent) {
-        // React: Enhanced current call card
-        currentCallCard = createReactCard();
-        currentCallCard.setPadding(24, 24, 24, 24);
-        currentCallCard.setVisibility(View.GONE);
-        
-        LinearLayout callHeader = new LinearLayout(this);
-        callHeader.setOrientation(LinearLayout.HORIZONTAL);
-        callHeader.setGravity(Gravity.CENTER_VERTICAL);
-        callHeader.setPadding(0, 0, 0, 16);
-        
-        TextView phoneIcon = new TextView(this);
-        phoneIcon.setText("📞");
-        phoneIcon.setTextSize(24); // React: w-6 h-6
-        phoneIcon.setPadding(0, 0, 12, 0);
-        callHeader.addView(phoneIcon);
-        
-        LinearLayout callInfo = new LinearLayout(this);
-        callInfo.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams callInfoParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        callInfo.setLayoutParams(callInfoParams);
-        
-        TextView callStatus = new TextView(this);
-        callStatus.setText("Incoming Call");
-        callStatus.setTextSize(16);
-        callStatus.setTextColor(Color.parseColor("#111827")); // React: text-gray-900
-        callStatus.setTypeface(null, Typeface.BOLD);
-        callInfo.addView(callStatus);
-        
-        callNumberText = new TextView(this);
-        callNumberText.setText("+91 99999 99999");
-        callNumberText.setTextSize(14);
-        callNumberText.setTextColor(Color.parseColor("#6B7280")); // React: text-gray-600
-        callInfo.addView(callNumberText);
-        
-        callHeader.addView(callInfo);
-        
-        LinearLayout durationContainer = new LinearLayout(this);
-        durationContainer.setOrientation(LinearLayout.VERTICAL);
-        durationContainer.setGravity(Gravity.END);
-        
-        TextView durationLabel = new TextView(this);
-        durationLabel.setText("Duration");
-        durationLabel.setTextSize(12);
-        durationLabel.setTextColor(Color.parseColor("#9CA3AF")); // React: text-gray-500
-        durationContainer.addView(durationLabel);
-        
-        callDurationText = new TextView(this);
-        callDurationText.setText("00:00");
-        callDurationText.setTextSize(14);
-        callDurationText.setTypeface(Typeface.MONOSPACE);
-        callDurationText.setTextColor(Color.parseColor("#374151"));
-        durationContainer.addView(callDurationText);
-        
-        callHeader.addView(durationContainer);
-        currentCallCard.addView(callHeader);
-        
-        createAnalysisStatus(currentCallCard);
-        createRiskMeter(currentCallCard);
-        createRiskAlerts(currentCallCard);
-        
-        parent.addView(currentCallCard);
-        addSpacing(parent, 16);
-    }
-    
-    private void createAnalysisStatus(LinearLayout parent) {
-        // React: Analysis Status Card (bg-blue-50 rounded-lg)
-        LinearLayout analysisCard = new LinearLayout(this);
-        analysisCard.setOrientation(LinearLayout.VERTICAL);
-        analysisCard.setPadding(12, 12, 12, 12);
-        
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#EFF6FF")); // React: bg-blue-50
-        bg.setCornerRadius(8);
-        analysisCard.setBackground(bg);
-        
-        LinearLayout statusRow = new LinearLayout(this);
-        statusRow.setOrientation(LinearLayout.HORIZONTAL);
-        statusRow.setGravity(Gravity.CENTER_VERTICAL);
-        statusRow.setPadding(0, 0, 0, 8);
-        
-        TextView brainIcon = new TextView(this);
-        brainIcon.setText("🧠");
-        brainIcon.setTextSize(16);
-        brainIcon.setPadding(0, 0, 8, 0);
-        statusRow.addView(brainIcon);
-        
-        analysisStatusText = new TextView(this);
-        analysisStatusText.setText("Analyzing in Real-time...");
-        analysisStatusText.setTextSize(14);
-        analysisStatusText.setTextColor(Color.parseColor("#1E40AF")); // React: text-blue-800
-        analysisStatusText.setTypeface(null, Typeface.BOLD);
-        statusRow.addView(analysisStatusText);
-        
-        analysisCard.addView(statusRow);
-        
-        LinearLayout detailsRow = new LinearLayout(this);
-        detailsRow.setOrientation(LinearLayout.HORIZONTAL);
-        detailsRow.setGravity(Gravity.CENTER_VERTICAL);
-        
-        TextView micIcon = new TextView(this);
-        micIcon.setText("🎤");
-        micIcon.setTextSize(12);
-        micIcon.setPadding(0, 0, 4, 0);
-        detailsRow.addView(micIcon);
-        
-        TextView recordingStatus = new TextView(this);
-        recordingStatus.setText("Recording: " + currentRecordingMethod);
-        recordingStatus.setTextSize(12);
-        recordingStatus.setTextColor(Color.parseColor("#1E3A8A")); // React: text-blue-700
-        recordingStatus.setPadding(0, 0, 12, 0);
-        detailsRow.addView(recordingStatus);
-        
-        TextView globeIcon = new TextView(this);
-        globeIcon.setText("🌐");
-        globeIcon.setTextSize(12);
-        globeIcon.setPadding(0, 0, 4, 0);
-        detailsRow.addView(globeIcon);
-        
-        TextView langStatus = new TextView(this);
-        langStatus.setText("EN/HI/TE Detection");
-        langStatus.setTextSize(12);
-        langStatus.setTextColor(Color.parseColor("#1E3A8A"));
-        detailsRow.addView(langStatus);
-        
-        analysisCard.addView(detailsRow);
-        parent.addView(analysisCard);
-    }
-    
-    private void createRiskMeter(LinearLayout parent) {
-        addSpacing(parent, 16);
-        
-        LinearLayout riskContainer = new LinearLayout(this);
-        riskContainer.setOrientation(LinearLayout.VERTICAL);
-        
-        LinearLayout riskHeader = new LinearLayout(this);
-        riskHeader.setOrientation(LinearLayout.HORIZONTAL);
-        riskHeader.setPadding(0, 0, 0, 8);
-        
-        TextView riskLabel = new TextView(this);
-        riskLabel.setText("Scam Risk Level");
-        riskLabel.setTextSize(14);
-        riskLabel.setTextColor(Color.parseColor("#374151")); // React: text-gray-700
-        riskLabel.setTypeface(null, Typeface.BOLD);
-        LinearLayout.LayoutParams riskLabelParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        riskLabel.setLayoutParams(riskLabelParams);
-        riskHeader.addView(riskLabel);
-        
-        riskLevelText = new TextView(this);
-        riskLevelText.setText("0%");
-        riskLevelText.setTextSize(14);
-        riskLevelText.setTextColor(Color.parseColor("#10B981")); // React: text-green-500
-        riskLevelText.setTypeface(null, Typeface.BOLD);
-        riskHeader.addView(riskLevelText);
-        
-        riskContainer.addView(riskHeader);
-        
-        // Custom progress bar to match React design
-        LinearLayout progressContainer = new LinearLayout(this);
-        progressContainer.setOrientation(LinearLayout.HORIZONTAL);
-        progressContainer.setPadding(0, 0, 0, 0);
-        
-        GradientDrawable progressBg = new GradientDrawable();
-        progressBg.setColor(Color.parseColor("#E5E7EB")); // React: bg-gray-200
-        progressBg.setCornerRadius(12);
-        progressContainer.setBackground(progressBg);
-        
-        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 24);
-        progressContainer.setLayoutParams(progressParams);
-        
-        // Progress fill
-        riskMeter = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        riskMeter.setMax(100);
-        riskMeter.setProgress(0);
-        riskMeter.getProgressDrawable().setColorFilter(Color.parseColor("#10B981"), PorterDuff.Mode.SRC_IN);
-        
-        GradientDrawable progressDrawable = new GradientDrawable();
-        progressDrawable.setCornerRadius(12);
-        riskMeter.setProgressDrawable(progressDrawable);
-        
-        LinearLayout.LayoutParams meterParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 24);
-        riskMeter.setLayoutParams(meterParams);
-        
-        riskContainer.addView(riskMeter);
-        parent.addView(riskContainer);
-    }
-    
-    private void createRiskAlerts(LinearLayout parent) {
-        riskAlertCard = new LinearLayout(this);
-        riskAlertCard.setOrientation(LinearLayout.VERTICAL);
-        riskAlertCard.setVisibility(View.GONE);
-        riskAlertCard.setPadding(0, 16, 0, 0);
-        parent.addView(riskAlertCard);
-    }
-    
-    private void createFeaturesCard(LinearLayout parent) {
-        // React: Features card with grid layout
-        LinearLayout card = createReactCard();
-        card.setPadding(24, 24, 24, 24);
-        
-        TextView title = new TextView(this);
-        title.setText("Protection Features");
-        title.setTextSize(18);
-        title.setTextColor(Color.parseColor("#111827")); // React: text-gray-900
-        title.setTypeface(null, Typeface.BOLD);
-        title.setPadding(0, 0, 0, 16);
-        card.addView(title);
-        
-        // Grid layout (2x2)
-        LinearLayout row1 = new LinearLayout(this);
-        row1.setOrientation(LinearLayout.HORIZONTAL);
-        row1.setWeightSum(2.0f);
-        
-        row1.addView(createFeatureItem("🧠", "Real-time", "8-sec analysis", "#2563EB"));
-        addHorizontalSpacing(row1, 16);
-        row1.addView(createFeatureItem("🌐", "Multi-language", "EN/HI/TE", "#7C3AED"));
-        
-        card.addView(row1);
-        addSpacing(card, 16);
-        
-        LinearLayout row2 = new LinearLayout(this);
-        row2.setOrientation(LinearLayout.HORIZONTAL);
-        row2.setWeightSum(2.0f);
-        
-        row2.addView(createFeatureItem("🎤", "Smart Recording", "4-tier fallback", "#10B981"));
-        addHorizontalSpacing(row2, 16);
-        row2.addView(createFeatureItem("🔒", "Privacy First", "Local only", "#EA580C"));
-        
-        card.addView(row2);
-        parent.addView(card);
-    }
-    
-    private LinearLayout createFeatureItem(String icon, String title, String subtitle, String color) {
-        LinearLayout item = new LinearLayout(this);
-        item.setOrientation(LinearLayout.VERTICAL);
-        item.setGravity(Gravity.CENTER);
-        item.setPadding(12, 12, 12, 12);
-        
-        // React: p-3 border rounded-lg style
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.WHITE);
-        bg.setCornerRadius(8);
-        bg.setStroke(1, Color.parseColor("#E5E7EB"));
-        item.setBackground(bg);
-        
-        TextView iconText = new TextView(this);
-        iconText.setText(icon);
-        iconText.setTextSize(32); // React: w-8 h-8 equivalent
-        iconText.setGravity(Gravity.CENTER);
-        iconText.setPadding(0, 0, 0, 8);
-        item.addView(iconText);
-        
-        TextView titleText = new TextView(this);
-        titleText.setText(title);
-        titleText.setTextSize(14);
-        titleText.setTextColor(Color.parseColor("#111827")); // React: text-gray-900
-        titleText.setTypeface(null, Typeface.BOLD);
-        titleText.setGravity(Gravity.CENTER);
-        titleText.setPadding(0, 0, 0, 4);
-        item.addView(titleText);
-        
-        TextView subtitleText = new TextView(this);
-        subtitleText.setText(subtitle);
-        subtitleText.setTextSize(12);
-        subtitleText.setTextColor(Color.parseColor("#6B7280")); // React: text-gray-600
-        subtitleText.setGravity(Gravity.CENTER);
-        item.addView(subtitleText);
-        
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        item.setLayoutParams(params);
-        
-        return item;
-    }
-    
-    private void createSystemStatusCard(LinearLayout parent) {
-        systemStatusCard = createReactCard();
-        systemStatusCard.setPadding(24, 24, 24, 24);
-        systemStatusCard.setVisibility(View.GONE);
-        
-        TextView title = new TextView(this);
-        title.setText("System Status");
-        title.setTextSize(18);
-        title.setTextColor(Color.parseColor("#111827"));
-        title.setTypeface(null, Typeface.BOLD);
-        title.setPadding(0, 0, 0, 16);
-        systemStatusCard.addView(title);
-        
-        parent.addView(systemStatusCard);
-        addSpacing(parent, 16);
-    }
-    
-    private void createQuickActions(LinearLayout parent) {
-        // React: grid grid-cols-2 gap-3
-        LinearLayout actionsRow = new LinearLayout(this);
-        actionsRow.setOrientation(LinearLayout.HORIZONTAL);
-        actionsRow.setWeightSum(2.0f);
-        
-        Button historyButton = createReactActionButton("📞 Call History", "#2563EB");
-        historyButton.setOnClickListener(v -> {
+historyButton.setOnClickListener(v -> {
             try {
-                showCallHistory();
+                switchToView(ViewState.CALL_HISTORY);
             } catch (Exception e) {
                 Log.e(TAG, "Error showing call history", e);
             }
@@ -625,7 +12,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         Button logsButton = createReactActionButton("📊 Logs", "#6B7280");
         logsButton.setOnClickListener(v -> {
             try {
-                showLogs();
+                switchToView(ViewState.LOGS);
             } catch (Exception e) {
                 Log.e(TAG, "Error showing logs", e);
             }
@@ -645,37 +32,131 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         statusFooterText = new TextView(this);
         statusFooterText.setText("Grant permissions to enable scam protection");
         statusFooterText.setTextSize(14);
-        statusFooterText.setTextColor(Color.parseColor("#6B7280")); // React: text-gray-600
+        statusFooterText.setTextColor(Color.parseColor("#6B7280"));
         statusFooterText.setGravity(Gravity.CENTER);
         footerContainer.addView(statusFooterText);
         
-        // Add the React-style subtitle
-        TextView subtitleFooter = new TextView(this);
-        subtitleFooter.setText("🛡️ Protected against phone scams and fraud calls");
-        subtitleFooter.setTextSize(12);
-        subtitleFooter.setTextColor(Color.parseColor("#9CA3AF")); // React: text-gray-500
-        subtitleFooter.setGravity(Gravity.CENTER);
-        subtitleFooter.setPadding(0, 4, 0, 0);
-        subtitleFooter.setVisibility(View.GONE); // Initially hidden
-        subtitleFooter.setTag("protectionSubtitle");
-        footerContainer.addView(subtitleFooter);
+        // Add the React-style subtitle - PERSISTENT REFERENCE
+        protectionSubtitle = new TextView(this);
+        protectionSubtitle.setText("🛡️ Protected against phone scams and fraud calls");
+        protectionSubtitle.setTextSize(12);
+        protectionSubtitle.setTextColor(Color.parseColor("#9CA3AF"));
+        protectionSubtitle.setGravity(Gravity.CENTER);
+        protectionSubtitle.setPadding(0, 4, 0, 0);
+        protectionSubtitle.setVisibility(View.GONE); // Initially hidden
+        footerContainer.addView(protectionSubtitle);
         
         parent.addView(footerContainer);
     }
     
+    private void createEmptyHistoryState(LinearLayout parent) {
+        // React: Empty state
+        LinearLayout emptyState = new LinearLayout(this);
+        emptyState.setOrientation(LinearLayout.VERTICAL);
+        emptyState.setGravity(Gravity.CENTER);
+        emptyState.setPadding(32, 64, 32, 64);
+        
+        TextView emptyIcon = new TextView(this);
+        emptyIcon.setText("📞");
+        emptyIcon.setTextSize(48);
+        emptyIcon.setGravity(Gravity.CENTER);
+        emptyIcon.setPadding(0, 0, 0, 16);
+        emptyState.addView(emptyIcon);
+        
+        TextView emptyText = new TextView(this);
+        emptyText.setText("No calls analyzed yet");
+        emptyText.setTextSize(18);
+        emptyText.setTextColor(Color.parseColor("#6B7280"));
+        emptyText.setGravity(Gravity.CENTER);
+        emptyText.setPadding(0, 0, 0, 8);
+        emptyState.addView(emptyText);
+        
+        TextView emptySubtext = new TextView(this);
+        emptySubtext.setText("Start protection to begin monitoring calls");
+        emptySubtext.setTextSize(14);
+        emptySubtext.setTextColor(Color.parseColor("#9CA3AF"));
+        emptySubtext.setGravity(Gravity.CENTER);
+        emptyState.addView(emptySubtext);
+        
+        parent.addView(emptyState);
+    }
+    
+    private void updateHistoryContent() {
+        try {
+            LinearLayout historyContent = rootContainer.findViewWithTag("historyContent");
+            if (historyContent == null) return;
+            
+            historyContent.removeAllViews();
+            
+            if (callHistory.isEmpty()) {
+                createEmptyHistoryState(historyContent);
+            } else {
+                for (CallHistoryEntry entry : callHistory) {
+                    historyContent.addView(createReactHistoryEntry(entry));
+                    addSpacing(historyContent, 12);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating history content", e);
+        }
+    }
+    
+    private void updateLogsContent() {
+        try {
+            LinearLayout logsContent = rootContainer.findViewWithTag("logsContent");
+            if (logsContent == null) return;
+            
+            logsContent.removeAllViews();
+            
+            // Add sample logs if none exist
+            if (technicalLogs.length() == 0) {
+                addSampleLogs();
+            }
+            
+            // Create log entry cards
+            createLogEntries(logsContent);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating logs content", e);
+        }
+    }
+    
+    private void addSampleLogs() {
+        addToTechnicalLogs("🚨 DIGITAL ARREST SCAM DETECTED: +91 99999 99999");
+        addToTechnicalLogs("Hindi: \"aapko court mein hazir hona hoga\" (+90)");
+        addToTechnicalLogs("⚠️ TRAI IMPERSONATION: +91 88888 88888");
+        addToTechnicalLogs("Multi-lang: \"SIM band hone wala hai\" (+85)");
+        addToTechnicalLogs("✅ LEGITIMATE CALL: +91 98765 43210");
+        addToTechnicalLogs("Recording: VOICE_RECOGNITION (95% quality)");
+        addToTechnicalLogs("🎤 SMART RECORDING TEST: System check");
+        addToTechnicalLogs("4-tier fallback: All methods compatible");
+    }
+    
+    private void createLogEntries(LinearLayout parent) {
+        String[] logLines = technicalLogs.toString().split("\n");
+        
+        for (int i = 0; i < Math.min(logLines.length, 20); i++) {
+            String logLine = logLines[i].trim();
+            if (logLine.length() > 0) {
+                parent.addView(createReactLogEntry(logLine));
+                addSpacing(parent, 12);
+            }
+        }
+    }
+    
+    // UI Helper Methods
     private LinearLayout createReactCard() {
-        // React: bg-white rounded-2xl shadow-sm border border-gray-200
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(Color.WHITE);
-        drawable.setCornerRadius(16); // React: rounded-2xl
-        drawable.setStroke(1, Color.parseColor("#E5E7EB")); // React: border-gray-200
+        drawable.setCornerRadius(16);
+        drawable.setStroke(1, Color.parseColor("#E5E7EB"));
         card.setBackground(drawable);
         
         if (android.os.Build.VERSION.SDK_INT >= 21) {
-            card.setElevation(2); // React: shadow-sm
+            card.setElevation(2);
         }
         
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
@@ -704,7 +185,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
             button.setTextColor(Color.WHITE);
         }
         
-        drawable.setCornerRadius(12); // React: rounded-xl
+        drawable.setCornerRadius(12);
         button.setBackground(drawable);
         
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
@@ -715,7 +196,6 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
     }
     
     private Button createReactActionButton(String text, String colorHex) {
-        // React: p-4 rounded-xl font-medium
         Button button = new Button(this);
         button.setText(text);
         button.setTextColor(Color.WHITE);
@@ -726,7 +206,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(Color.parseColor(colorHex));
-        drawable.setCornerRadius(12); // React: rounded-xl
+        drawable.setCornerRadius(12);
         button.setBackground(drawable);
         
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
@@ -748,6 +228,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         layout.addView(space);
     }
     
+    // Permission and Core Logic
     private void checkPermissions() {
         try {
             List<String> requiredPermissions = getRequiredPermissions();
@@ -847,29 +328,20 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         }
     }
     
+    // FIXED: UI State Management - Now works with persistent references
     private void updateUIState() {
         try {
             runOnUiThread(() -> {
                 try {
-                    // FIXED: Allow updates when returning to main view, but skip if components don't exist
+                    // SOLUTION: Direct references to persistent UI components - no recreation needed
                     if (mainActionButton == null) {
+                        Log.w(TAG, "Main action button not yet created");
                         return;
-                    }
-                    
-                    // Find permission warning card
-                    LinearLayout permissionWarning = null;
-                    TextView protectionSubtitle = null;
-                    
-                    try {
-                        permissionWarning = mainContainer.findViewWithTag("permissionWarning");
-                        protectionSubtitle = mainContainer.findViewWithTag("protectionSubtitle");
-                    } catch (Exception e) {
-                        Log.d(TAG, "Warning views not found - might be in different view");
                     }
                     
                     if (isProtectionActive) {
                         // React: Active state (green)
-                        if (statusIndicator != null) statusIndicator.setTextColor(Color.parseColor("#10B981")); // green-500
+                        if (statusIndicator != null) statusIndicator.setTextColor(Color.parseColor("#10B981"));
                         if (protectionStatusText != null) {
                             protectionStatusText.setText("Protection Active");
                             protectionStatusText.setTextColor(Color.parseColor("#10B981"));
@@ -877,7 +349,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                         
                         // React: Stop button (red)
                         GradientDrawable stopButtonDrawable = new GradientDrawable();
-                        stopButtonDrawable.setColor(Color.parseColor("#EF4444")); // red-500
+                        stopButtonDrawable.setColor(Color.parseColor("#EF4444"));
                         stopButtonDrawable.setCornerRadius(12);
                         mainActionButton.setBackground(stopButtonDrawable);
                         mainActionButton.setText("Stop Protection");
@@ -893,16 +365,16 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                         }
                         
                     } else if (hasMinimumPermissions) {
-                        // React: Ready state (blue/green)
-                        if (statusIndicator != null) statusIndicator.setTextColor(Color.parseColor("#6B7280")); // gray-500
+                        // React: Ready state (green)
+                        if (statusIndicator != null) statusIndicator.setTextColor(Color.parseColor("#6B7280"));
                         if (protectionStatusText != null) {
                             protectionStatusText.setText("Ready to Protect");
-                            protectionStatusText.setTextColor(Color.parseColor("#111827")); // gray-900
+                            protectionStatusText.setTextColor(Color.parseColor("#111827"));
                         }
                         
                         // React: Start button (green)
                         GradientDrawable startButtonDrawable = new GradientDrawable();
-                        startButtonDrawable.setColor(Color.parseColor("#10B981")); // green-500
+                        startButtonDrawable.setColor(Color.parseColor("#10B981"));
                         startButtonDrawable.setCornerRadius(12);
                         mainActionButton.setBackground(startButtonDrawable);
                         mainActionButton.setText("Start Protection");
@@ -917,15 +389,15 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                         
                     } else {
                         // React: Setup required state (orange)
-                        if (statusIndicator != null) statusIndicator.setTextColor(Color.parseColor("#F59E0B")); // orange-500
+                        if (statusIndicator != null) statusIndicator.setTextColor(Color.parseColor("#F59E0B"));
                         if (protectionStatusText != null) {
                             protectionStatusText.setText("Setup Required");
-                            protectionStatusText.setTextColor(Color.parseColor("#92400E")); // orange-800
+                            protectionStatusText.setTextColor(Color.parseColor("#92400E"));
                         }
                         
                         // React: Permission button (orange)
                         GradientDrawable permButtonDrawable = new GradientDrawable();
-                        permButtonDrawable.setColor(Color.parseColor("#F59E0B")); // orange-500
+                        permButtonDrawable.setColor(Color.parseColor("#F59E0B"));
                         permButtonDrawable.setCornerRadius(12);
                         mainActionButton.setBackground(permButtonDrawable);
                         mainActionButton.setText("Grant Permissions");
@@ -938,6 +410,8 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                             statusFooterText.setText("Grant permissions to enable scam protection");
                         }
                     }
+                    
+                    Log.d(TAG, "UI state updated successfully. Protection: " + isProtectionActive + ", Permissions: " + hasMinimumPermissions);
                 } catch (Exception e) {
                     Log.e(TAG, "Error updating UI state", e);
                 }
@@ -980,7 +454,6 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
     }
     
     private LinearLayout createReactStatusItem(String icon, String title, String status, String color) {
-        // React: flex items-center justify-between p-3 bg-green-50 rounded-lg
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.HORIZONTAL);
         item.setGravity(Gravity.CENTER_VERTICAL);
@@ -988,7 +461,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         
         // Color with alpha (React: bg-green-50 equivalent)
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor(addAlphaToColor(color, "1A"))); // Add 10% alpha
+        bg.setColor(Color.parseColor(addAlphaToColor(color, "1A")));
         bg.setCornerRadius(8);
         item.setBackground(bg);
         
@@ -998,7 +471,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         LinearLayout.LayoutParams leftParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
         leftContent.setLayoutParams(leftParams);
         
-        // Pulse animation dot (React: w-2 h-2 bg-green-500 rounded-full animate-pulse)
+        // Pulse animation dot
         TextView pulseIcon = new TextView(this);
         pulseIcon.setText("●");
         pulseIcon.setTextSize(8);
@@ -1025,360 +498,13 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
     }
     
     private String addAlphaToColor(String hexColor, String alpha) {
-        // Helper to add alpha to hex color
         if (hexColor.startsWith("#")) {
             return hexColor + alpha;
         }
         return "#" + hexColor + alpha;
     }
     
-    private void showCallHistory() {
-        try {
-            currentView = ViewState.CALL_HISTORY;
-            createCallHistoryView();
-        } catch (Exception e) {
-            Log.e(TAG, "Error showing call history", e);
-        }
-    }
-    
-    private void showLogs() {
-        try {
-            currentView = ViewState.LOGS;
-            createLogsView();
-        } catch (Exception e) {
-            Log.e(TAG, "Error showing logs", e);
-        }
-    }
-    
-    private void createCallHistoryView() {
-        try {
-            mainContainer.removeAllViews();
-            
-            // React-style header
-            LinearLayout header = new LinearLayout(this);
-            header.setOrientation(LinearLayout.VERTICAL);
-            header.setBackgroundColor(Color.parseColor("#2563EB")); // React: blue-600
-            header.setPadding(24, 48, 24, 32);
-            
-            Button backButton = new Button(this);
-            backButton.setText("← Back");
-            backButton.setTextColor(Color.parseColor("#DBEAFE")); // blue-100
-            backButton.setTextSize(14);
-            backButton.setBackground(null);
-            backButton.setOnClickListener(v -> createMainView());
-            backButton.setGravity(Gravity.LEFT);
-            backButton.setPadding(0, 0, 0, 8);
-            header.addView(backButton);
-            
-            TextView historyTitle = new TextView(this);
-            historyTitle.setText("Call History");
-            historyTitle.setTextSize(24);
-            historyTitle.setTextColor(Color.WHITE);
-            historyTitle.setTypeface(null, Typeface.BOLD);
-            header.addView(historyTitle);
-            
-            mainContainer.addView(header);
-            
-            // Content area with history
-            ScrollView historyScroll = new ScrollView(this);
-            LinearLayout historyContent = new LinearLayout(this);
-            historyContent.setOrientation(LinearLayout.VERTICAL);
-            historyContent.setPadding(16, 16, 16, 16);
-            
-            if (callHistory.isEmpty()) {
-                // React: Empty state
-                LinearLayout emptyState = new LinearLayout(this);
-                emptyState.setOrientation(LinearLayout.VERTICAL);
-                emptyState.setGravity(Gravity.CENTER);
-                emptyState.setPadding(32, 64, 32, 64);
-                
-                TextView emptyIcon = new TextView(this);
-                emptyIcon.setText("📞");
-                emptyIcon.setTextSize(48);
-                emptyIcon.setGravity(Gravity.CENTER);
-                emptyIcon.setPadding(0, 0, 0, 16);
-                emptyState.addView(emptyIcon);
-                
-                TextView emptyText = new TextView(this);
-                emptyText.setText("No calls analyzed yet");
-                emptyText.setTextSize(18);
-                emptyText.setTextColor(Color.parseColor("#6B7280"));
-                emptyText.setGravity(Gravity.CENTER);
-                emptyText.setPadding(0, 0, 0, 8);
-                emptyState.addView(emptyText);
-                
-                TextView emptySubtext = new TextView(this);
-                emptySubtext.setText("Start protection to begin monitoring calls");
-                emptySubtext.setTextSize(14);
-                emptySubtext.setTextColor(Color.parseColor("#9CA3AF"));
-                emptySubtext.setGravity(Gravity.CENTER);
-                emptyState.addView(emptySubtext);
-                
-                historyContent.addView(emptyState);
-            } else {
-                for (CallHistoryEntry entry : callHistory) {
-                    historyContent.addView(createReactHistoryEntry(entry));
-                    addSpacing(historyContent, 12);
-                }
-            }
-            
-            historyScroll.addView(historyContent);
-            mainContainer.addView(historyScroll);
-            
-        } catch (Exception e) {
-            Log.e(TAG, "Error creating call history view", e);
-        }
-    }
-    
-    private void createLogsView() {
-        try {
-            mainContainer.removeAllViews();
-            
-            // React-style header  
-            LinearLayout header = new LinearLayout(this);
-            header.setOrientation(LinearLayout.VERTICAL);
-            header.setBackgroundColor(Color.parseColor("#2563EB")); // React: blue-600
-            header.setPadding(24, 48, 24, 32);
-            
-            Button backButton = new Button(this);
-            backButton.setText("← Back");
-            backButton.setTextColor(Color.parseColor("#DBEAFE")); // blue-100
-            backButton.setTextSize(14);
-            backButton.setBackground(null);
-            backButton.setOnClickListener(v -> createMainView());
-            backButton.setGravity(Gravity.LEFT);
-            backButton.setPadding(0, 0, 0, 8);
-            header.addView(backButton);
-            
-            TextView logsTitle = new TextView(this);
-            logsTitle.setText("Detection Logs");
-            logsTitle.setTextSize(24);
-            logsTitle.setTextColor(Color.WHITE);
-            logsTitle.setTypeface(null, Typeface.BOLD);
-            header.addView(logsTitle);
-            
-            mainContainer.addView(header);
-            
-            // Content area with logs
-            ScrollView logsScroll = new ScrollView(this);
-            LinearLayout logsContent = new LinearLayout(this);
-            logsContent.setOrientation(LinearLayout.VERTICAL);
-            logsContent.setPadding(16, 16, 16, 16);
-            
-            // React: Sample log entries to match the React component
-            if (technicalLogs.length() == 0) {
-                // Add sample logs for demonstration
-                addSampleLogs();
-            }
-            
-            // Create log entry cards
-            createLogEntries(logsContent);
-            
-            logsScroll.addView(logsContent);
-            mainContainer.addView(logsScroll);
-            
-        } catch (Exception e) {
-            Log.e(TAG, "Error creating logs view", e);
-        }
-    }
-    
-    private void addSampleLogs() {
-        addToTechnicalLogs("🚨 DIGITAL ARREST SCAM DETECTED: +91 99999 99999");
-        addToTechnicalLogs("Hindi: \"aapko court mein hazir hona hoga\" (+90)");
-        addToTechnicalLogs("⚠️ TRAI IMPERSONATION: +91 88888 88888");
-        addToTechnicalLogs("Multi-lang: \"SIM band hone wala hai\" (+85)");
-        addToTechnicalLogs("✅ LEGITIMATE CALL: +91 98765 43210");
-        addToTechnicalLogs("Recording: VOICE_RECOGNITION (95% quality)");
-        addToTechnicalLogs("🎤 SMART RECORDING TEST: System check");
-        addToTechnicalLogs("4-tier fallback: All methods compatible");
-    }
-    
-    private void createLogEntries(LinearLayout parent) {
-        String[] logLines = technicalLogs.toString().split("\n");
-        
-        for (int i = 0; i < Math.min(logLines.length, 20); i++) { // Show last 20 entries
-            String logLine = logLines[i].trim();
-            if (logLine.length() > 0) {
-                parent.addView(createReactLogEntry(logLine));
-                addSpacing(parent, 12);
-            }
-        }
-    }
-    
-    private LinearLayout createReactLogEntry(String logText) {
-        // React: log entry styling with left border and proper colors
-        LinearLayout logCard = new LinearLayout(this);
-        logCard.setOrientation(LinearLayout.HORIZONTAL);
-        logCard.setPadding(16, 12, 16, 12);
-        
-        // Determine color based on log content
-        String bgColor = "#EFF6FF"; // blue-50
-        String borderColor = "#2563EB"; // blue-600
-        String textColor = "#1E40AF"; // blue-800
-        String icon = "🧠";
-        
-        if (logText.contains("🚨") || logText.contains("SCAM") || logText.contains("HIGH RISK")) {
-            bgColor = "#FEF2F2"; // red-50
-            borderColor = "#EF4444"; // red-500
-            textColor = "#DC2626"; // red-600
-            icon = "🚨";
-        } else if (logText.contains("⚠️") || logText.contains("WARNING") || logText.contains("SUSPICIOUS")) {
-            bgColor = "#FFF7ED"; // orange-50
-            borderColor = "#F97316"; // orange-500
-            textColor = "#EA580C"; // orange-600
-            icon = "⚠️";
-        } else if (logText.contains("✅") || logText.contains("SUCCESS") || logText.contains("LEGITIMATE")) {
-            bgColor = "#F0FDF4"; // green-50
-            borderColor = "#10B981"; // green-500
-            textColor = "#059669"; // green-600
-            icon = "✅";
-        }
-        
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor(bgColor));
-        bg.setCornerRadius(8);
-        bg.setStroke(0, Color.TRANSPARENT);
-        logCard.setBackground(bg);
-        
-        // Left border
-        View leftBorder = new View(this);
-        leftBorder.setBackgroundColor(Color.parseColor(borderColor));
-        leftBorder.setLayoutParams(new LinearLayout.LayoutParams(4, LinearLayout.LayoutParams.MATCH_PARENT));
-        logCard.addView(leftBorder);
-        
-        LinearLayout contentArea = new LinearLayout(this);
-        contentArea.setOrientation(LinearLayout.HORIZONTAL);
-        contentArea.setGravity(Gravity.CENTER_VERTICAL);
-        contentArea.setPadding(12, 0, 0, 0);
-        LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        contentArea.setLayoutParams(contentParams);
-        
-        TextView iconText = new TextView(this);
-        iconText.setText(icon);
-        iconText.setTextSize(20);
-        iconText.setPadding(0, 0, 12, 0);
-        contentArea.addView(iconText);
-        
-        LinearLayout textContainer = new LinearLayout(this);
-        textContainer.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        textContainer.setLayoutParams(textParams);
-        
-        // Extract title and details from log text
-        String title = "System Log";
-        String details = logText;
-        String timeInfo = "Just now";
-        
-        if (logText.contains("SCAM DETECTED")) {
-            title = "Digital Arrest Scam Detected";
-            details = logText.substring(logText.indexOf(":") + 1).trim();
-        } else if (logText.contains("IMPERSONATION")) {
-            title = "TRAI Impersonation";
-        } else if (logText.contains("LEGITIMATE")) {
-            title = "Legitimate Call";
-        } else if (logText.contains("RECORDING TEST")) {
-            title = "Smart Recording Test";
-        }
-        
-        TextView titleText = new TextView(this);
-        titleText.setText(title);
-        titleText.setTextSize(14);
-        titleText.setTextColor(Color.parseColor("#111827")); // gray-900
-        titleText.setTypeface(null, Typeface.BOLD);
-        textContainer.addView(titleText);
-        
-        TextView detailsText = new TextView(this);
-        detailsText.setText(details);
-        detailsText.setTextSize(12);
-        detailsText.setTextColor(Color.parseColor("#6B7280")); // gray-600
-        detailsText.setPadding(0, 2, 0, 2);
-        textContainer.addView(detailsText);
-        
-        TextView timeText = new TextView(this);
-        timeText.setText(timeInfo);
-        timeText.setTextSize(12);
-        timeText.setTextColor(Color.parseColor(textColor));
-        textContainer.addView(timeText);
-        
-        contentArea.addView(textContainer);
-        logCard.addView(contentArea);
-        
-        return logCard;
-    }
-    
-    private LinearLayout createReactHistoryEntry(CallHistoryEntry entry) {
-        LinearLayout entryCard = createReactCard();
-        entryCard.setPadding(16, 16, 16, 16);
-        
-        // React: Color-coded left border based on risk level
-        String borderColor = "#10B981"; // green-500
-        String icon = "✅";
-        if (entry.riskLevel > 70) {
-            borderColor = "#EF4444"; // red-500
-            icon = "🚨";
-        } else if (entry.riskLevel > 40) {
-            borderColor = "#F59E0B"; // orange-500  
-            icon = "⚠️";
-        } else if (entry.riskLevel > 20) {
-            borderColor = "#EAB308"; // yellow-500
-            icon = "⚡";
-        }
-        
-        LinearLayout borderContainer = new LinearLayout(this);
-        borderContainer.setOrientation(LinearLayout.HORIZONTAL);
-        
-        View border = new View(this);
-        border.setBackgroundColor(Color.parseColor(borderColor));
-        border.setLayoutParams(new LinearLayout.LayoutParams(4, LinearLayout.LayoutParams.MATCH_PARENT));
-        borderContainer.addView(border);
-        
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(12, 0, 0, 0);
-        
-        LinearLayout entryHeader = new LinearLayout(this);
-        entryHeader.setOrientation(LinearLayout.HORIZONTAL);
-        entryHeader.setGravity(Gravity.CENTER_VERTICAL);
-        
-        TextView riskIcon = new TextView(this);
-        riskIcon.setText(icon);
-        riskIcon.setTextSize(20);
-        riskIcon.setPadding(0, 0, 12, 0);
-        entryHeader.addView(riskIcon);
-        
-        LinearLayout entryInfo = new LinearLayout(this);
-        entryInfo.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams entryInfoParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        entryInfo.setLayoutParams(entryInfoParams);
-        
-        TextView entryTitle = new TextView(this);
-        entryTitle.setText(entry.getResultTitle());
-        entryTitle.setTextSize(16);
-        entryTitle.setTextColor(Color.parseColor("#111827")); // gray-900
-        entryTitle.setTypeface(null, Typeface.BOLD);
-        entryInfo.addView(entryTitle);
-        
-        TextView entryDetails = new TextView(this);
-        entryDetails.setText(entry.phoneNumber + " • " + entry.getTimeAgo());
-        entryDetails.setTextSize(14);
-        entryDetails.setTextColor(Color.parseColor("#6B7280")); // gray-600
-        entryInfo.addView(entryDetails);
-        
-        TextView entryResult = new TextView(this);
-        entryResult.setText(entry.getResultDescription());
-        entryResult.setTextSize(13);
-        entryResult.setTextColor(Color.parseColor(borderColor));
-        entryResult.setPadding(0, 4, 0, 0);
-        entryInfo.addView(entryResult);
-        
-        entryHeader.addView(entryInfo);
-        content.addView(entryHeader);
-        borderContainer.addView(content);
-        entryCard.addView(borderContainer);
-        
-        return entryCard;
-    }
-    
+    // Call Detection and Real-time Analysis
     @Override
     public void onCallStateChanged(String state, String phoneNumber) {
         try {
@@ -1577,15 +703,13 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
                 riskAlertCard.setVisibility(View.GONE);
                 
                 if (riskScore > 70) {
-                    // React: High risk alert (red)
                     showRiskAlert("🚨 HIGH RISK: Potential Scam", 
                                  "Digital arrest or authority impersonation detected", 
-                                 "#FEF2F2", "#DC2626"); // red-50, red-600
+                                 "#FEF2F2", "#DC2626");
                 } else if (riskScore > 40) {
-                    // React: Medium risk alert (orange)
                     showRiskAlert("⚠️ Suspicious Patterns", 
                                  "Urgency keywords and authority claims detected", 
-                                 "#FFF7ED", "#EA580C"); // orange-50, orange-600
+                                 "#FFF7ED", "#EA580C");
                 }
             }
         } catch (Exception e) {
@@ -1597,7 +721,6 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         try {
             if (riskAlertCard == null) return;
             
-            // React: Alert styling with border
             LinearLayout alert = new LinearLayout(this);
             alert.setOrientation(LinearLayout.VERTICAL);
             alert.setPadding(16, 16, 16, 16);
@@ -1612,7 +735,6 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
             alertHeader.setOrientation(LinearLayout.HORIZONTAL);
             alertHeader.setGravity(Gravity.CENTER_VERTICAL);
             
-            TextView alertIcon = new TextView(this);
             alertIcon.setText(title.startsWith("🚨") ? "🚨" : "⚠️");
             alertIcon.setTextSize(20);
             alertIcon.setPadding(0, 0, 8, 0);
@@ -1631,7 +753,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
             alertDesc.setText(description);
             alertDesc.setTextSize(13);
             alertDesc.setTextColor(Color.parseColor(textColor));
-            alertDesc.setPadding(28, 4, 0, 0); // Indent to align with text
+            alertDesc.setPadding(28, 4, 0, 0);
             alert.addView(alertDesc);
             
             riskAlertCard.addView(alert);
@@ -1648,7 +770,6 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
     private RealTimeAnalysisResult performAnalysisSimulation(int analysisCount) {
         RealTimeAnalysisResult result = new RealTimeAnalysisResult();
         
-        // React: Enhanced simulation patterns
         String[] patterns = {
             "account suspended (+20)",
             "verify immediately (+25)", 
@@ -1664,7 +785,6 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
             "police station jaana (+35)"
         };
         
-        // Increasing detection chance over time (React component behavior)
         double detectionChance = 0.3 + (analysisCount * 0.15);
         
         if (Math.random() < detectionChance) {
@@ -1674,10 +794,182 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
             String riskStr = pattern.substring(pattern.indexOf("(+") + 2, pattern.indexOf(")"));
             result.riskIncrease = Integer.parseInt(riskStr);
         } else {
-            result.riskIncrease = (int)(Math.random() * 8); // Small random increase
+            result.riskIncrease = (int)(Math.random() * 8);
         }
         
         return result;
+    }
+    
+    private LinearLayout createReactLogEntry(String logText) {
+        LinearLayout logCard = new LinearLayout(this);
+        logCard.setOrientation(LinearLayout.HORIZONTAL);
+        logCard.setPadding(16, 12, 16, 12);
+        
+        // Determine color based on log content
+        String bgColor = "#EFF6FF"; // blue-50
+        String borderColor = "#2563EB"; // blue-600
+        String textColor = "#1E40AF"; // blue-800
+        String icon = "🧠";
+        
+        if (logText.contains("🚨") || logText.contains("SCAM") || logText.contains("HIGH RISK")) {
+            bgColor = "#FEF2F2"; // red-50
+            borderColor = "#EF4444"; // red-500
+            textColor = "#DC2626"; // red-600
+            icon = "🚨";
+        } else if (logText.contains("⚠️") || logText.contains("WARNING") || logText.contains("SUSPICIOUS")) {
+            bgColor = "#FFF7ED"; // orange-50
+            borderColor = "#F97316"; // orange-500
+            textColor = "#EA580C"; // orange-600
+            icon = "⚠️";
+        } else if (logText.contains("✅") || logText.contains("SUCCESS") || logText.contains("LEGITIMATE")) {
+            bgColor = "#F0FDF4"; // green-50
+            borderColor = "#10B981"; // green-500
+            textColor = "#059669"; // green-600
+            icon = "✅";
+        }
+        
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor(bgColor));
+        bg.setCornerRadius(8);
+        logCard.setBackground(bg);
+        
+        // Left border
+        View leftBorder = new View(this);
+        leftBorder.setBackgroundColor(Color.parseColor(borderColor));
+        leftBorder.setLayoutParams(new LinearLayout.LayoutParams(4, LinearLayout.LayoutParams.MATCH_PARENT));
+        logCard.addView(leftBorder);
+        
+        LinearLayout contentArea = new LinearLayout(this);
+        contentArea.setOrientation(LinearLayout.HORIZONTAL);
+        contentArea.setGravity(Gravity.CENTER_VERTICAL);
+        contentArea.setPadding(12, 0, 0, 0);
+        LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        contentArea.setLayoutParams(contentParams);
+        
+        TextView iconText = new TextView(this);
+        iconText.setText(icon);
+        iconText.setTextSize(20);
+        iconText.setPadding(0, 0, 12, 0);
+        contentArea.addView(iconText);
+        
+        LinearLayout textContainer = new LinearLayout(this);
+        textContainer.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        textContainer.setLayoutParams(textParams);
+        
+        // Extract title and details from log text
+        String title = "System Log";
+        String details = logText;
+        String timeInfo = "Just now";
+        
+        if (logText.contains("SCAM DETECTED")) {
+            title = "Digital Arrest Scam Detected";
+            details = logText.substring(logText.indexOf(":") + 1).trim();
+        } else if (logText.contains("IMPERSONATION")) {
+            title = "TRAI Impersonation";
+        } else if (logText.contains("LEGITIMATE")) {
+            title = "Legitimate Call";
+        } else if (logText.contains("RECORDING TEST")) {
+            title = "Smart Recording Test";
+        }
+        
+        TextView titleText = new TextView(this);
+        titleText.setText(title);
+        titleText.setTextSize(14);
+        titleText.setTextColor(Color.parseColor("#111827"));
+        titleText.setTypeface(null, Typeface.BOLD);
+        textContainer.addView(titleText);
+        
+        TextView detailsText = new TextView(this);
+        detailsText.setText(details);
+        detailsText.setTextSize(12);
+        detailsText.setTextColor(Color.parseColor("#6B7280"));
+        detailsText.setPadding(0, 2, 0, 2);
+        textContainer.addView(detailsText);
+        
+        TextView timeText = new TextView(this);
+        timeText.setText(timeInfo);
+        timeText.setTextSize(12);
+        timeText.setTextColor(Color.parseColor(textColor));
+        textContainer.addView(timeText);
+        
+        contentArea.addView(textContainer);
+        logCard.addView(contentArea);
+        
+        return logCard;
+    }
+    
+    private LinearLayout createReactHistoryEntry(CallHistoryEntry entry) {
+        LinearLayout entryCard = createReactCard();
+        entryCard.setPadding(16, 16, 16, 16);
+        
+        // React: Color-coded left border based on risk level
+        String borderColor = "#10B981"; // green-500
+        String icon = "✅";
+        if (entry.riskLevel > 70) {
+            borderColor = "#EF4444"; // red-500
+            icon = "🚨";
+        } else if (entry.riskLevel > 40) {
+            borderColor = "#F59E0B"; // orange-500  
+            icon = "⚠️";
+        } else if (entry.riskLevel > 20) {
+            borderColor = "#EAB308"; // yellow-500
+            icon = "⚡";
+        }
+        
+        LinearLayout borderContainer = new LinearLayout(this);
+        borderContainer.setOrientation(LinearLayout.HORIZONTAL);
+        
+        View border = new View(this);
+        border.setBackgroundColor(Color.parseColor(borderColor));
+        border.setLayoutParams(new LinearLayout.LayoutParams(4, LinearLayout.LayoutParams.MATCH_PARENT));
+        borderContainer.addView(border);
+        
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(12, 0, 0, 0);
+        
+        LinearLayout entryHeader = new LinearLayout(this);
+        entryHeader.setOrientation(LinearLayout.HORIZONTAL);
+        entryHeader.setGravity(Gravity.CENTER_VERTICAL);
+        
+        TextView riskIcon = new TextView(this);
+        riskIcon.setText(icon);
+        riskIcon.setTextSize(20);
+        riskIcon.setPadding(0, 0, 12, 0);
+        entryHeader.addView(riskIcon);
+        
+        LinearLayout entryInfo = new LinearLayout(this);
+        entryInfo.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams entryInfoParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        entryInfo.setLayoutParams(entryInfoParams);
+        
+        TextView entryTitle = new TextView(this);
+        entryTitle.setText(entry.getResultTitle());
+        entryTitle.setTextSize(16);
+        entryTitle.setTextColor(Color.parseColor("#111827"));
+        entryTitle.setTypeface(null, Typeface.BOLD);
+        entryInfo.addView(entryTitle);
+        
+        TextView entryDetails = new TextView(this);
+        entryDetails.setText(entry.phoneNumber + " • " + entry.getTimeAgo());
+        entryDetails.setTextSize(14);
+        entryDetails.setTextColor(Color.parseColor("#6B7280"));
+        entryInfo.addView(entryDetails);
+        
+        TextView entryResult = new TextView(this);
+        entryResult.setText(entry.getResultDescription());
+        entryResult.setTextSize(13);
+        entryResult.setTextColor(Color.parseColor(borderColor));
+        entryResult.setPadding(0, 4, 0, 0);
+        entryInfo.addView(entryResult);
+        
+        entryHeader.addView(entryInfo);
+        content.addView(entryHeader);
+        borderContainer.addView(content);
+        entryCard.addView(borderContainer);
+        
+        return entryCard;
     }
     
     private void addToTechnicalLogs(String message) {
@@ -1685,7 +977,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
             String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
             technicalLogs.insert(0, "[" + timestamp + "] " + message + "\n\n");
             
-            // Keep logs manageable (React: max-h-96 overflow-y-auto)
+            // Keep logs manageable
             String[] lines = technicalLogs.toString().split("\n");
             if (lines.length > 100) {
                 technicalLogs = new StringBuilder();
@@ -1739,7 +1031,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
     protected void onResume() {
         super.onResume();
         try {
-            // FIXED: Update UI state when returning to app (React behavior)
+            // FIXED: Update UI state when returning to app - now works with persistent references
             if (currentView == ViewState.MAIN) {
                 updateUIState();
             }
@@ -1792,4 +1084,710 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
             return "Just now";
         }
     }
-}
+}package com.hellohari;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.media.AudioManager;
+import android.os.Bundle;
+import android.telephony.TelephonyManager;
+import android.util.Log;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+
+public class MainActivity extends Activity implements SimpleCallDetector.CallDetectionListener {
+    private static final String TAG = "HelloHariMain";
+    private static final int PERMISSION_REQUEST_CODE = 123;
+    
+    // UI State Management
+    private enum ViewState {
+        MAIN, CALL_HISTORY, LOGS
+    }
+    
+    private ViewState currentView = ViewState.MAIN;
+    
+    // Core Components
+    private SimpleCallDetector callDetector;
+    private AudioManager audioManager;
+    
+    // PERSISTENT UI CONTAINERS - Created once, never destroyed
+    private LinearLayout rootContainer;
+    private LinearLayout mainViewContainer;
+    private LinearLayout historyViewContainer;
+    private LinearLayout logsViewContainer;
+    
+    // PERSISTENT UI COMPONENTS - Maintain state across navigation
+    private TextView statusIndicator;
+    private TextView protectionStatusText;
+    private Button mainActionButton;
+    private TextView riskLevelText;
+    private ProgressBar riskMeter;
+    private LinearLayout currentCallCard;
+    private TextView callNumberText;
+    private TextView callDurationText;
+    private TextView analysisStatusText;
+    private LinearLayout riskAlertCard;
+    private LinearLayout systemStatusCard;
+    private TextView statusFooterText;
+    private LinearLayout permissionWarning;
+    private TextView protectionSubtitle;
+    
+    // State Variables - FIXED: All properly declared and persistent
+    private boolean hasMinimumPermissions = false;
+    private boolean isProtectionActive = false;
+    private int currentRiskScore = 0;
+    private String currentCallNumber;
+    private String currentRecordingMethod = "Ready";
+    private long callStartTime = 0;
+    
+    // Real-time analysis
+    private Thread realTimeAnalysisThread;
+    private boolean isRealTimeAnalysisRunning = false;
+    private int realTimeRiskScore = 0;
+    private List<String> detectedPatternsRealTime = new ArrayList<>();
+    
+    // Logs and History
+    private StringBuilder technicalLogs = new StringBuilder();
+    private List<CallHistoryEntry> callHistory = new ArrayList<>();
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        
+        try {
+            // Initialize core components
+            callDetector = new SimpleCallDetector(this);
+            callDetector.setCallDetectionListener(this);
+            audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+            
+            // CREATE ALL VIEWS ONCE - Never recreate them
+            createPersistentViewStructure();
+            checkPermissions();
+            
+            // Initialize logs
+            addToTechnicalLogs("🛡️ Hello Hari protection system initialized");
+            addToTechnicalLogs("Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
+            
+            Log.d(TAG, "Hello Hari - View Switcher architecture initialized successfully");
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onCreate", e);
+            createFallbackUI();
+        }
+    }
+    
+    private void createFallbackUI() {
+        LinearLayout fallback = new LinearLayout(this);
+        fallback.setOrientation(LinearLayout.VERTICAL);
+        fallback.setPadding(16, 16, 16, 16);
+        fallback.setBackgroundColor(Color.parseColor("#F9FAFB"));
+        
+        TextView title = new TextView(this);
+        title.setText("Hello Hari - Initialization Error");
+        title.setTextSize(18);
+        title.setTextColor(Color.parseColor("#EF4444"));
+        title.setPadding(0, 20, 0, 20);
+        fallback.addView(title);
+        
+        Button retryButton = new Button(this);
+        retryButton.setText("Retry");
+        retryButton.setOnClickListener(v -> recreate());
+        fallback.addView(retryButton);
+        
+        setContentView(fallback);
+    }
+    
+    private void createPersistentViewStructure() {
+        // Root container with React styling
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setBackgroundColor(Color.parseColor("#F9FAFB")); // React: bg-gray-50
+        
+        rootContainer = new LinearLayout(this);
+        rootContainer.setOrientation(LinearLayout.VERTICAL);
+        rootContainer.setPadding(0, 0, 0, 0);
+        
+        // Create header (shared across all views)
+        createSharedHeader();
+        
+        // Create all view containers
+        createMainViewContainer();
+        createHistoryViewContainer();
+        createLogsViewContainer();
+        
+        // Add all containers to root
+        rootContainer.addView(mainViewContainer);
+        rootContainer.addView(historyViewContainer);
+        rootContainer.addView(logsViewContainer);
+        
+        scrollView.addView(rootContainer);
+        setContentView(scrollView);
+        
+        // Show main view initially
+        switchToView(ViewState.MAIN);
+    }
+    
+    private void createSharedHeader() {
+        // React: bg-gradient-to-r from-blue-600 to-blue-700
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        
+        GradientDrawable headerBg = new GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            new int[]{Color.parseColor("#2563EB"), Color.parseColor("#1D4ED8")}
+        );
+        header.setBackground(headerBg);
+        header.setPadding(24, 48, 24, 32);
+        
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        
+        // Shield icon
+        TextView shieldIcon = new TextView(this);
+        shieldIcon.setText("🛡️");
+        shieldIcon.setTextSize(32);
+        shieldIcon.setPadding(0, 0, 12, 0);
+        titleRow.addView(shieldIcon);
+        
+        TextView appTitle = new TextView(this);
+        appTitle.setText("Hello Hari");
+        appTitle.setTextSize(24);
+        appTitle.setTextColor(Color.WHITE);
+        appTitle.setTypeface(null, Typeface.BOLD);
+        titleRow.addView(appTitle);
+        
+        header.addView(titleRow);
+        
+        TextView subtitle = new TextView(this);
+        subtitle.setText("Your smart call guardian");
+        subtitle.setTextSize(16);
+        subtitle.setTextColor(Color.parseColor("#DBEAFE")); // React: text-blue-100
+        subtitle.setPadding(44, 8, 0, 0);
+        header.addView(subtitle);
+        
+        rootContainer.addView(header);
+    }
+    
+    private void createMainViewContainer() {
+        mainViewContainer = new LinearLayout(this);
+        mainViewContainer.setOrientation(LinearLayout.VERTICAL);
+        mainViewContainer.setPadding(16, 16, 16, 16);
+        
+        // Max width container (React: max-w-md mx-auto)
+        LinearLayout maxWidthContainer = new LinearLayout(this);
+        maxWidthContainer.setOrientation(LinearLayout.VERTICAL);
+        maxWidthContainer.setGravity(Gravity.CENTER_HORIZONTAL);
+        
+        createProtectionStatusCard(maxWidthContainer);
+        addSpacing(maxWidthContainer, 16);
+        
+        createCurrentCallCard(maxWidthContainer);
+        
+        createFeaturesCard(maxWidthContainer);
+        addSpacing(maxWidthContainer, 16);
+        
+        createSystemStatusCard(maxWidthContainer);
+        
+        createQuickActions(maxWidthContainer);
+        addSpacing(maxWidthContainer, 16);
+        
+        createStatusFooter(maxWidthContainer);
+        
+        mainViewContainer.addView(maxWidthContainer);
+    }
+    
+    private void createHistoryViewContainer() {
+        historyViewContainer = new LinearLayout(this);
+        historyViewContainer.setOrientation(LinearLayout.VERTICAL);
+        historyViewContainer.setVisibility(View.GONE); // Initially hidden
+        
+        // Header with back button
+        LinearLayout historyHeader = createViewHeader("Call History", () -> switchToView(ViewState.MAIN));
+        historyViewContainer.addView(historyHeader);
+        
+        // Content area
+        ScrollView historyScroll = new ScrollView(this);
+        LinearLayout historyContent = new LinearLayout(this);
+        historyContent.setOrientation(LinearLayout.VERTICAL);
+        historyContent.setPadding(16, 16, 16, 16);
+        historyContent.setTag("historyContent"); // For updating content
+        
+        // Initial empty state
+        createEmptyHistoryState(historyContent);
+        
+        historyScroll.addView(historyContent);
+        historyViewContainer.addView(historyScroll);
+    }
+    
+    private void createLogsViewContainer() {
+        logsViewContainer = new LinearLayout(this);
+        logsViewContainer.setOrientation(LinearLayout.VERTICAL);
+        logsViewContainer.setVisibility(View.GONE); // Initially hidden
+        
+        // Header with back button
+        LinearLayout logsHeader = createViewHeader("Detection Logs", () -> switchToView(ViewState.MAIN));
+        logsViewContainer.addView(logsHeader);
+        
+        // Content area
+        ScrollView logsScroll = new ScrollView(this);
+        LinearLayout logsContent = new LinearLayout(this);
+        logsContent.setOrientation(LinearLayout.VERTICAL);
+        logsContent.setPadding(16, 16, 16, 16);
+        logsContent.setTag("logsContent"); // For updating content
+        
+        // Initial content will be populated when logs are added
+        
+        logsScroll.addView(logsContent);
+        logsViewContainer.addView(logsScroll);
+    }
+    
+    private LinearLayout createViewHeader(String title, Runnable backAction) {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setBackgroundColor(Color.parseColor("#2563EB")); // React: blue-600
+        header.setPadding(24, 48, 24, 32);
+        
+        Button backButton = new Button(this);
+        backButton.setText("← Back");
+        backButton.setTextColor(Color.parseColor("#DBEAFE")); // blue-100
+        backButton.setTextSize(14);
+        backButton.setBackground(null);
+        backButton.setOnClickListener(v -> backAction.run());
+        backButton.setGravity(Gravity.LEFT);
+        backButton.setPadding(0, 0, 0, 8);
+        header.addView(backButton);
+        
+        TextView headerTitle = new TextView(this);
+        headerTitle.setText(title);
+        headerTitle.setTextSize(24);
+        headerTitle.setTextColor(Color.WHITE);
+        headerTitle.setTypeface(null, Typeface.BOLD);
+        header.addView(headerTitle);
+        
+        return header;
+    }
+    
+    private void switchToView(ViewState newView) {
+        // Hide all views
+        mainViewContainer.setVisibility(View.GONE);
+        historyViewContainer.setVisibility(View.GONE);
+        logsViewContainer.setVisibility(View.GONE);
+        
+        // Show selected view and update content if needed
+        switch (newView) {
+            case MAIN:
+                mainViewContainer.setVisibility(View.VISIBLE);
+                updateUIState(); // Refresh main view state
+                break;
+                
+            case CALL_HISTORY:
+                historyViewContainer.setVisibility(View.VISIBLE);
+                updateHistoryContent(); // Refresh history content
+                break;
+                
+            case LOGS:
+                logsViewContainer.setVisibility(View.VISIBLE);
+                updateLogsContent(); // Refresh logs content
+                break;
+        }
+        
+        currentView = newView;
+    }
+    
+    private void createProtectionStatusCard(LinearLayout parent) {
+        // React: bg-white rounded-2xl p-6 shadow-sm border border-gray-200
+        LinearLayout card = createReactCard();
+        card.setPadding(24, 24, 24, 24);
+        
+        LinearLayout statusRow = new LinearLayout(this);
+        statusRow.setOrientation(LinearLayout.HORIZONTAL);
+        statusRow.setGravity(Gravity.CENTER_VERTICAL);
+        statusRow.setPadding(0, 0, 0, 16);
+        
+        // Status indicator dot
+        statusIndicator = new TextView(this);
+        statusIndicator.setText("●");
+        statusIndicator.setTextSize(16);
+        statusIndicator.setTextColor(Color.parseColor("#9CA3AF")); // React: bg-gray-300
+        statusIndicator.setPadding(0, 0, 12, 0);
+        statusRow.addView(statusIndicator);
+        
+        protectionStatusText = new TextView(this);
+        protectionStatusText.setText("Setup Required");
+        protectionStatusText.setTextSize(18);
+        protectionStatusText.setTextColor(Color.parseColor("#111827")); // React: text-gray-900
+        protectionStatusText.setTypeface(null, Typeface.BOLD);
+        statusRow.addView(protectionStatusText);
+        
+        // Spacer
+        LinearLayout spacer = new LinearLayout(this);
+        LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(0, 0, 1.0f);
+        spacer.setLayoutParams(spacerParams);
+        statusRow.addView(spacer);
+        
+        // Settings icon
+        TextView settingsIcon = new TextView(this);
+        settingsIcon.setText("⚙️");
+        settingsIcon.setTextSize(16);
+        settingsIcon.setTextColor(Color.parseColor("#9CA3AF"));
+        statusRow.addView(settingsIcon);
+        
+        card.addView(statusRow);
+        
+        // Permission warning (React component style) - PERSISTENT REFERENCE
+        createPermissionWarning(card);
+        
+        // Main action button - PERSISTENT REFERENCE
+        mainActionButton = createReactButton("Grant Permissions", "#F59E0B", false);
+        mainActionButton.setOnClickListener(v -> handleMainAction());
+        card.addView(mainActionButton);
+        
+        parent.addView(card);
+    }
+    
+    private void createPermissionWarning(LinearLayout parent) {
+        // PERSISTENT REFERENCE - This will be shown/hidden based on permission state
+        permissionWarning = new LinearLayout(this);
+        permissionWarning.setOrientation(LinearLayout.VERTICAL);
+        permissionWarning.setPadding(12, 12, 12, 12);
+        permissionWarning.setVisibility(View.GONE); // Initially hidden
+        
+        // React: bg-orange-50 border border-orange-200 rounded-lg
+        GradientDrawable warningBg = new GradientDrawable();
+        warningBg.setColor(Color.parseColor("#FFF7ED"));
+        warningBg.setStroke(2, Color.parseColor("#FDBA74"));
+        warningBg.setCornerRadius(8);
+        permissionWarning.setBackground(warningBg);
+        
+        LinearLayout warningHeader = new LinearLayout(this);
+        warningHeader.setOrientation(LinearLayout.HORIZONTAL);
+        warningHeader.setGravity(Gravity.CENTER_VERTICAL);
+        warningHeader.setPadding(0, 0, 0, 8);
+        
+        TextView warningIcon = new TextView(this);
+        warningIcon.setText("⚠️");
+        warningIcon.setTextSize(16);
+        warningIcon.setPadding(0, 0, 8, 0);
+        warningHeader.addView(warningIcon);
+        
+        TextView warningTitle = new TextView(this);
+        warningTitle.setText("Permissions Needed");
+        warningTitle.setTextSize(14);
+        warningTitle.setTextColor(Color.parseColor("#EA580C")); // React: text-orange-800
+        warningTitle.setTypeface(null, Typeface.BOLD);
+        warningHeader.addView(warningTitle);
+        
+        permissionWarning.addView(warningHeader);
+        
+        TextView warningText = new TextView(this);
+        warningText.setText("Phone access and microphone required for scam detection");
+        warningText.setTextSize(12);
+        warningText.setTextColor(Color.parseColor("#C2410C")); // React: text-orange-700
+        permissionWarning.addView(warningText);
+        
+        parent.addView(permissionWarning);
+        addSpacing(parent, 16);
+    }
+    
+    private void createCurrentCallCard(LinearLayout parent) {
+        // React: Enhanced current call card - PERSISTENT REFERENCE
+        currentCallCard = createReactCard();
+        currentCallCard.setPadding(24, 24, 24, 24);
+        currentCallCard.setVisibility(View.GONE);
+        
+        LinearLayout callHeader = new LinearLayout(this);
+        callHeader.setOrientation(LinearLayout.HORIZONTAL);
+        callHeader.setGravity(Gravity.CENTER_VERTICAL);
+        callHeader.setPadding(0, 0, 0, 16);
+        
+        TextView phoneIcon = new TextView(this);
+        phoneIcon.setText("📞");
+        phoneIcon.setTextSize(24);
+        phoneIcon.setPadding(0, 0, 12, 0);
+        callHeader.addView(phoneIcon);
+        
+        LinearLayout callInfo = new LinearLayout(this);
+        callInfo.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams callInfoParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        callInfo.setLayoutParams(callInfoParams);
+        
+        TextView callStatus = new TextView(this);
+        callStatus.setText("Incoming Call");
+        callStatus.setTextSize(16);
+        callStatus.setTextColor(Color.parseColor("#111827"));
+        callStatus.setTypeface(null, Typeface.BOLD);
+        callInfo.addView(callStatus);
+        
+        callNumberText = new TextView(this);
+        callNumberText.setText("+91 99999 99999");
+        callNumberText.setTextSize(14);
+        callNumberText.setTextColor(Color.parseColor("#6B7280"));
+        callInfo.addView(callNumberText);
+        
+        callHeader.addView(callInfo);
+        
+        LinearLayout durationContainer = new LinearLayout(this);
+        durationContainer.setOrientation(LinearLayout.VERTICAL);
+        durationContainer.setGravity(Gravity.END);
+        
+        TextView durationLabel = new TextView(this);
+        durationLabel.setText("Duration");
+        durationLabel.setTextSize(12);
+        durationLabel.setTextColor(Color.parseColor("#9CA3AF"));
+        durationContainer.addView(durationLabel);
+        
+        callDurationText = new TextView(this);
+        callDurationText.setText("00:00");
+        callDurationText.setTextSize(14);
+        callDurationText.setTypeface(Typeface.MONOSPACE);
+        callDurationText.setTextColor(Color.parseColor("#374151"));
+        durationContainer.addView(callDurationText);
+        
+        callHeader.addView(durationContainer);
+        currentCallCard.addView(callHeader);
+        
+        createAnalysisStatus(currentCallCard);
+        createRiskMeter(currentCallCard);
+        createRiskAlerts(currentCallCard);
+        
+        parent.addView(currentCallCard);
+        addSpacing(parent, 16);
+    }
+    
+    private void createAnalysisStatus(LinearLayout parent) {
+        // React: Analysis Status Card (bg-blue-50 rounded-lg)
+        LinearLayout analysisCard = new LinearLayout(this);
+        analysisCard.setOrientation(LinearLayout.VERTICAL);
+        analysisCard.setPadding(12, 12, 12, 12);
+        
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor("#EFF6FF")); // React: bg-blue-50
+        bg.setCornerRadius(8);
+        analysisCard.setBackground(bg);
+        
+        LinearLayout statusRow = new LinearLayout(this);
+        statusRow.setOrientation(LinearLayout.HORIZONTAL);
+        statusRow.setGravity(Gravity.CENTER_VERTICAL);
+        statusRow.setPadding(0, 0, 0, 8);
+        
+        TextView brainIcon = new TextView(this);
+        brainIcon.setText("🧠");
+        brainIcon.setTextSize(16);
+        brainIcon.setPadding(0, 0, 8, 0);
+        statusRow.addView(brainIcon);
+        
+        analysisStatusText = new TextView(this);
+        analysisStatusText.setText("Analyzing in Real-time...");
+        analysisStatusText.setTextSize(14);
+        analysisStatusText.setTextColor(Color.parseColor("#1E40AF"));
+        analysisStatusText.setTypeface(null, Typeface.BOLD);
+        statusRow.addView(analysisStatusText);
+        
+        analysisCard.addView(statusRow);
+        
+        LinearLayout detailsRow = new LinearLayout(this);
+        detailsRow.setOrientation(LinearLayout.HORIZONTAL);
+        detailsRow.setGravity(Gravity.CENTER_VERTICAL);
+        
+        TextView micIcon = new TextView(this);
+        micIcon.setText("🎤");
+        micIcon.setTextSize(12);
+        micIcon.setPadding(0, 0, 4, 0);
+        detailsRow.addView(micIcon);
+        
+        TextView recordingStatus = new TextView(this);
+        recordingStatus.setText("Recording: " + currentRecordingMethod);
+        recordingStatus.setTextSize(12);
+        recordingStatus.setTextColor(Color.parseColor("#1E3A8A"));
+        recordingStatus.setPadding(0, 0, 12, 0);
+        detailsRow.addView(recordingStatus);
+        
+        TextView globeIcon = new TextView(this);
+        globeIcon.setText("🌐");
+        globeIcon.setTextSize(12);
+        globeIcon.setPadding(0, 0, 4, 0);
+        detailsRow.addView(globeIcon);
+        
+        TextView langStatus = new TextView(this);
+        langStatus.setText("EN/HI/TE Detection");
+        langStatus.setTextSize(12);
+        langStatus.setTextColor(Color.parseColor("#1E3A8A"));
+        detailsRow.addView(langStatus);
+        
+        analysisCard.addView(detailsRow);
+        parent.addView(analysisCard);
+    }
+    
+    private void createRiskMeter(LinearLayout parent) {
+        addSpacing(parent, 16);
+        
+        LinearLayout riskContainer = new LinearLayout(this);
+        riskContainer.setOrientation(LinearLayout.VERTICAL);
+        
+        LinearLayout riskHeader = new LinearLayout(this);
+        riskHeader.setOrientation(LinearLayout.HORIZONTAL);
+        riskHeader.setPadding(0, 0, 0, 8);
+        
+        TextView riskLabel = new TextView(this);
+        riskLabel.setText("Scam Risk Level");
+        riskLabel.setTextSize(14);
+        riskLabel.setTextColor(Color.parseColor("#374151"));
+        riskLabel.setTypeface(null, Typeface.BOLD);
+        LinearLayout.LayoutParams riskLabelParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        riskLabel.setLayoutParams(riskLabelParams);
+        riskHeader.addView(riskLabel);
+        
+        riskLevelText = new TextView(this);
+        riskLevelText.setText("0%");
+        riskLevelText.setTextSize(14);
+        riskLevelText.setTextColor(Color.parseColor("#10B981"));
+        riskLevelText.setTypeface(null, Typeface.BOLD);
+        riskHeader.addView(riskLevelText);
+        
+        riskContainer.addView(riskHeader);
+        
+        // Progress bar - PERSISTENT REFERENCE
+        riskMeter = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        riskMeter.setMax(100);
+        riskMeter.setProgress(0);
+        riskMeter.getProgressDrawable().setColorFilter(Color.parseColor("#10B981"), PorterDuff.Mode.SRC_IN);
+        
+        LinearLayout.LayoutParams meterParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 24);
+        riskMeter.setLayoutParams(meterParams);
+        
+        riskContainer.addView(riskMeter);
+        parent.addView(riskContainer);
+    }
+    
+    private void createRiskAlerts(LinearLayout parent) {
+        riskAlertCard = new LinearLayout(this);
+        riskAlertCard.setOrientation(LinearLayout.VERTICAL);
+        riskAlertCard.setVisibility(View.GONE);
+        riskAlertCard.setPadding(0, 16, 0, 0);
+        parent.addView(riskAlertCard);
+    }
+    
+    private void createFeaturesCard(LinearLayout parent) {
+        // React: Features card with grid layout
+        LinearLayout card = createReactCard();
+        card.setPadding(24, 24, 24, 24);
+        
+        TextView title = new TextView(this);
+        title.setText("Protection Features");
+        title.setTextSize(18);
+        title.setTextColor(Color.parseColor("#111827"));
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(0, 0, 0, 16);
+        card.addView(title);
+        
+        // Grid layout (2x2)
+        LinearLayout row1 = new LinearLayout(this);
+        row1.setOrientation(LinearLayout.HORIZONTAL);
+        row1.setWeightSum(2.0f);
+        
+        row1.addView(createFeatureItem("🧠", "Real-Time", "8-sec analysis", "#2563EB"));
+        addHorizontalSpacing(row1, 16);
+        row1.addView(createFeatureItem("🌐", "Multi-Language", "English/Hindi/Telugu", "#7C3AED"));
+        
+        card.addView(row1);
+        addSpacing(card, 16);
+        
+        LinearLayout row2 = new LinearLayout(this);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        row2.setWeightSum(2.0f);
+        
+        row2.addView(createFeatureItem("🎤", "Smart Recording", "4-tier Fallback", "#10B981"));
+        addHorizontalSpacing(row2, 16);
+        row2.addView(createFeatureItem("🔒", "Privacy First", "Local Storage Only", "#EA580C"));
+        
+        card.addView(row2);
+        parent.addView(card);
+    }
+    
+    private LinearLayout createFeatureItem(String icon, String title, String subtitle, String color) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        item.setPadding(12, 12, 12, 12);
+        
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(8);
+        bg.setStroke(1, Color.parseColor("#E5E7EB"));
+        item.setBackground(bg);
+        
+        TextView iconText = new TextView(this);
+        iconText.setText(icon);
+        iconText.setTextSize(32);
+        iconText.setGravity(Gravity.CENTER);
+        iconText.setPadding(0, 0, 0, 8);
+        item.addView(iconText);
+        
+        TextView titleText = new TextView(this);
+        titleText.setText(title);
+        titleText.setTextSize(14);
+        titleText.setTextColor(Color.parseColor("#111827"));
+        titleText.setTypeface(null, Typeface.BOLD);
+        titleText.setGravity(Gravity.CENTER);
+        titleText.setPadding(0, 0, 0, 4);
+        item.addView(titleText);
+        
+        TextView subtitleText = new TextView(this);
+        subtitleText.setText(subtitle);
+        subtitleText.setTextSize(12);
+        subtitleText.setTextColor(Color.parseColor("#6B7280"));
+        subtitleText.setGravity(Gravity.CENTER);
+        item.addView(subtitleText);
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        item.setLayoutParams(params);
+        
+        return item;
+    }
+    
+    private void createSystemStatusCard(LinearLayout parent) {
+        systemStatusCard = createReactCard();
+        systemStatusCard.setPadding(24, 24, 24, 24);
+        systemStatusCard.setVisibility(View.GONE);
+        
+        TextView title = new TextView(this);
+        title.setText("System Status");
+        title.setTextSize(18);
+        title.setTextColor(Color.parseColor("#111827"));
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(0, 0, 0, 16);
+        systemStatusCard.addView(title);
+        
+        parent.addView(systemStatusCard);
+        addSpacing(parent, 16);
+    }
+    
+    private void createQuickActions(LinearLayout parent) {
+        // React: grid grid-cols-2 gap-3
+        LinearLayout actionsRow = new LinearLayout(this);
+        actionsRow.setOrientation(LinearLayout.HORIZONTAL);
+        actionsRow.setWeightSum(2.0f);
+        
+        Button historyButton = createReactActionButton("📞 Call History", "#2563EB");
+        historyButton.setOnClickListener(v -> {
+            try {
+                switchToView(ViewState.CALL_HISTORY);
+            }
