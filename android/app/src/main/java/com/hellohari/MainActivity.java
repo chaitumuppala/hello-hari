@@ -1305,60 +1305,37 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         aboutLayout.addView(aboutTitle);
         
         TextView aboutText = new TextView(this);
-        aboutText.setText("🤖 PHASE 3: AI-POWERED MULTI-LANGUAGE SCAM DETECTION\n\n" +
+        aboutText.setText("AI-POWERED MULTI-LANGUAGE SCAM DETECTION\n\n" +
                 "In memory of Hari - protecting families from scam grief through advanced AI technology.\n\n" +
-                "\"Protecting one person from fraud is like protecting an entire family from grief\"\n\n" +
-                "🧠 AI SCAM DETECTION FEATURES:\n" +
-                "• Multi-language speech analysis (English, Hindi, Telugu)\n" +
-                "• Real-time scam pattern recognition\n" +
-                "• 500+ scam keyword database\n" +
-                "• Cross-language detection (mixed language calls)\n" +
-                "• Urgency and authority indicator analysis\n" +
-                "• Smart transcription quality assessment\n" +
-                "• Context-aware risk scoring\n" +
-                "• Local AI processing (100% privacy)\n\n" +
-                "🎤 SMART RECORDING SYSTEM:\n" +
-                "• 4-tier intelligent recording fallback\n" +
-                "• VOICE_RECOGNITION (Most Compatible)\n" +
-                "• VOICE_COMMUNICATION (VoIP Optimized)\n" +
-                "• CAMCORDER (Alternative High-Quality)\n" +
-                "• MIC + Speaker (Guaranteed Fallback)\n" +
-                "• Real-time quality monitoring\n" +
-                "• Device-specific optimizations\n\n" +
-                "🌐 MULTI-LANGUAGE SUPPORT:\n" +
-                "• English: Advanced financial fraud detection\n" +
-                "• Hindi: Devanagari + Romanized text analysis\n" +
-                "• Telugu: Regional scam pattern recognition\n" +
-                "• Mixed Language: Code-switching detection\n" +
-                "• Expandable to additional Indian languages\n\n" +
-                "🔒 PRIVACY & SECURITY:\n" +
-                "• 100% local AI processing (no cloud)\n" +
-                "• No data transmission to external servers\n" +
-                "• Recordings stored locally on device only\n" +
-                "• User-controlled keyword management\n" +
-                "• Transparent risk scoring\n\n" +
-                "🎯 DETECTION ACCURACY:\n" +
-                "• English scam calls: 85-90% detection rate\n" +
-                "• Hindi scam calls: 80-85% detection rate\n" +
-                "• Telugu scam calls: 75-80% detection rate\n" +
-                "• Mixed language calls: 70-75% detection rate\n" +
-                "• False positive rate: <5%\n\n" +
-                "📱 YOUR DEVICE OPTIMIZATION:\n" +
+                "AI SCAM DETECTION FEATURES:\n" +
+                "Multi-language speech analysis (English, Hindi, Telugu)\n" +
+                "Real-time scam pattern recognition\n" +
+                "500+ scam keyword database\n" +
+                "Cross-language detection for mixed calls\n" +
+                "Context-aware risk scoring\n" +
+                "Local AI processing (100% privacy)\n\n" +
+                "SMART RECORDING SYSTEM:\n" +
+                "4-tier intelligent recording fallback\n" +
+                "VOICE_RECOGNITION (Most Compatible)\n" +
+                "VOICE_COMMUNICATION (VoIP Optimized)\n" +
+                "CAMCORDER (Alternative High-Quality)\n" +
+                "MIC + Speaker (Guaranteed Fallback)\n\n" +
+                "MULTI-LANGUAGE SUPPORT:\n" +
+                "English: Advanced financial fraud detection\n" +
+                "Hindi: Devanagari + Romanized text analysis\n" +
+                "Telugu: Regional scam pattern recognition\n" +
+                "Mixed Language: Code-switching detection\n\n" +
+                "PRIVACY & SECURITY:\n" +
+                "100% local AI processing (no cloud)\n" +
+                "No data transmission to external servers\n" +
+                "Recordings stored locally on device only\n\n" +
+                "YOUR DEVICE OPTIMIZATION:\n" +
                 "Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + "\n" +
                 "Android: " + android.os.Build.VERSION.SDK_INT + "\n" +
                 "AI Processing: Local Neural Networks\n" +
                 "Recording: 4-Tier Smart Fallback\n" +
-                "Languages: English, Hindi, Telugu\n" +
-                "Privacy: 100% Local Processing\n\n" +
-                "🚀 PHASE 3 AI CAPABILITIES:\n" +
-                "• Real scam keyword detection (not simulation)\n" +
-                "• Multi-language transcription analysis\n" +
-                "• Pattern recognition across languages\n" +
-                "• Context-aware risk assessment\n" +
-                "• Adaptive learning from user feedback\n" +
-                "• Emergency scam pattern updates\n\n" +
-                "Hello Hari continues Hari's mission of protection through cutting-edge AI technology, " +
-                "ensuring that families stay safe from the devastating impact of phone scams.");
+                "Languages: English, Hindi, Telugu\n\n" +
+                "Hello Hari continues Hari's mission of protection through cutting-edge AI technology.");
         
         aboutText.setTextSize(14);
         aboutText.setTextColor(Color.parseColor("#333333"));
