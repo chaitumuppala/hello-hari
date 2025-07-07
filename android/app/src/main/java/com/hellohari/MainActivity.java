@@ -227,26 +227,43 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
     mainLayout.addView(menuCard);
     
     // === COMPACT RECENT ACTIVITY ===
-    LinearLayout activityCard = createCard();
-    activityCard.setPadding(20, 20, 20, 20);
-    
-    TextView activityTitle = new TextView(this);
-    activityTitle.setText("🔔 Recent Activity");
-    activityTitle.setTextSize(16);
-    activityTitle.setTextColor(Color.parseColor("#1F2937"));
-    activityTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-    activityTitle.setPadding(0, 0, 0, 12);
-    activityCard.addView(activityTitle);
-    
-    // Compact activity log (last 3 entries only)
-    callLogText = new TextView(this);
-    callLogText.setText("🤖 AI Protection Ready\n📱 Device: " + android.os.Build.MODEL + "\n✅ Multi-language detection enabled");
-    callLogText.setTextSize(14);
-    callLogText.setTextColor(Color.parseColor("#6B7280"));
-    callLogText.setBackgroundColor(Color.parseColor("#F9FAFB"));
-    callLogText.setPadding(12, 12, 12, 12);
-    callLogText.setMaxLines(4);
-    activityCard.addView(callLogText);
+LinearLayout activityCard = createCard();
+activityCard.setPadding(20, 20, 20, 20);
+
+TextView activityTitle = new TextView(this);
+activityTitle.setText("🔔 Recent Activity");
+activityTitle.setTextSize(16);
+activityTitle.setTextColor(Color.parseColor("#1F2937"));
+activityTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+activityTitle.setPadding(0, 0, 0, 12);
+activityCard.addView(activityTitle);
+
+// Recording status display (FIX FOR CRASH)
+recordingStatusText = new TextView(this);
+recordingStatusText.setText("🤖 AI Ready: Multi-language detection enabled");
+recordingStatusText.setTextSize(14);
+recordingStatusText.setTextColor(Color.parseColor("#059669"));
+recordingStatusText.setBackgroundColor(Color.parseColor("#F0FDF4"));
+recordingStatusText.setPadding(12, 8, 12, 8);
+activityCard.addView(recordingStatusText);
+
+// Device info display (FIX FOR CRASH)
+deviceInfoText = new TextView(this);
+deviceInfoText.setText("📱 " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " (Android " + android.os.Build.VERSION.SDK_INT + ")");
+deviceInfoText.setTextSize(12);
+deviceInfoText.setTextColor(Color.parseColor("#9CA3AF"));
+deviceInfoText.setPadding(12, 4, 12, 12);
+activityCard.addView(deviceInfoText);
+
+// Compact activity log (last 3 entries only)
+callLogText = new TextView(this);
+callLogText.setText("🤖 AI Protection Ready\n📱 Device: " + android.os.Build.MODEL + "\n✅ Multi-language detection enabled");
+callLogText.setTextSize(14);
+callLogText.setTextColor(Color.parseColor("#6B7280"));
+callLogText.setBackgroundColor(Color.parseColor("#F9FAFB"));
+callLogText.setPadding(12, 12, 12, 12);
+callLogText.setMaxLines(4);
+activityCard.addView(callLogText);
     
     // "View More" button for full logs
     Button viewMoreBtn = new Button(this);
