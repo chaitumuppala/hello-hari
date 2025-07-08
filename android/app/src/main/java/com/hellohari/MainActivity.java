@@ -1,4 +1,715 @@
-historyButton.setOnClickListener(v -> {
+package com.hellohari;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.media.AudioManager;
+import android.os.Bundle;
+import android.telephony.TelephonyManager;
+import android.util.Log;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+
+public class MainActivity extends Activity implements SimpleCallDetector.CallDetectionListener {
+    private static final String TAG = "HelloHariMain";
+    private static final int PERMISSION_REQUEST_CODE = 123;
+    
+    // UI State Management
+    private enum ViewState {
+        MAIN, CALL_HISTORY, LOGS
+    }
+    
+    private ViewState currentView = ViewState.MAIN;
+    
+    // Core Components
+    private SimpleCallDetector callDetector;
+    private AudioManager audioManager;
+    private MultiLanguageScamDetector scamDetector;
+    private TextView alertIcon;
+    
+    // PERSISTENT UI CONTAINERS - Created once, never destroyed
+    private LinearLayout rootContainer;
+    private LinearLayout mainViewContainer;
+    private LinearLayout historyViewContainer;
+    private LinearLayout logsViewContainer;
+    
+    // PERSISTENT UI COMPONENTS - Maintain state across navigation
+    private TextView statusIndicator;
+    private TextView protectionStatusText;
+    private Button mainActionButton;
+    private TextView riskLevelText;
+    private ProgressBar riskMeter;
+    private LinearLayout currentCallCard;
+    private TextView callNumberText;
+    private TextView callDurationText;
+    private TextView analysisStatusText;
+    private LinearLayout riskAlertCard;
+    private LinearLayout systemStatusCard;
+    private TextView statusFooterText;
+    private LinearLayout permissionWarning;
+    private TextView protectionSubtitle;
+    
+    // State Variables - FIXED: All properly declared and persistent
+    private boolean hasMinimumPermissions = false;
+    private boolean isProtectionActive = false;
+    private int currentRiskScore = 0;
+    private String currentCallNumber;
+    private String currentRecordingMethod = "Ready";
+    private long callStartTime = 0;
+    
+    // Real-time analysis
+    private Thread realTimeAnalysisThread;
+    private boolean isRealTimeAnalysisRunning = false;
+    private int realTimeRiskScore = 0;
+    private List<String> detectedPatternsRealTime = new ArrayList<>();
+    
+    // Logs and History
+    private StringBuilder technicalLogs = new StringBuilder();
+    private List<CallHistoryEntry> callHistory = new ArrayList<>();
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        
+        try {
+            // Initialize core components
+            callDetector = new SimpleCallDetector(this);
+            callDetector.setCallDetectionListener(this);
+            audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+            scamDetector = new MultiLanguageScamDetector(this);
+            
+            // CREATE ALL VIEWS ONCE - Never recreate them
+            createPersistentViewStructure();
+            checkPermissions();
+            
+            // Initialize logs
+            addToTechnicalLogs("🛡️ Hello Hari protection system initialized");
+            addToTechnicalLogs("Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
+            addToTechnicalLogs("AI Engine: " + scamDetector.getPatternCount() + " scam patterns loaded");
+            
+            Log.d(TAG, "Hello Hari - View Switcher architecture initialized successfully");
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onCreate", e);
+            createFallbackUI();
+        }
+    }
+    
+    private void createFallbackUI() {
+        LinearLayout fallback = new LinearLayout(this);
+        fallback.setOrientation(LinearLayout.VERTICAL);
+        fallback.setPadding(16, 16, 16, 16);
+        fallback.setBackgroundColor(Color.parseColor("#F9FAFB"));
+        
+        TextView title = new TextView(this);
+        title.setText("Hello Hari - Initialization Error");
+        title.setTextSize(18);
+        title.setTextColor(Color.parseColor("#EF4444"));
+        title.setPadding(0, 20, 0, 20);
+        fallback.addView(title);
+        
+        Button retryButton = new Button(this);
+        retryButton.setText("Retry");
+        retryButton.setOnClickListener(v -> recreate());
+        fallback.addView(retryButton);
+        
+        setContentView(fallback);
+    }
+    
+    private void createPersistentViewStructure() {
+        // Root container with React styling
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setBackgroundColor(Color.parseColor("#F9FAFB")); // React: bg-gray-50
+        
+        rootContainer = new LinearLayout(this);
+        rootContainer.setOrientation(LinearLayout.VERTICAL);
+        rootContainer.setPadding(0, 0, 0, 0);
+        
+        // Create header (shared across all views)
+        createSharedHeader();
+        
+        // Create all view containers
+        createMainViewContainer();
+        createHistoryViewContainer();
+        createLogsViewContainer();
+        
+        // Add all containers to root
+        rootContainer.addView(mainViewContainer);
+        rootContainer.addView(historyViewContainer);
+        rootContainer.addView(logsViewContainer);
+        
+        scrollView.addView(rootContainer);
+        setContentView(scrollView);
+        
+        // Show main view initially
+        switchToView(ViewState.MAIN);
+    }
+    
+    private void createSharedHeader() {
+        // React: bg-gradient-to-r from-blue-600 to-blue-700
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        
+        GradientDrawable headerBg = new GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            new int[]{Color.parseColor("#2563EB"), Color.parseColor("#1D4ED8")}
+        );
+        header.setBackground(headerBg);
+        header.setPadding(24, 48, 24, 32);
+        
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        
+        // Shield icon
+        TextView shieldIcon = new TextView(this);
+        shieldIcon.setText("🛡️");
+        shieldIcon.setTextSize(32);
+        shieldIcon.setPadding(0, 0, 12, 0);
+        titleRow.addView(shieldIcon);
+        
+        TextView appTitle = new TextView(this);
+        appTitle.setText("Hello Hari");
+        appTitle.setTextSize(24);
+        appTitle.setTextColor(Color.WHITE);
+        appTitle.setTypeface(null, Typeface.BOLD);
+        titleRow.addView(appTitle);
+        
+        header.addView(titleRow);
+        
+        TextView subtitle = new TextView(this);
+        subtitle.setText("Your smart call guardian");
+        subtitle.setTextSize(16);
+        subtitle.setTextColor(Color.parseColor("#DBEAFE")); // React: text-blue-100
+        subtitle.setPadding(44, 8, 0, 0);
+        header.addView(subtitle);
+        
+        rootContainer.addView(header);
+    }
+    
+    private void createMainViewContainer() {
+        mainViewContainer = new LinearLayout(this);
+        mainViewContainer.setOrientation(LinearLayout.VERTICAL);
+        mainViewContainer.setPadding(16, 16, 16, 16);
+        
+        // Max width container (React: max-w-md mx-auto)
+        LinearLayout maxWidthContainer = new LinearLayout(this);
+        maxWidthContainer.setOrientation(LinearLayout.VERTICAL);
+        maxWidthContainer.setGravity(Gravity.CENTER_HORIZONTAL);
+        
+        createProtectionStatusCard(maxWidthContainer);
+        addSpacing(maxWidthContainer, 16);
+        
+        createCurrentCallCard(maxWidthContainer);
+        
+        createFeaturesCard(maxWidthContainer);
+        addSpacing(maxWidthContainer, 16);
+        
+        createSystemStatusCard(maxWidthContainer);
+        
+        createQuickActions(maxWidthContainer);
+        addSpacing(maxWidthContainer, 16);
+        
+        createStatusFooter(maxWidthContainer);
+        
+        mainViewContainer.addView(maxWidthContainer);
+    }
+    
+    private void createHistoryViewContainer() {
+        historyViewContainer = new LinearLayout(this);
+        historyViewContainer.setOrientation(LinearLayout.VERTICAL);
+        historyViewContainer.setVisibility(View.GONE); // Initially hidden
+        
+        // Header with back button
+        LinearLayout historyHeader = createViewHeader("Call History", () -> switchToView(ViewState.MAIN));
+        historyViewContainer.addView(historyHeader);
+        
+        // Content area
+        ScrollView historyScroll = new ScrollView(this);
+        LinearLayout historyContent = new LinearLayout(this);
+        historyContent.setOrientation(LinearLayout.VERTICAL);
+        historyContent.setPadding(16, 16, 16, 16);
+        historyContent.setTag("historyContent"); // For updating content
+        
+        // Initial empty state
+        createEmptyHistoryState(historyContent);
+        
+        historyScroll.addView(historyContent);
+        historyViewContainer.addView(historyScroll);
+    }
+    
+    private void createLogsViewContainer() {
+        logsViewContainer = new LinearLayout(this);
+        logsViewContainer.setOrientation(LinearLayout.VERTICAL);
+        logsViewContainer.setVisibility(View.GONE); // Initially hidden
+        
+        // Header with back button
+        LinearLayout logsHeader = createViewHeader("Detection Logs", () -> switchToView(ViewState.MAIN));
+        logsViewContainer.addView(logsHeader);
+        
+        // Content area
+        ScrollView logsScroll = new ScrollView(this);
+        LinearLayout logsContent = new LinearLayout(this);
+        logsContent.setOrientation(LinearLayout.VERTICAL);
+        logsContent.setPadding(16, 16, 16, 16);
+        logsContent.setTag("logsContent"); // For updating content
+        
+        // Initial content will be populated when logs are added
+        
+        logsScroll.addView(logsContent);
+        logsViewContainer.addView(logsScroll);
+    }
+    
+    private LinearLayout createViewHeader(String title, Runnable backAction) {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setBackgroundColor(Color.parseColor("#2563EB")); // React: blue-600
+        header.setPadding(24, 48, 24, 32);
+        
+        Button backButton = new Button(this);
+        backButton.setText("← Back");
+        backButton.setTextColor(Color.parseColor("#DBEAFE")); // blue-100
+        backButton.setTextSize(14);
+        backButton.setBackground(null);
+        backButton.setOnClickListener(v -> backAction.run());
+        backButton.setGravity(Gravity.LEFT);
+        backButton.setPadding(0, 0, 0, 8);
+        header.addView(backButton);
+        
+        TextView headerTitle = new TextView(this);
+        headerTitle.setText(title);
+        headerTitle.setTextSize(24);
+        headerTitle.setTextColor(Color.WHITE);
+        headerTitle.setTypeface(null, Typeface.BOLD);
+        header.addView(headerTitle);
+        
+        return header;
+    }
+    
+    private void switchToView(ViewState newView) {
+        // Hide all views
+        mainViewContainer.setVisibility(View.GONE);
+        historyViewContainer.setVisibility(View.GONE);
+        logsViewContainer.setVisibility(View.GONE);
+        
+        // Show selected view and update content if needed
+        switch (newView) {
+            case MAIN:
+                mainViewContainer.setVisibility(View.VISIBLE);
+                updateUIState(); // Refresh main view state
+                break;
+                
+            case CALL_HISTORY:
+                historyViewContainer.setVisibility(View.VISIBLE);
+                updateHistoryContent(); // Refresh history content
+                break;
+                
+            case LOGS:
+                logsViewContainer.setVisibility(View.VISIBLE);
+                updateLogsContent(); // Refresh logs content
+                break;
+        }
+        
+        currentView = newView;
+    }
+    
+    private void createProtectionStatusCard(LinearLayout parent) {
+        // React: bg-white rounded-2xl p-6 shadow-sm border border-gray-200
+        LinearLayout card = createReactCard();
+        card.setPadding(24, 24, 24, 24);
+        
+        LinearLayout statusRow = new LinearLayout(this);
+        statusRow.setOrientation(LinearLayout.HORIZONTAL);
+        statusRow.setGravity(Gravity.CENTER_VERTICAL);
+        statusRow.setPadding(0, 0, 0, 16);
+        
+        // Status indicator dot
+        statusIndicator = new TextView(this);
+        statusIndicator.setText("●");
+        statusIndicator.setTextSize(16);
+        statusIndicator.setTextColor(Color.parseColor("#9CA3AF")); // React: bg-gray-300
+        statusIndicator.setPadding(0, 0, 12, 0);
+        statusRow.addView(statusIndicator);
+        
+        protectionStatusText = new TextView(this);
+        protectionStatusText.setText("Setup Required");
+        protectionStatusText.setTextSize(18);
+        protectionStatusText.setTextColor(Color.parseColor("#111827")); // React: text-gray-900
+        protectionStatusText.setTypeface(null, Typeface.BOLD);
+        statusRow.addView(protectionStatusText);
+        
+        // Spacer
+        LinearLayout spacer = new LinearLayout(this);
+        LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(0, 0, 1.0f);
+        spacer.setLayoutParams(spacerParams);
+        statusRow.addView(spacer);
+        
+        // Settings icon
+        TextView settingsIcon = new TextView(this);
+        settingsIcon.setText("⚙️");
+        settingsIcon.setTextSize(16);
+        settingsIcon.setTextColor(Color.parseColor("#9CA3AF"));
+        statusRow.addView(settingsIcon);
+        
+        card.addView(statusRow);
+        
+        // Permission warning (React component style) - PERSISTENT REFERENCE
+        createPermissionWarning(card);
+        
+        // Main action button - PERSISTENT REFERENCE
+        mainActionButton = createReactButton("Grant Permissions", "#F59E0B", false);
+        mainActionButton.setOnClickListener(v -> handleMainAction());
+        card.addView(mainActionButton);
+        
+        parent.addView(card);
+    }
+    
+    private void createPermissionWarning(LinearLayout parent) {
+        // PERSISTENT REFERENCE - This will be shown/hidden based on permission state
+        permissionWarning = new LinearLayout(this);
+        permissionWarning.setOrientation(LinearLayout.VERTICAL);
+        permissionWarning.setPadding(12, 12, 12, 12);
+        permissionWarning.setVisibility(View.GONE); // Initially hidden
+        
+        // React: bg-orange-50 border border-orange-200 rounded-lg
+        GradientDrawable warningBg = new GradientDrawable();
+        warningBg.setColor(Color.parseColor("#FFF7ED"));
+        warningBg.setStroke(2, Color.parseColor("#FDBA74"));
+        warningBg.setCornerRadius(8);
+        permissionWarning.setBackground(warningBg);
+        
+        LinearLayout warningHeader = new LinearLayout(this);
+        warningHeader.setOrientation(LinearLayout.HORIZONTAL);
+        warningHeader.setGravity(Gravity.CENTER_VERTICAL);
+        warningHeader.setPadding(0, 0, 0, 8);
+        
+        TextView warningIcon = new TextView(this);
+        warningIcon.setText("⚠️");
+        warningIcon.setTextSize(16);
+        warningIcon.setPadding(0, 0, 8, 0);
+        warningHeader.addView(warningIcon);
+        
+        TextView warningTitle = new TextView(this);
+        warningTitle.setText("Permissions Needed");
+        warningTitle.setTextSize(14);
+        warningTitle.setTextColor(Color.parseColor("#EA580C")); // React: text-orange-800
+        warningTitle.setTypeface(null, Typeface.BOLD);
+        warningHeader.addView(warningTitle);
+        
+        permissionWarning.addView(warningHeader);
+        
+        TextView warningText = new TextView(this);
+        warningText.setText("Phone access and microphone required for scam detection");
+        warningText.setTextSize(12);
+        warningText.setTextColor(Color.parseColor("#C2410C")); // React: text-orange-700
+        permissionWarning.addView(warningText);
+        
+        parent.addView(permissionWarning);
+        addSpacing(parent, 16);
+    }
+    
+    private void createCurrentCallCard(LinearLayout parent) {
+        // React: Enhanced current call card - PERSISTENT REFERENCE
+        currentCallCard = createReactCard();
+        currentCallCard.setPadding(24, 24, 24, 24);
+        currentCallCard.setVisibility(View.GONE);
+        
+        LinearLayout callHeader = new LinearLayout(this);
+        callHeader.setOrientation(LinearLayout.HORIZONTAL);
+        callHeader.setGravity(Gravity.CENTER_VERTICAL);
+        callHeader.setPadding(0, 0, 0, 16);
+        
+        TextView phoneIcon = new TextView(this);
+        phoneIcon.setText("📞");
+        phoneIcon.setTextSize(24);
+        phoneIcon.setPadding(0, 0, 12, 0);
+        callHeader.addView(phoneIcon);
+        
+        LinearLayout callInfo = new LinearLayout(this);
+        callInfo.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams callInfoParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        callInfo.setLayoutParams(callInfoParams);
+        
+        TextView callStatus = new TextView(this);
+        callStatus.setText("Incoming Call");
+        callStatus.setTextSize(16);
+        callStatus.setTextColor(Color.parseColor("#111827"));
+        callStatus.setTypeface(null, Typeface.BOLD);
+        callInfo.addView(callStatus);
+        
+        callNumberText = new TextView(this);
+        callNumberText.setText("+91 99999 99999");
+        callNumberText.setTextSize(14);
+        callNumberText.setTextColor(Color.parseColor("#6B7280"));
+        callInfo.addView(callNumberText);
+        
+        callHeader.addView(callInfo);
+        
+        LinearLayout durationContainer = new LinearLayout(this);
+        durationContainer.setOrientation(LinearLayout.VERTICAL);
+        durationContainer.setGravity(Gravity.END);
+        
+        TextView durationLabel = new TextView(this);
+        durationLabel.setText("Duration");
+        durationLabel.setTextSize(12);
+        durationLabel.setTextColor(Color.parseColor("#9CA3AF"));
+        durationContainer.addView(durationLabel);
+        
+        callDurationText = new TextView(this);
+        callDurationText.setText("00:00");
+        callDurationText.setTextSize(14);
+        callDurationText.setTypeface(Typeface.MONOSPACE);
+        callDurationText.setTextColor(Color.parseColor("#374151"));
+        durationContainer.addView(callDurationText);
+        
+        callHeader.addView(durationContainer);
+        currentCallCard.addView(callHeader);
+        
+        createAnalysisStatus(currentCallCard);
+        createRiskMeter(currentCallCard);
+        createRiskAlerts(currentCallCard);
+        
+        parent.addView(currentCallCard);
+        addSpacing(parent, 16);
+    }
+    
+    private void createAnalysisStatus(LinearLayout parent) {
+        // React: Analysis Status Card (bg-blue-50 rounded-lg)
+        LinearLayout analysisCard = new LinearLayout(this);
+        analysisCard.setOrientation(LinearLayout.VERTICAL);
+        analysisCard.setPadding(12, 12, 12, 12);
+        
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor("#EFF6FF")); // React: bg-blue-50
+        bg.setCornerRadius(8);
+        analysisCard.setBackground(bg);
+        
+        LinearLayout statusRow = new LinearLayout(this);
+        statusRow.setOrientation(LinearLayout.HORIZONTAL);
+        statusRow.setGravity(Gravity.CENTER_VERTICAL);
+        statusRow.setPadding(0, 0, 0, 8);
+        
+        TextView brainIcon = new TextView(this);
+        brainIcon.setText("🧠");
+        brainIcon.setTextSize(16);
+        brainIcon.setPadding(0, 0, 8, 0);
+        statusRow.addView(brainIcon);
+        
+        analysisStatusText = new TextView(this);
+        analysisStatusText.setText("Analyzing in Real-time...");
+        analysisStatusText.setTextSize(14);
+        analysisStatusText.setTextColor(Color.parseColor("#1E40AF"));
+        analysisStatusText.setTypeface(null, Typeface.BOLD);
+        statusRow.addView(analysisStatusText);
+        
+        analysisCard.addView(statusRow);
+        
+        LinearLayout detailsRow = new LinearLayout(this);
+        detailsRow.setOrientation(LinearLayout.HORIZONTAL);
+        detailsRow.setGravity(Gravity.CENTER_VERTICAL);
+        
+        TextView micIcon = new TextView(this);
+        micIcon.setText("🎤");
+        micIcon.setTextSize(12);
+        micIcon.setPadding(0, 0, 4, 0);
+        detailsRow.addView(micIcon);
+        
+        TextView recordingStatus = new TextView(this);
+        recordingStatus.setText("Recording: " + currentRecordingMethod);
+        recordingStatus.setTextSize(12);
+        recordingStatus.setTextColor(Color.parseColor("#1E3A8A"));
+        recordingStatus.setPadding(0, 0, 12, 0);
+        detailsRow.addView(recordingStatus);
+        
+        TextView globeIcon = new TextView(this);
+        globeIcon.setText("🌐");
+        globeIcon.setTextSize(12);
+        globeIcon.setPadding(0, 0, 4, 0);
+        detailsRow.addView(globeIcon);
+        
+        TextView langStatus = new TextView(this);
+        langStatus.setText("EN/HI/TE Detection");
+        langStatus.setTextSize(12);
+        langStatus.setTextColor(Color.parseColor("#1E3A8A"));
+        detailsRow.addView(langStatus);
+        
+        analysisCard.addView(detailsRow);
+        parent.addView(analysisCard);
+    }
+    
+    private void createRiskMeter(LinearLayout parent) {
+        addSpacing(parent, 16);
+        
+        LinearLayout riskContainer = new LinearLayout(this);
+        riskContainer.setOrientation(LinearLayout.VERTICAL);
+        
+        LinearLayout riskHeader = new LinearLayout(this);
+        riskHeader.setOrientation(LinearLayout.HORIZONTAL);
+        riskHeader.setPadding(0, 0, 0, 8);
+        
+        TextView riskLabel = new TextView(this);
+        riskLabel.setText("Scam Risk Level");
+        riskLabel.setTextSize(14);
+        riskLabel.setTextColor(Color.parseColor("#374151"));
+        riskLabel.setTypeface(null, Typeface.BOLD);
+        LinearLayout.LayoutParams riskLabelParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        riskLabel.setLayoutParams(riskLabelParams);
+        riskHeader.addView(riskLabel);
+        
+        riskLevelText = new TextView(this);
+        riskLevelText.setText("0%");
+        riskLevelText.setTextSize(14);
+        riskLevelText.setTextColor(Color.parseColor("#10B981"));
+        riskLevelText.setTypeface(null, Typeface.BOLD);
+        riskHeader.addView(riskLevelText);
+        
+        riskContainer.addView(riskHeader);
+        
+        // Progress bar - PERSISTENT REFERENCE
+        riskMeter = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        riskMeter.setMax(100);
+        riskMeter.setProgress(0);
+        riskMeter.getProgressDrawable().setColorFilter(Color.parseColor("#10B981"), PorterDuff.Mode.SRC_IN);
+        
+        LinearLayout.LayoutParams meterParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 24);
+        riskMeter.setLayoutParams(meterParams);
+        
+        riskContainer.addView(riskMeter);
+        parent.addView(riskContainer);
+    }
+    
+    private void createRiskAlerts(LinearLayout parent) {
+        riskAlertCard = new LinearLayout(this);
+        riskAlertCard.setOrientation(LinearLayout.VERTICAL);
+        riskAlertCard.setVisibility(View.GONE);
+        riskAlertCard.setPadding(0, 16, 0, 0);
+        
+        // Initialize alertIcon here
+        alertIcon = new TextView(this);
+        
+        parent.addView(riskAlertCard);
+    }
+    
+    private void createFeaturesCard(LinearLayout parent) {
+        // React: Features card with grid layout
+        LinearLayout card = createReactCard();
+        card.setPadding(24, 24, 24, 24);
+        
+        TextView title = new TextView(this);
+        title.setText("Protection Features");
+        title.setTextSize(18);
+        title.setTextColor(Color.parseColor("#111827"));
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(0, 0, 0, 16);
+        card.addView(title);
+        
+        // Grid layout (2x2)
+        LinearLayout row1 = new LinearLayout(this);
+        row1.setOrientation(LinearLayout.HORIZONTAL);
+        row1.setWeightSum(2.0f);
+        
+        row1.addView(createFeatureItem("🧠", "Real-Time", "8-sec analysis", "#2563EB"));
+        addHorizontalSpacing(row1, 16);
+        row1.addView(createFeatureItem("🌐", "Multi-Language", "English/Hindi/Telugu", "#7C3AED"));
+        
+        card.addView(row1);
+        addSpacing(card, 16);
+        
+        LinearLayout row2 = new LinearLayout(this);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        row2.setWeightSum(2.0f);
+        
+        row2.addView(createFeatureItem("🎤", "Smart Recording", "4-tier Fallback", "#10B981"));
+        addHorizontalSpacing(row2, 16);
+        row2.addView(createFeatureItem("🔒", "Privacy First", "Local Storage Only", "#EA580C"));
+        
+        card.addView(row2);
+        parent.addView(card);
+    }
+    
+    private LinearLayout createFeatureItem(String icon, String title, String subtitle, String color) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        item.setPadding(12, 12, 12, 12);
+        
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(8);
+        bg.setStroke(1, Color.parseColor("#E5E7EB"));
+        item.setBackground(bg);
+        
+        TextView iconText = new TextView(this);
+        iconText.setText(icon);
+        iconText.setTextSize(32);
+        iconText.setGravity(Gravity.CENTER);
+        iconText.setPadding(0, 0, 0, 8);
+        item.addView(iconText);
+        
+        TextView titleText = new TextView(this);
+        titleText.setText(title);
+        titleText.setTextSize(14);
+        titleText.setTextColor(Color.parseColor("#111827"));
+        titleText.setTypeface(null, Typeface.BOLD);
+        titleText.setGravity(Gravity.CENTER);
+        titleText.setPadding(0, 0, 0, 4);
+        item.addView(titleText);
+        
+        TextView subtitleText = new TextView(this);
+        subtitleText.setText(subtitle);
+        subtitleText.setTextSize(12);
+        subtitleText.setTextColor(Color.parseColor("#6B7280"));
+        subtitleText.setGravity(Gravity.CENTER);
+        item.addView(subtitleText);
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+        item.setLayoutParams(params);
+        
+        return item;
+    }
+    
+    private void createSystemStatusCard(LinearLayout parent) {
+        systemStatusCard = createReactCard();
+        systemStatusCard.setPadding(24, 24, 24, 24);
+        systemStatusCard.setVisibility(View.GONE);
+        
+        TextView title = new TextView(this);
+        title.setText("System Status");
+        title.setTextSize(18);
+        title.setTextColor(Color.parseColor("#111827"));
+        title.setTypeface(null, Typeface.BOLD);
+        title.setPadding(0, 0, 0, 16);
+        systemStatusCard.addView(title);
+        
+        parent.addView(systemStatusCard);
+        addSpacing(parent, 16);
+    }
+    
+    private void createQuickActions(LinearLayout parent) {
+        // React: grid grid-cols-2 gap-3
+        LinearLayout actionsRow = new LinearLayout(this);
+        actionsRow.setOrientation(LinearLayout.HORIZONTAL);
+        actionsRow.setWeightSum(2.0f);
+        
+        Button historyButton = createReactActionButton("📞 Call History", "#2563EB");
+        historyButton.setOnClickListener(v -> {
             try {
                 switchToView(ViewState.CALL_HISTORY);
             } catch (Exception e) {
@@ -303,7 +1014,7 @@ historyButton.setOnClickListener(v -> {
                 currentRecordingMethod = "VOICE_RECOGNITION";
                 addToTechnicalLogs("🚀 Protection monitoring started");
                 addToTechnicalLogs("🎤 Recording: 4-tier fallback system ready");
-                addToTechnicalLogs("🔍 Pattern Database: 2000+ scam keywords loaded");
+                addToTechnicalLogs("🔍 Pattern Database: " + scamDetector.getPatternCount() + " scam keywords loaded");
             } else {
                 addToTechnicalLogs("❌ Failed to start protection monitoring");
             }
@@ -1084,710 +1795,4 @@ historyButton.setOnClickListener(v -> {
             return "Just now";
         }
     }
-}package com.hellohari;
-
-import android.Manifest;
-import android.app.Activity;
-import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.graphics.PorterDuff;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
-import android.media.AudioManager;
-import android.os.Bundle;
-import android.telephony.TelephonyManager;
-import android.util.Log;
-import android.view.Gravity;
-import android.view.View;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
-import android.widget.ScrollView;
-import android.widget.TextView;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-
-public class MainActivity extends Activity implements SimpleCallDetector.CallDetectionListener {
-    private static final String TAG = "HelloHariMain";
-    private static final int PERMISSION_REQUEST_CODE = 123;
-    
-    // UI State Management
-    private enum ViewState {
-        MAIN, CALL_HISTORY, LOGS
-    }
-    
-    private ViewState currentView = ViewState.MAIN;
-    
-    // Core Components
-    private SimpleCallDetector callDetector;
-    private AudioManager audioManager;
-    
-    // PERSISTENT UI CONTAINERS - Created once, never destroyed
-    private LinearLayout rootContainer;
-    private LinearLayout mainViewContainer;
-    private LinearLayout historyViewContainer;
-    private LinearLayout logsViewContainer;
-    
-    // PERSISTENT UI COMPONENTS - Maintain state across navigation
-    private TextView statusIndicator;
-    private TextView protectionStatusText;
-    private Button mainActionButton;
-    private TextView riskLevelText;
-    private ProgressBar riskMeter;
-    private LinearLayout currentCallCard;
-    private TextView callNumberText;
-    private TextView callDurationText;
-    private TextView analysisStatusText;
-    private LinearLayout riskAlertCard;
-    private LinearLayout systemStatusCard;
-    private TextView statusFooterText;
-    private LinearLayout permissionWarning;
-    private TextView protectionSubtitle;
-    
-    // State Variables - FIXED: All properly declared and persistent
-    private boolean hasMinimumPermissions = false;
-    private boolean isProtectionActive = false;
-    private int currentRiskScore = 0;
-    private String currentCallNumber;
-    private String currentRecordingMethod = "Ready";
-    private long callStartTime = 0;
-    
-    // Real-time analysis
-    private Thread realTimeAnalysisThread;
-    private boolean isRealTimeAnalysisRunning = false;
-    private int realTimeRiskScore = 0;
-    private List<String> detectedPatternsRealTime = new ArrayList<>();
-    
-    // Logs and History
-    private StringBuilder technicalLogs = new StringBuilder();
-    private List<CallHistoryEntry> callHistory = new ArrayList<>();
-    
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        
-        try {
-            // Initialize core components
-            callDetector = new SimpleCallDetector(this);
-            callDetector.setCallDetectionListener(this);
-            audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
-            
-            // CREATE ALL VIEWS ONCE - Never recreate them
-            createPersistentViewStructure();
-            checkPermissions();
-            
-            // Initialize logs
-            addToTechnicalLogs("🛡️ Hello Hari protection system initialized");
-            addToTechnicalLogs("Device: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
-            
-            Log.d(TAG, "Hello Hari - View Switcher architecture initialized successfully");
-        } catch (Exception e) {
-            Log.e(TAG, "Error in onCreate", e);
-            createFallbackUI();
-        }
-    }
-    
-    private void createFallbackUI() {
-        LinearLayout fallback = new LinearLayout(this);
-        fallback.setOrientation(LinearLayout.VERTICAL);
-        fallback.setPadding(16, 16, 16, 16);
-        fallback.setBackgroundColor(Color.parseColor("#F9FAFB"));
-        
-        TextView title = new TextView(this);
-        title.setText("Hello Hari - Initialization Error");
-        title.setTextSize(18);
-        title.setTextColor(Color.parseColor("#EF4444"));
-        title.setPadding(0, 20, 0, 20);
-        fallback.addView(title);
-        
-        Button retryButton = new Button(this);
-        retryButton.setText("Retry");
-        retryButton.setOnClickListener(v -> recreate());
-        fallback.addView(retryButton);
-        
-        setContentView(fallback);
-    }
-    
-    private void createPersistentViewStructure() {
-        // Root container with React styling
-        ScrollView scrollView = new ScrollView(this);
-        scrollView.setBackgroundColor(Color.parseColor("#F9FAFB")); // React: bg-gray-50
-        
-        rootContainer = new LinearLayout(this);
-        rootContainer.setOrientation(LinearLayout.VERTICAL);
-        rootContainer.setPadding(0, 0, 0, 0);
-        
-        // Create header (shared across all views)
-        createSharedHeader();
-        
-        // Create all view containers
-        createMainViewContainer();
-        createHistoryViewContainer();
-        createLogsViewContainer();
-        
-        // Add all containers to root
-        rootContainer.addView(mainViewContainer);
-        rootContainer.addView(historyViewContainer);
-        rootContainer.addView(logsViewContainer);
-        
-        scrollView.addView(rootContainer);
-        setContentView(scrollView);
-        
-        // Show main view initially
-        switchToView(ViewState.MAIN);
-    }
-    
-    private void createSharedHeader() {
-        // React: bg-gradient-to-r from-blue-600 to-blue-700
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.VERTICAL);
-        
-        GradientDrawable headerBg = new GradientDrawable(
-            GradientDrawable.Orientation.LEFT_RIGHT,
-            new int[]{Color.parseColor("#2563EB"), Color.parseColor("#1D4ED8")}
-        );
-        header.setBackground(headerBg);
-        header.setPadding(24, 48, 24, 32);
-        
-        LinearLayout titleRow = new LinearLayout(this);
-        titleRow.setOrientation(LinearLayout.HORIZONTAL);
-        titleRow.setGravity(Gravity.CENTER_VERTICAL);
-        
-        // Shield icon
-        TextView shieldIcon = new TextView(this);
-        shieldIcon.setText("🛡️");
-        shieldIcon.setTextSize(32);
-        shieldIcon.setPadding(0, 0, 12, 0);
-        titleRow.addView(shieldIcon);
-        
-        TextView appTitle = new TextView(this);
-        appTitle.setText("Hello Hari");
-        appTitle.setTextSize(24);
-        appTitle.setTextColor(Color.WHITE);
-        appTitle.setTypeface(null, Typeface.BOLD);
-        titleRow.addView(appTitle);
-        
-        header.addView(titleRow);
-        
-        TextView subtitle = new TextView(this);
-        subtitle.setText("Your smart call guardian");
-        subtitle.setTextSize(16);
-        subtitle.setTextColor(Color.parseColor("#DBEAFE")); // React: text-blue-100
-        subtitle.setPadding(44, 8, 0, 0);
-        header.addView(subtitle);
-        
-        rootContainer.addView(header);
-    }
-    
-    private void createMainViewContainer() {
-        mainViewContainer = new LinearLayout(this);
-        mainViewContainer.setOrientation(LinearLayout.VERTICAL);
-        mainViewContainer.setPadding(16, 16, 16, 16);
-        
-        // Max width container (React: max-w-md mx-auto)
-        LinearLayout maxWidthContainer = new LinearLayout(this);
-        maxWidthContainer.setOrientation(LinearLayout.VERTICAL);
-        maxWidthContainer.setGravity(Gravity.CENTER_HORIZONTAL);
-        
-        createProtectionStatusCard(maxWidthContainer);
-        addSpacing(maxWidthContainer, 16);
-        
-        createCurrentCallCard(maxWidthContainer);
-        
-        createFeaturesCard(maxWidthContainer);
-        addSpacing(maxWidthContainer, 16);
-        
-        createSystemStatusCard(maxWidthContainer);
-        
-        createQuickActions(maxWidthContainer);
-        addSpacing(maxWidthContainer, 16);
-        
-        createStatusFooter(maxWidthContainer);
-        
-        mainViewContainer.addView(maxWidthContainer);
-    }
-    
-    private void createHistoryViewContainer() {
-        historyViewContainer = new LinearLayout(this);
-        historyViewContainer.setOrientation(LinearLayout.VERTICAL);
-        historyViewContainer.setVisibility(View.GONE); // Initially hidden
-        
-        // Header with back button
-        LinearLayout historyHeader = createViewHeader("Call History", () -> switchToView(ViewState.MAIN));
-        historyViewContainer.addView(historyHeader);
-        
-        // Content area
-        ScrollView historyScroll = new ScrollView(this);
-        LinearLayout historyContent = new LinearLayout(this);
-        historyContent.setOrientation(LinearLayout.VERTICAL);
-        historyContent.setPadding(16, 16, 16, 16);
-        historyContent.setTag("historyContent"); // For updating content
-        
-        // Initial empty state
-        createEmptyHistoryState(historyContent);
-        
-        historyScroll.addView(historyContent);
-        historyViewContainer.addView(historyScroll);
-    }
-    
-    private void createLogsViewContainer() {
-        logsViewContainer = new LinearLayout(this);
-        logsViewContainer.setOrientation(LinearLayout.VERTICAL);
-        logsViewContainer.setVisibility(View.GONE); // Initially hidden
-        
-        // Header with back button
-        LinearLayout logsHeader = createViewHeader("Detection Logs", () -> switchToView(ViewState.MAIN));
-        logsViewContainer.addView(logsHeader);
-        
-        // Content area
-        ScrollView logsScroll = new ScrollView(this);
-        LinearLayout logsContent = new LinearLayout(this);
-        logsContent.setOrientation(LinearLayout.VERTICAL);
-        logsContent.setPadding(16, 16, 16, 16);
-        logsContent.setTag("logsContent"); // For updating content
-        
-        // Initial content will be populated when logs are added
-        
-        logsScroll.addView(logsContent);
-        logsViewContainer.addView(logsScroll);
-    }
-    
-    private LinearLayout createViewHeader(String title, Runnable backAction) {
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.VERTICAL);
-        header.setBackgroundColor(Color.parseColor("#2563EB")); // React: blue-600
-        header.setPadding(24, 48, 24, 32);
-        
-        Button backButton = new Button(this);
-        backButton.setText("← Back");
-        backButton.setTextColor(Color.parseColor("#DBEAFE")); // blue-100
-        backButton.setTextSize(14);
-        backButton.setBackground(null);
-        backButton.setOnClickListener(v -> backAction.run());
-        backButton.setGravity(Gravity.LEFT);
-        backButton.setPadding(0, 0, 0, 8);
-        header.addView(backButton);
-        
-        TextView headerTitle = new TextView(this);
-        headerTitle.setText(title);
-        headerTitle.setTextSize(24);
-        headerTitle.setTextColor(Color.WHITE);
-        headerTitle.setTypeface(null, Typeface.BOLD);
-        header.addView(headerTitle);
-        
-        return header;
-    }
-    
-    private void switchToView(ViewState newView) {
-        // Hide all views
-        mainViewContainer.setVisibility(View.GONE);
-        historyViewContainer.setVisibility(View.GONE);
-        logsViewContainer.setVisibility(View.GONE);
-        
-        // Show selected view and update content if needed
-        switch (newView) {
-            case MAIN:
-                mainViewContainer.setVisibility(View.VISIBLE);
-                updateUIState(); // Refresh main view state
-                break;
-                
-            case CALL_HISTORY:
-                historyViewContainer.setVisibility(View.VISIBLE);
-                updateHistoryContent(); // Refresh history content
-                break;
-                
-            case LOGS:
-                logsViewContainer.setVisibility(View.VISIBLE);
-                updateLogsContent(); // Refresh logs content
-                break;
-        }
-        
-        currentView = newView;
-    }
-    
-    private void createProtectionStatusCard(LinearLayout parent) {
-        // React: bg-white rounded-2xl p-6 shadow-sm border border-gray-200
-        LinearLayout card = createReactCard();
-        card.setPadding(24, 24, 24, 24);
-        
-        LinearLayout statusRow = new LinearLayout(this);
-        statusRow.setOrientation(LinearLayout.HORIZONTAL);
-        statusRow.setGravity(Gravity.CENTER_VERTICAL);
-        statusRow.setPadding(0, 0, 0, 16);
-        
-        // Status indicator dot
-        statusIndicator = new TextView(this);
-        statusIndicator.setText("●");
-        statusIndicator.setTextSize(16);
-        statusIndicator.setTextColor(Color.parseColor("#9CA3AF")); // React: bg-gray-300
-        statusIndicator.setPadding(0, 0, 12, 0);
-        statusRow.addView(statusIndicator);
-        
-        protectionStatusText = new TextView(this);
-        protectionStatusText.setText("Setup Required");
-        protectionStatusText.setTextSize(18);
-        protectionStatusText.setTextColor(Color.parseColor("#111827")); // React: text-gray-900
-        protectionStatusText.setTypeface(null, Typeface.BOLD);
-        statusRow.addView(protectionStatusText);
-        
-        // Spacer
-        LinearLayout spacer = new LinearLayout(this);
-        LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(0, 0, 1.0f);
-        spacer.setLayoutParams(spacerParams);
-        statusRow.addView(spacer);
-        
-        // Settings icon
-        TextView settingsIcon = new TextView(this);
-        settingsIcon.setText("⚙️");
-        settingsIcon.setTextSize(16);
-        settingsIcon.setTextColor(Color.parseColor("#9CA3AF"));
-        statusRow.addView(settingsIcon);
-        
-        card.addView(statusRow);
-        
-        // Permission warning (React component style) - PERSISTENT REFERENCE
-        createPermissionWarning(card);
-        
-        // Main action button - PERSISTENT REFERENCE
-        mainActionButton = createReactButton("Grant Permissions", "#F59E0B", false);
-        mainActionButton.setOnClickListener(v -> handleMainAction());
-        card.addView(mainActionButton);
-        
-        parent.addView(card);
-    }
-    
-    private void createPermissionWarning(LinearLayout parent) {
-        // PERSISTENT REFERENCE - This will be shown/hidden based on permission state
-        permissionWarning = new LinearLayout(this);
-        permissionWarning.setOrientation(LinearLayout.VERTICAL);
-        permissionWarning.setPadding(12, 12, 12, 12);
-        permissionWarning.setVisibility(View.GONE); // Initially hidden
-        
-        // React: bg-orange-50 border border-orange-200 rounded-lg
-        GradientDrawable warningBg = new GradientDrawable();
-        warningBg.setColor(Color.parseColor("#FFF7ED"));
-        warningBg.setStroke(2, Color.parseColor("#FDBA74"));
-        warningBg.setCornerRadius(8);
-        permissionWarning.setBackground(warningBg);
-        
-        LinearLayout warningHeader = new LinearLayout(this);
-        warningHeader.setOrientation(LinearLayout.HORIZONTAL);
-        warningHeader.setGravity(Gravity.CENTER_VERTICAL);
-        warningHeader.setPadding(0, 0, 0, 8);
-        
-        TextView warningIcon = new TextView(this);
-        warningIcon.setText("⚠️");
-        warningIcon.setTextSize(16);
-        warningIcon.setPadding(0, 0, 8, 0);
-        warningHeader.addView(warningIcon);
-        
-        TextView warningTitle = new TextView(this);
-        warningTitle.setText("Permissions Needed");
-        warningTitle.setTextSize(14);
-        warningTitle.setTextColor(Color.parseColor("#EA580C")); // React: text-orange-800
-        warningTitle.setTypeface(null, Typeface.BOLD);
-        warningHeader.addView(warningTitle);
-        
-        permissionWarning.addView(warningHeader);
-        
-        TextView warningText = new TextView(this);
-        warningText.setText("Phone access and microphone required for scam detection");
-        warningText.setTextSize(12);
-        warningText.setTextColor(Color.parseColor("#C2410C")); // React: text-orange-700
-        permissionWarning.addView(warningText);
-        
-        parent.addView(permissionWarning);
-        addSpacing(parent, 16);
-    }
-    
-    private void createCurrentCallCard(LinearLayout parent) {
-        // React: Enhanced current call card - PERSISTENT REFERENCE
-        currentCallCard = createReactCard();
-        currentCallCard.setPadding(24, 24, 24, 24);
-        currentCallCard.setVisibility(View.GONE);
-        
-        LinearLayout callHeader = new LinearLayout(this);
-        callHeader.setOrientation(LinearLayout.HORIZONTAL);
-        callHeader.setGravity(Gravity.CENTER_VERTICAL);
-        callHeader.setPadding(0, 0, 0, 16);
-        
-        TextView phoneIcon = new TextView(this);
-        phoneIcon.setText("📞");
-        phoneIcon.setTextSize(24);
-        phoneIcon.setPadding(0, 0, 12, 0);
-        callHeader.addView(phoneIcon);
-        
-        LinearLayout callInfo = new LinearLayout(this);
-        callInfo.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams callInfoParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        callInfo.setLayoutParams(callInfoParams);
-        
-        TextView callStatus = new TextView(this);
-        callStatus.setText("Incoming Call");
-        callStatus.setTextSize(16);
-        callStatus.setTextColor(Color.parseColor("#111827"));
-        callStatus.setTypeface(null, Typeface.BOLD);
-        callInfo.addView(callStatus);
-        
-        callNumberText = new TextView(this);
-        callNumberText.setText("+91 99999 99999");
-        callNumberText.setTextSize(14);
-        callNumberText.setTextColor(Color.parseColor("#6B7280"));
-        callInfo.addView(callNumberText);
-        
-        callHeader.addView(callInfo);
-        
-        LinearLayout durationContainer = new LinearLayout(this);
-        durationContainer.setOrientation(LinearLayout.VERTICAL);
-        durationContainer.setGravity(Gravity.END);
-        
-        TextView durationLabel = new TextView(this);
-        durationLabel.setText("Duration");
-        durationLabel.setTextSize(12);
-        durationLabel.setTextColor(Color.parseColor("#9CA3AF"));
-        durationContainer.addView(durationLabel);
-        
-        callDurationText = new TextView(this);
-        callDurationText.setText("00:00");
-        callDurationText.setTextSize(14);
-        callDurationText.setTypeface(Typeface.MONOSPACE);
-        callDurationText.setTextColor(Color.parseColor("#374151"));
-        durationContainer.addView(callDurationText);
-        
-        callHeader.addView(durationContainer);
-        currentCallCard.addView(callHeader);
-        
-        createAnalysisStatus(currentCallCard);
-        createRiskMeter(currentCallCard);
-        createRiskAlerts(currentCallCard);
-        
-        parent.addView(currentCallCard);
-        addSpacing(parent, 16);
-    }
-    
-    private void createAnalysisStatus(LinearLayout parent) {
-        // React: Analysis Status Card (bg-blue-50 rounded-lg)
-        LinearLayout analysisCard = new LinearLayout(this);
-        analysisCard.setOrientation(LinearLayout.VERTICAL);
-        analysisCard.setPadding(12, 12, 12, 12);
-        
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#EFF6FF")); // React: bg-blue-50
-        bg.setCornerRadius(8);
-        analysisCard.setBackground(bg);
-        
-        LinearLayout statusRow = new LinearLayout(this);
-        statusRow.setOrientation(LinearLayout.HORIZONTAL);
-        statusRow.setGravity(Gravity.CENTER_VERTICAL);
-        statusRow.setPadding(0, 0, 0, 8);
-        
-        TextView brainIcon = new TextView(this);
-        brainIcon.setText("🧠");
-        brainIcon.setTextSize(16);
-        brainIcon.setPadding(0, 0, 8, 0);
-        statusRow.addView(brainIcon);
-        
-        analysisStatusText = new TextView(this);
-        analysisStatusText.setText("Analyzing in Real-time...");
-        analysisStatusText.setTextSize(14);
-        analysisStatusText.setTextColor(Color.parseColor("#1E40AF"));
-        analysisStatusText.setTypeface(null, Typeface.BOLD);
-        statusRow.addView(analysisStatusText);
-        
-        analysisCard.addView(statusRow);
-        
-        LinearLayout detailsRow = new LinearLayout(this);
-        detailsRow.setOrientation(LinearLayout.HORIZONTAL);
-        detailsRow.setGravity(Gravity.CENTER_VERTICAL);
-        
-        TextView micIcon = new TextView(this);
-        micIcon.setText("🎤");
-        micIcon.setTextSize(12);
-        micIcon.setPadding(0, 0, 4, 0);
-        detailsRow.addView(micIcon);
-        
-        TextView recordingStatus = new TextView(this);
-        recordingStatus.setText("Recording: " + currentRecordingMethod);
-        recordingStatus.setTextSize(12);
-        recordingStatus.setTextColor(Color.parseColor("#1E3A8A"));
-        recordingStatus.setPadding(0, 0, 12, 0);
-        detailsRow.addView(recordingStatus);
-        
-        TextView globeIcon = new TextView(this);
-        globeIcon.setText("🌐");
-        globeIcon.setTextSize(12);
-        globeIcon.setPadding(0, 0, 4, 0);
-        detailsRow.addView(globeIcon);
-        
-        TextView langStatus = new TextView(this);
-        langStatus.setText("EN/HI/TE Detection");
-        langStatus.setTextSize(12);
-        langStatus.setTextColor(Color.parseColor("#1E3A8A"));
-        detailsRow.addView(langStatus);
-        
-        analysisCard.addView(detailsRow);
-        parent.addView(analysisCard);
-    }
-    
-    private void createRiskMeter(LinearLayout parent) {
-        addSpacing(parent, 16);
-        
-        LinearLayout riskContainer = new LinearLayout(this);
-        riskContainer.setOrientation(LinearLayout.VERTICAL);
-        
-        LinearLayout riskHeader = new LinearLayout(this);
-        riskHeader.setOrientation(LinearLayout.HORIZONTAL);
-        riskHeader.setPadding(0, 0, 0, 8);
-        
-        TextView riskLabel = new TextView(this);
-        riskLabel.setText("Scam Risk Level");
-        riskLabel.setTextSize(14);
-        riskLabel.setTextColor(Color.parseColor("#374151"));
-        riskLabel.setTypeface(null, Typeface.BOLD);
-        LinearLayout.LayoutParams riskLabelParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        riskLabel.setLayoutParams(riskLabelParams);
-        riskHeader.addView(riskLabel);
-        
-        riskLevelText = new TextView(this);
-        riskLevelText.setText("0%");
-        riskLevelText.setTextSize(14);
-        riskLevelText.setTextColor(Color.parseColor("#10B981"));
-        riskLevelText.setTypeface(null, Typeface.BOLD);
-        riskHeader.addView(riskLevelText);
-        
-        riskContainer.addView(riskHeader);
-        
-        // Progress bar - PERSISTENT REFERENCE
-        riskMeter = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        riskMeter.setMax(100);
-        riskMeter.setProgress(0);
-        riskMeter.getProgressDrawable().setColorFilter(Color.parseColor("#10B981"), PorterDuff.Mode.SRC_IN);
-        
-        LinearLayout.LayoutParams meterParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 24);
-        riskMeter.setLayoutParams(meterParams);
-        
-        riskContainer.addView(riskMeter);
-        parent.addView(riskContainer);
-    }
-    
-    private void createRiskAlerts(LinearLayout parent) {
-        riskAlertCard = new LinearLayout(this);
-        riskAlertCard.setOrientation(LinearLayout.VERTICAL);
-        riskAlertCard.setVisibility(View.GONE);
-        riskAlertCard.setPadding(0, 16, 0, 0);
-        parent.addView(riskAlertCard);
-    }
-    
-    private void createFeaturesCard(LinearLayout parent) {
-        // React: Features card with grid layout
-        LinearLayout card = createReactCard();
-        card.setPadding(24, 24, 24, 24);
-        
-        TextView title = new TextView(this);
-        title.setText("Protection Features");
-        title.setTextSize(18);
-        title.setTextColor(Color.parseColor("#111827"));
-        title.setTypeface(null, Typeface.BOLD);
-        title.setPadding(0, 0, 0, 16);
-        card.addView(title);
-        
-        // Grid layout (2x2)
-        LinearLayout row1 = new LinearLayout(this);
-        row1.setOrientation(LinearLayout.HORIZONTAL);
-        row1.setWeightSum(2.0f);
-        
-        row1.addView(createFeatureItem("🧠", "Real-Time", "8-sec analysis", "#2563EB"));
-        addHorizontalSpacing(row1, 16);
-        row1.addView(createFeatureItem("🌐", "Multi-Language", "English/Hindi/Telugu", "#7C3AED"));
-        
-        card.addView(row1);
-        addSpacing(card, 16);
-        
-        LinearLayout row2 = new LinearLayout(this);
-        row2.setOrientation(LinearLayout.HORIZONTAL);
-        row2.setWeightSum(2.0f);
-        
-        row2.addView(createFeatureItem("🎤", "Smart Recording", "4-tier Fallback", "#10B981"));
-        addHorizontalSpacing(row2, 16);
-        row2.addView(createFeatureItem("🔒", "Privacy First", "Local Storage Only", "#EA580C"));
-        
-        card.addView(row2);
-        parent.addView(card);
-    }
-    
-    private LinearLayout createFeatureItem(String icon, String title, String subtitle, String color) {
-        LinearLayout item = new LinearLayout(this);
-        item.setOrientation(LinearLayout.VERTICAL);
-        item.setGravity(Gravity.CENTER);
-        item.setPadding(12, 12, 12, 12);
-        
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.WHITE);
-        bg.setCornerRadius(8);
-        bg.setStroke(1, Color.parseColor("#E5E7EB"));
-        item.setBackground(bg);
-        
-        TextView iconText = new TextView(this);
-        iconText.setText(icon);
-        iconText.setTextSize(32);
-        iconText.setGravity(Gravity.CENTER);
-        iconText.setPadding(0, 0, 0, 8);
-        item.addView(iconText);
-        
-        TextView titleText = new TextView(this);
-        titleText.setText(title);
-        titleText.setTextSize(14);
-        titleText.setTextColor(Color.parseColor("#111827"));
-        titleText.setTypeface(null, Typeface.BOLD);
-        titleText.setGravity(Gravity.CENTER);
-        titleText.setPadding(0, 0, 0, 4);
-        item.addView(titleText);
-        
-        TextView subtitleText = new TextView(this);
-        subtitleText.setText(subtitle);
-        subtitleText.setTextSize(12);
-        subtitleText.setTextColor(Color.parseColor("#6B7280"));
-        subtitleText.setGravity(Gravity.CENTER);
-        item.addView(subtitleText);
-        
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        item.setLayoutParams(params);
-        
-        return item;
-    }
-    
-    private void createSystemStatusCard(LinearLayout parent) {
-        systemStatusCard = createReactCard();
-        systemStatusCard.setPadding(24, 24, 24, 24);
-        systemStatusCard.setVisibility(View.GONE);
-        
-        TextView title = new TextView(this);
-        title.setText("System Status");
-        title.setTextSize(18);
-        title.setTextColor(Color.parseColor("#111827"));
-        title.setTypeface(null, Typeface.BOLD);
-        title.setPadding(0, 0, 0, 16);
-        systemStatusCard.addView(title);
-        
-        parent.addView(systemStatusCard);
-        addSpacing(parent, 16);
-    }
-    
-    private void createQuickActions(LinearLayout parent) {
-        // React: grid grid-cols-2 gap-3
-        LinearLayout actionsRow = new LinearLayout(this);
-        actionsRow.setOrientation(LinearLayout.HORIZONTAL);
-        actionsRow.setWeightSum(2.0f);
-        
-        Button historyButton = createReactActionButton("📞 Call History", "#2563EB");
-        historyButton.setOnClickListener(v -> {
-            try {
-                switchToView(ViewState.CALL_HISTORY);
-            }
+}
