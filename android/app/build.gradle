@@ -11,6 +11,11 @@ android {
         versionCode 1
         versionName "1.0"
         multiDexEnabled true
+        
+        // VOSK requires these native architectures
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64', 'x86'
+        }
     }
 
     signingConfigs {
@@ -62,4 +67,8 @@ dependencies {
     
     // Force consistent Kotlin stdlib
     implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.8.10'
+    
+    // VOSK Dependencies - Real Speech-to-Text
+    implementation 'net.java.dev.jna:jna:5.13.0@aar'
+    implementation 'com.alphacephei:vosk-android:0.3.47@aar'
 }
