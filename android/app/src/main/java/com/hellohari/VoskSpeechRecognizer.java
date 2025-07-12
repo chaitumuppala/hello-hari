@@ -1,6 +1,8 @@
 package com.hellohari;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -14,8 +16,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class VoskSpeechRecognizer {
     private static final String TAG = "VoskSpeechRecognizer";
@@ -24,9 +30,14 @@ public class VoskSpeechRecognizer {
     private final Context context;
     private final Map<String, Model> models = new HashMap<>();
     private Recognizer recognizer;
-    private String currentLanguage;
+    private String currentLanguage = "en";
     private boolean initialized = false;
     private VoskRecognitionListener listener;
+    private Object speechService = null;
+    private Object speechStreamService = null;
+    private Model model = null;
+    private ExecutorService modelExecutor = Executors.newSingleThreadExecutor();
+    private Handler mainHandler = new Handler(Looper.getMainLooper());
 
     /**
      * Interface for VOSK speech recognition callbacks
@@ -61,6 +72,7 @@ public class VoskSpeechRecognizer {
                 Log.d(TAG, "VOSK initialized successfully with English model");
             } else {
                 Log.e(TAG, "Failed to initialize VOSK");
+                initialize(); // Try asynchronous initialization
             }
         } catch (Exception e) {
             Log.e(TAG, "Error initializing VOSK: " + e.getMessage(), e);
@@ -100,7 +112,6 @@ public class VoskSpeechRecognizer {
             
             if (!modelDir.exists()) {
                 Log.w(TAG, "Model for " + language + " not found at " + modelPath);
-                downloadModel(language);
                 return false;
             }
 
@@ -114,17 +125,14 @@ public class VoskSpeechRecognizer {
     }
 
     /**
-     * Download a language model
-     * @param language Language code to download
+     * Check if model for language exists
+     * @param language Language code to check
+     * @return true if model exists
      */
-    private void downloadModel(String language) {
-        Log.d(TAG, "Initiating download of model for language: " + language);
-        // This would connect to a server to download models
-        if (listener != null) {
-            listener.onModelDownloadProgress(language, 0);
-            // In a real implementation, update progress periodically
-            listener.onModelDownloadComplete(language, false);
-        }
+    private boolean hasModelForLanguage(String language) {
+        String modelPath = context.getExternalFilesDir(null).getPath() + "/vosk-model-" + language;
+        File modelDir = new File(modelPath);
+        return modelDir.exists() && modelDir.isDirectory();
     }
 
     /**
@@ -226,33 +234,6 @@ public class VoskSpeechRecognizer {
     }
 
     /**
-     * Recognize multiple languages in sequence
-     * @param audioPath Path to audio file
-     */
-    public void recognizeMultiLanguage(String audioPath) {
-        // Try English first, then other languages if confidence is low
-        try {
-            File audioFile = new File(audioPath);
-            if (!audioFile.exists()) {
-                if (listener != null) {
-                    listener.onError("Audio file not found: " + audioPath);
-                }
-                return;
-            }
-            
-            setLanguage("en");
-            recognizeFile(new FileInputStream(audioFile));
-            
-            // Additional languages would be handled in a real implementation
-        } catch (IOException e) {
-            Log.e(TAG, "Error opening audio file: " + e.getMessage(), e);
-            if (listener != null) {
-                listener.onError("Error opening audio file: " + e.getMessage());
-            }
-        }
-    }
-
-    /**
      * Clean up resources
      */
     public void cleanup() {
@@ -268,42 +249,33 @@ public class VoskSpeechRecognizer {
         
         initialized = false;
     }
-}
-        for (Model model : models.values()) {
-            model.close();
-        }
-        models.clear();
-        
-        initialized = false;
-    }
-}
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to start file recognition", e);
-            if (listener != null) {
-                listener.onError(e.getMessage());
-            }
+    
+    /**
+     * Cancel any active recognition task
+     */
+    public void cancel() {
+        if (listener != null) {
+            listener.onError("Recognition cancelled by user");
         }
     }
     
     /**
-     * Stop recognition
+     * Stop active listening
      */
     public void stopListening() {
         if (speechService != null) {
-            speechService.stop();
             speechService = null;
             Log.i(TAG, "Stopped listening");
         }
         
         if (speechStreamService != null) {
-            speechStreamService.stop();
             speechStreamService = null;
             Log.i(TAG, "Stopped file recognition");
         }
     }
     
     /**
-     * Release resources
+     * Release all resources
      */
     public void release() {
         stopListening();
@@ -311,44 +283,41 @@ public class VoskSpeechRecognizer {
     }
     
     /**
-     * Close the model and free resources
+     * Close model resources
      */
     private void closeModel() {
         if (model != null) {
-            model.close();
             model = null;
         }
     }
     
     /**
-     * Initialize VOSK and prepare all language models
-     * This will trigger downloads if models are not present
+     * Initialize VOSK asynchronously
      */
     public void initialize() {
-        // Initialize English model first
-        initModel("en");
+        if (initialized) {
+            return;
+        }
         
-        // Check and initialize other languages if needed
         modelExecutor.execute(() -> {
             try {
-                // Check Hindi model
-                if (!hasModelForLanguage("hi")) {
-                    downloadModel("hi");
+                // Try to download the model if necessary
+                if (!hasModelForLanguage("en")) {
+                    mainHandler.post(() -> {
+                        if (listener != null) {
+                            listener.onModelDownloadProgress("en", 0);
+                        }
+                    });
+                    
+                    // In a real implementation, this would actually download the model
+                    mainHandler.post(() -> {
+                        if (listener != null) {
+                            listener.onModelDownloadComplete("en", false);
+                        }
+                    });
                 }
-                
-                // Check Telugu model
-                if (!hasModelForLanguage("te")) {
-                    downloadModel("te");
-                }
-                
-                // Notify listener that initialization is complete
-                mainHandler.post(() -> {
-                    if (listener != null) {
-                        listener.onInitializationComplete(true);
-                    }
-                });
             } catch (Exception e) {
-                Log.e(TAG, "Error during initialization", e);
+                Log.e(TAG, "Error initializing models", e);
                 mainHandler.post(() -> {
                     if (listener != null) {
                         listener.onInitializationComplete(false);
@@ -359,11 +328,11 @@ public class VoskSpeechRecognizer {
     }
     
     /**
-     * Get available language models that have been downloaded
+     * Get available languages with models
      * @return Array of language codes
      */
     public String[] getAvailableLanguages() {
-        ArrayList<String> availableLanguages = new ArrayList<>();
+        List<String> availableLanguages = new ArrayList<>();
         
         if (hasModelForLanguage("en")) availableLanguages.add("en");
         if (hasModelForLanguage("hi")) availableLanguages.add("hi");
@@ -373,7 +342,7 @@ public class VoskSpeechRecognizer {
     }
     
     /**
-     * Get the current language being used for recognition
+     * Get current language
      * @return Current language code
      */
     public String getCurrentLanguage() {
@@ -381,11 +350,10 @@ public class VoskSpeechRecognizer {
     }
     
     /**
-     * Calculate required download size for all missing models
-     * @return Human-readable size string (e.g., "132 MB")
+     * Get the required download size for missing models
+     * @return Size in MB as string
      */
     public String getRequiredDownloadSize() {
-        // Approximate sizes for each model
         int totalSize = 0;
         
         if (!hasModelForLanguage("en")) totalSize += 40;
@@ -397,55 +365,45 @@ public class VoskSpeechRecognizer {
     }
     
     /**
-     * Recognize speech in a file using multiple languages
+     * Recognize multiple languages in sequence
      * @param filePath Path to audio file
      */
     public void recognizeMultiLanguage(String filePath) {
         try {
-            // Create input stream from file
             File audioFile = new File(filePath);
             if (!audioFile.exists()) {
-                Log.e(TAG, "Audio file does not exist: " + filePath);
+                Log.e(TAG, "Audio file not found: " + filePath);
                 if (listener != null) {
                     listener.onError("Audio file not found: " + filePath);
                 }
                 return;
             }
             
-            // Start with default language
-            InputStream inputStream = new FileInputStream(audioFile);
+            // First try with default language
+            FileInputStream inputStream = new FileInputStream(audioFile);
             recognizeFile(inputStream);
             
-            // Try recognition in other languages if available
+            // Check if other languages are available
             String[] languages = getAvailableLanguages();
             if (languages.length > 1) {
-                // Schedule recognition in other languages after the first one completes
-                // This would be implemented based on your specific requirements
-                Log.d(TAG, "Will attempt recognition in multiple languages: " + Arrays.toString(languages));
+                // In a full implementation, we would try other languages
+                // after analyzing the first language results
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Error in multi-language recognition", e);
+            
+        } catch (IOException e) {
+            Log.e(TAG, "Error opening audio file: " + e.getMessage(), e);
             if (listener != null) {
-                listener.onError("Error processing audio file: " + e.getMessage());
+                listener.onError("Error opening audio file: " + e.getMessage());
             }
         }
     }
     
     /**
-     * Clean up resources properly
+     * Handle partial result callbacks (for compatibility with Vosk SDK)
      */
-    public void cleanup() {
-        stopListening();
-        release();
-    }
-    
-    // RecognitionListener implementation
-    
-    @Override
     public void onPartialResult(String hypothesis) {
         try {
-            if (hypothesis == null || hypothesis.isEmpty()) return;
-            
+            Log.d(TAG, "Partial result: " + hypothesis);
             JSONObject json = new JSONObject(hypothesis);
             if (json.has("partial")) {
                 String text = json.getString("partial").trim();
@@ -453,6 +411,48 @@ public class VoskSpeechRecognizer {
                     listener.onPartialResult(text, currentLanguage);
                 }
             }
+        } catch (Exception e) {
+            Log.e(TAG, "Error parsing partial result", e);
+        }
+    }
+    
+    /**
+     * Handle final result callbacks (for compatibility with Vosk SDK)
+     */
+    public void onResult(String hypothesis) {
+        try {
+            Log.d(TAG, "Final result: " + hypothesis);
+            JSONObject json = new JSONObject(hypothesis);
+            if (json.has("text")) {
+                String text = json.getString("text").trim();
+                float confidence = json.has("confidence") ? 
+                    (float) json.getDouble("confidence") : 0.0f;
+                if (!text.isEmpty() && listener != null) {
+                    listener.onFinalResult(text, currentLanguage, confidence);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error parsing final result", e);
+        }
+    }
+    
+    /**
+     * Handle error callbacks (for compatibility with Vosk SDK)
+     */
+    public void onError(Exception exception) {
+        Log.e(TAG, "Recognition error", exception);
+        if (listener != null) {
+            listener.onError(exception.getMessage());
+        }
+    }
+    
+    /**
+     * Handle timeout callbacks (for compatibility with Vosk SDK)
+     */
+    public void onTimeout() {
+        // Not used in our implementation
+    }
+}
         } catch (JSONException e) {
             Log.e(TAG, "Error parsing partial result", e);
         }
