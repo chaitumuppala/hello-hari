@@ -535,7 +535,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
     private void startProtection() {
         try {
             if (callDetector != null) {
-                callDetector.startMonitoring();
+                callDetector.startCallDetection();
             }
             
             addToCallLog("Hello Hari protection activated");
@@ -550,7 +550,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
     private void stopProtection() {
         try {
             if (callDetector != null) {
-                callDetector.stopMonitoring();
+                callDetector.stopCallDetection();
             }
             
             addToCallLog("Hello Hari protection deactivated");
