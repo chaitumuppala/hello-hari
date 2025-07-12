@@ -1,7 +1,7 @@
 package com.hellohari;
 
 import android.Manifest;
-import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
@@ -19,17 +19,19 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import android.app.AlertDialog;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends Activity implements SimpleCallDetector.CallDetectionListener {
+public class MainActivity extends AppCompatActivity implements SimpleCallDetector.CallDetectionListener {
     private static final String TAG = "HelloHariMain";
     private static final int PERMISSION_REQUEST_CODE = 123;
     
@@ -64,6 +66,8 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
     private boolean isVoskInitialized = false;
     private List<String> callLogs = new ArrayList<>();
     private String currentRecordingPath = null;
+    private boolean serviceRunning = false;
+    private String currentAudioPath = null;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
