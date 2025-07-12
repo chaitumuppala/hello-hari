@@ -1,8 +1,6 @@
 package com.hellohari;
 
 import android.content.Context;
-import android.speech.RecognitionListener;
-import android.speech.SpeechRecognizer;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -11,15 +9,11 @@ import org.vosk.LibVosk;
 import org.vosk.LogLevel;
 import org.vosk.Model;
 import org.vosk.Recognizer;
-import org.vosk.android.RecognitionListener.RecognitionTask;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.ShortBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -125,8 +119,7 @@ public class VoskSpeechRecognizer {
      */
     private void downloadModel(String language) {
         Log.d(TAG, "Initiating download of model for language: " + language);
-        // Implementation would depend on your download infrastructure
-        // This is a placeholder
+        // This would connect to a server to download models
         if (listener != null) {
             listener.onModelDownloadProgress(language, 0);
             // In a real implementation, update progress periodically
@@ -237,7 +230,7 @@ public class VoskSpeechRecognizer {
      * @param audioPath Path to audio file
      */
     public void recognizeMultiLanguage(String audioPath) {
-        // Try English first, then fallback to other languages if no good results
+        // Try English first, then other languages if confidence is low
         try {
             File audioFile = new File(audioPath);
             if (!audioFile.exists()) {
@@ -250,8 +243,7 @@ public class VoskSpeechRecognizer {
             setLanguage("en");
             recognizeFile(new FileInputStream(audioFile));
             
-            // Additional languages would be tried after analyzing the English results
-            // This would typically be implemented with callbacks
+            // Additional languages would be handled in a real implementation
         } catch (IOException e) {
             Log.e(TAG, "Error opening audio file: " + e.getMessage(), e);
             if (listener != null) {
@@ -269,6 +261,14 @@ public class VoskSpeechRecognizer {
             recognizer = null;
         }
         
+        for (Model model : models.values()) {
+            model.close();
+        }
+        models.clear();
+        
+        initialized = false;
+    }
+}
         for (Model model : models.values()) {
             model.close();
         }
