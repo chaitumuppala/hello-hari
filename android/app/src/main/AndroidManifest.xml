@@ -21,6 +21,7 @@
     
     <!-- For Android 10+ (API 29+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     
     <!-- For Android 13+ (API 33+) -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
@@ -48,9 +49,21 @@
             </intent-filter>
         </activity>
         
+        <!-- Call detection service -->
+        <service
+            android:name=".CallDetectionService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+            
         <!-- Add network security configuration -->
         <meta-data
             android:name="android.webkit.WebView.MetricsOptOut"
+            android:value="true" />
+            
+        <!-- Specify that app uses VOSK and speech models -->
+        <meta-data
+            android:name="com.hellohari.UsesSpeechRecognition"
             android:value="true" />
     </application>
 </manifest>
