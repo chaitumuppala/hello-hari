@@ -1,8 +1,8 @@
 package com.hellohari;
 
 import android.content.Context;
-import android.os.Handler;
-import android.os.Looper;
+import android.speech.RecognitionListener;
+import android.speech.SpeechRecognizer;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -11,51 +11,32 @@ import org.vosk.LibVosk;
 import org.vosk.LogLevel;
 import org.vosk.Model;
 import org.vosk.Recognizer;
-import org.vosk.android.RecognitionListener;
-import org.vosk.android.SpeechService;
-import org.vosk.android.SpeechStreamService;
-import org.vosk.android.StorageService;
+import org.vosk.android.RecognitionListener.RecognitionTask;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.ref.WeakReference;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.ShortBuffer;
+import java.util.HashMap;
+import java.util.Map;
 
-/**
- * VoskSpeechRecognizer - Handles speech recognition with VOSK
- * Supports multi-language models and automatic model downloads
- */
-public class VoskSpeechRecognizer implements RecognitionListener {
+public class VoskSpeechRecognizer {
     private static final String TAG = "VoskSpeechRecognizer";
-    
-    // Language model URLs and file paths
-    private static final String MODEL_EN_URL = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip";
-    private static final String MODEL_HI_URL = "https://alphacephei.com/vosk/models/vosk-model-small-hi-0.22.zip";
-    private static final String MODEL_TE_URL = "https://alphacephei.com/vosk/models/vosk-model-small-te-0.3.zip";
-    
-    private static final String MODEL_EN_PATH = "model-en";
-    private static final String MODEL_HI_PATH = "model-hi";
-    private static final String MODEL_TE_PATH = "model-te";
-    
-    // Current language setting
-    private String currentLanguage = "en"; // Default to English
-    
-    // VOSK components
-    private final WeakReference<Context> contextRef;
-    private Model model;
-    private SpeechService speechService;
-    private SpeechStreamService speechStreamService;
-    private final Executor modelExecutor = Executors.newSingleThreadExecutor();
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    
-    // Callback interface
+    private static final int SAMPLE_RATE = 16000;
+
+    private final Context context;
+    private final Map<String, Model> models = new HashMap<>();
+    private Recognizer recognizer;
+    private String currentLanguage;
+    private boolean initialized = false;
     private VoskRecognitionListener listener;
-    
+
+    /**
+     * Interface for VOSK speech recognition callbacks
+     */
     public interface VoskRecognitionListener {
         void onPartialResult(String partialText, String language);
         void onFinalResult(String finalText, String language, float confidence);
@@ -64,219 +45,238 @@ public class VoskSpeechRecognizer implements RecognitionListener {
         void onModelDownloadProgress(String language, int progress);
         void onModelDownloadComplete(String language, boolean success);
     }
-    
+
     /**
      * Constructor for VoskSpeechRecognizer
      * @param context Application context
      */
     public VoskSpeechRecognizer(Context context) {
-        this.contextRef = new WeakReference<>(context);
-        // Set log level
-        LibVosk.setLogLevel(LogLevel.INFO);
+        this.context = context;
+        initVosk();
     }
-    
+
     /**
-     * Set the recognition listener for callbacks
-     * @param listener VoskRecognitionListener implementation
+     * Initialize the VOSK library
+     */
+    private void initVosk() {
+        try {
+            LibVosk.setLogLevel(LogLevel.INFO);
+            initialized = loadModel("en"); // Load English model by default
+            if (initialized) {
+                setLanguage("en");
+                Log.d(TAG, "VOSK initialized successfully with English model");
+            } else {
+                Log.e(TAG, "Failed to initialize VOSK");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error initializing VOSK: " + e.getMessage(), e);
+            initialized = false;
+        }
+    }
+
+    /**
+     * Set the recognition listener
+     * @param listener The listener to set
      */
     public void setListener(VoskRecognitionListener listener) {
         this.listener = listener;
     }
-    
+
     /**
-     * Set the language for recognition
-     * @param language Language code ("en", "hi", or "te")
+     * Check if VOSK is initialized
+     * @return true if initialized
      */
-    public void setLanguage(String language) {
-        if (!language.equals(currentLanguage)) {
-            currentLanguage = language;
-            // Close existing model if any
-            closeModel();
-            // Initialize model for new language
-            initModel(language);
-        }
+    public boolean isInitialized() {
+        return initialized;
     }
-    
+
     /**
-     * Check if model for specified language exists
-     * @param language Language code
-     * @return True if model exists
+     * Load a language model
+     * @param language Language code to load
+     * @return true if loaded successfully
      */
-    public boolean hasModelForLanguage(String language) {
-        Context context = contextRef.get();
-        if (context == null) return false;
-        
-        String modelPath = getModelPathForLanguage(language);
-        File modelDir = new File(context.getExternalFilesDir(null), modelPath);
-        return modelDir.exists() && new File(modelDir, "am/final.mdl").exists();
-    }
-    
-    /**
-     * Initialize the model for the specified language
-     * @param language Language code
-     */
-    public void initModel(String language) {
-        Context context = contextRef.get();
-        if (context == null) {
-            Log.e(TAG, "Context is null, cannot initialize model");
-            return;
-        }
-        
-        modelExecutor.execute(() -> {
-            try {
-                String modelPath = getModelPathForLanguage(language);
-                
-                // Check if model exists
-                if (!hasModelForLanguage(language)) {
-                    // Download model
-                    downloadModel(language);
-                    return; // Will be called again after download
-                }
-                
-                // Load model
-                File modelDir = new File(context.getExternalFilesDir(null), modelPath);
-                model = new Model(modelDir.getAbsolutePath());
-                
-                mainHandler.post(() -> {
-                    if (listener != null) {
-                        listener.onModelDownloadComplete(language, true);
-                    }
-                });
-                
-                Log.i(TAG, "Loaded model for " + language);
-                
-            } catch (final Exception e) {
-                Log.e(TAG, "Failed to init model for " + language, e);
-                mainHandler.post(() -> {
-                    if (listener != null) {
-                        listener.onModelDownloadComplete(language, false);
-                    }
-                });
+    private boolean loadModel(String language) {
+        try {
+            if (models.containsKey(language)) {
+                return true;
             }
-        });
+
+            String modelPath = context.getExternalFilesDir(null).getPath() + "/vosk-model-" + language;
+            File modelDir = new File(modelPath);
+            
+            if (!modelDir.exists()) {
+                Log.w(TAG, "Model for " + language + " not found at " + modelPath);
+                downloadModel(language);
+                return false;
+            }
+
+            Model model = new Model(modelPath);
+            models.put(language, model);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading model for " + language + ": " + e.getMessage(), e);
+            return false;
+        }
     }
-    
+
     /**
-     * Download model for the specified language
-     * @param language Language code
+     * Download a language model
+     * @param language Language code to download
      */
     private void downloadModel(String language) {
-        Context context = contextRef.get();
-        if (context == null) {
-            Log.e(TAG, "Context is null, cannot download model");
-            return;
+        Log.d(TAG, "Initiating download of model for language: " + language);
+        // Implementation would depend on your download infrastructure
+        // This is a placeholder
+        if (listener != null) {
+            listener.onModelDownloadProgress(language, 0);
+            // In a real implementation, update progress periodically
+            listener.onModelDownloadComplete(language, false);
         }
-        
-        String modelUrl = getModelUrlForLanguage(language);
-        String modelPath = getModelPathForLanguage(language);
-        
-        try {
-            StorageService.unpack(context, modelUrl, modelPath, 
-                (nBytes, totalBytes) -> {
-                    final int percent = (int) (nBytes * 100 / totalBytes);
-                    mainHandler.post(() -> {
-                        if (listener != null) {
-                            listener.onModelDownloadProgress(language, percent);
-                        }
-                    });
-                }, 
-                model -> {
-                    this.model = model;
-                    mainHandler.post(() -> {
-                        if (listener != null) {
-                            listener.onModelDownloadComplete(language, true);
-                        }
-                    });
-                });
-        } catch (final IOException e) {
-            Log.e(TAG, "Failed to download model for " + language, e);
-            mainHandler.post(() -> {
+    }
+
+    /**
+     * Set the current language
+     * @param language Language code
+     */
+    public void setLanguage(String language) {
+        if (!models.containsKey(language)) {
+            if (!loadModel(language)) {
                 if (listener != null) {
-                    listener.onModelDownloadComplete(language, false);
+                    listener.onError("Model for " + language + " not available");
                 }
-            });
+                return;
+            }
+        }
+
+        currentLanguage = language;
+        try {
+            if (recognizer != null) {
+                recognizer.close();
+            }
+            recognizer = new Recognizer(models.get(language), SAMPLE_RATE);
+            Log.d(TAG, "Set language to: " + language);
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting language to " + language + ": " + e.getMessage(), e);
         }
     }
-    
+
     /**
-     * Get the model path for the specified language
-     * @param language Language code
-     * @return Model path
+     * Recognize speech from a file
+     * @param inputStream Input stream of audio file
      */
-    private String getModelPathForLanguage(String language) {
-        switch (language.toLowerCase()) {
-            case "hi": return MODEL_HI_PATH;
-            case "te": return MODEL_TE_PATH;
-            default: return MODEL_EN_PATH;
-        }
-    }
-    
-    /**
-     * Get the model URL for the specified language
-     * @param language Language code
-     * @return Model URL
-     */
-    private String getModelUrlForLanguage(String language) {
-        switch (language.toLowerCase()) {
-            case "hi": return MODEL_HI_URL;
-            case "te": return MODEL_TE_URL;
-            default: return MODEL_EN_URL;
-        }
-    }
-    
-    /**
-     * Start recognition from microphone
-     */
-    public void startListening() {
-        if (speechService != null) {
-            speechService.stop();
-            speechService = null;
-        }
-        
-        if (model == null) {
-            Log.e(TAG, "Model not initialized");
+    public void recognizeFile(InputStream inputStream) {
+        if (!initialized || recognizer == null) {
             if (listener != null) {
-                listener.onError("Model not initialized");
+                listener.onError("Recognizer not initialized");
             }
             return;
         }
-        
+
+        new Thread(() -> {
+            try {
+                byte[] buffer = new byte[4096];
+                int nbytes;
+                
+                recognizer.startUtterance();
+                
+                while ((nbytes = inputStream.read(buffer)) >= 0) {
+                    if (recognizer.acceptWaveForm(buffer, nbytes)) {
+                        String result = recognizer.getResult();
+                        processResult(result, true);
+                    } else {
+                        String partialResult = recognizer.getPartialResult();
+                        processResult(partialResult, false);
+                    }
+                }
+                
+                recognizer.endUtterance();
+                String finalResult = recognizer.getFinalResult();
+                processResult(finalResult, true);
+                
+                inputStream.close();
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error during recognition: " + e.getMessage(), e);
+                if (listener != null) {
+                    listener.onError("Recognition error: " + e.getMessage());
+                }
+            }
+        }).start();
+    }
+
+    /**
+     * Process VOSK result JSON
+     * @param resultJson JSON string from VOSK
+     * @param isFinal Whether this is a final result
+     */
+    private void processResult(String resultJson, boolean isFinal) {
         try {
-            Recognizer recognizer = new Recognizer(model, 16000.0f);
-            speechService = new SpeechService(recognizer, 16000.0f);
-            speechService.startListening(this);
-            Log.i(TAG, "Started listening");
+            JSONObject json = new JSONObject(resultJson);
+            
+            if (isFinal && json.has("text")) {
+                String text = json.getString("text").trim();
+                float conf = json.has("confidence") ? (float)json.getDouble("confidence") : 0.0f;
+                
+                if (listener != null && !text.isEmpty()) {
+                    listener.onFinalResult(text, currentLanguage, conf);
+                }
+            } else if (!isFinal && json.has("partial")) {
+                String partial = json.getString("partial").trim();
+                
+                if (listener != null && !partial.isEmpty()) {
+                    listener.onPartialResult(partial, currentLanguage);
+                }
+            }
+        } catch (JSONException e) {
+            Log.e(TAG, "Error parsing result JSON: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Recognize multiple languages in sequence
+     * @param audioPath Path to audio file
+     */
+    public void recognizeMultiLanguage(String audioPath) {
+        // Try English first, then fallback to other languages if no good results
+        try {
+            File audioFile = new File(audioPath);
+            if (!audioFile.exists()) {
+                if (listener != null) {
+                    listener.onError("Audio file not found: " + audioPath);
+                }
+                return;
+            }
+            
+            setLanguage("en");
+            recognizeFile(new FileInputStream(audioFile));
+            
+            // Additional languages would be tried after analyzing the English results
+            // This would typically be implemented with callbacks
         } catch (IOException e) {
-            Log.e(TAG, "Failed to start listening", e);
+            Log.e(TAG, "Error opening audio file: " + e.getMessage(), e);
             if (listener != null) {
-                listener.onError(e.getMessage());
+                listener.onError("Error opening audio file: " + e.getMessage());
             }
         }
     }
-    
+
     /**
-     * Start recognition from audio file
-     * @param stream Audio input stream
+     * Clean up resources
      */
-    public void recognizeFile(InputStream stream) {
-        if (speechStreamService != null) {
-            speechStreamService.stop();
-            speechStreamService = null;
+    public void cleanup() {
+        if (recognizer != null) {
+            recognizer.close();
+            recognizer = null;
         }
         
-        if (model == null) {
-            Log.e(TAG, "Model not initialized");
-            if (listener != null) {
-                listener.onError("Model not initialized");
-            }
-            return;
+        for (Model model : models.values()) {
+            model.close();
         }
+        models.clear();
         
-        try {
-            Recognizer recognizer = new Recognizer(model, 16000.0f);
-            speechStreamService = new SpeechStreamService(recognizer, stream, 16000);
-            speechStreamService.start(this);
-            Log.i(TAG, "Started file recognition");
+        initialized = false;
+    }
+}
         } catch (IOException e) {
             Log.e(TAG, "Failed to start file recognition", e);
             if (listener != null) {
