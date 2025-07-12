@@ -532,10 +532,11 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         }
     }
     
-private void startProtection() {
+    private void startProtection() {
         try {
             if (callDetector != null) {
-                callDetector.startCallDetection();
+                // Fix: Change method call to match SimpleCallDetector implementation
+                callDetector.startMonitoring();
             }
             
             addToCallLog("Hello Hari protection activated");
@@ -550,7 +551,8 @@ private void startProtection() {
     private void stopProtection() {
         try {
             if (callDetector != null) {
-                callDetector.stopCallDetection();
+                // Fix: Change method call to match SimpleCallDetector implementation
+                callDetector.stopMonitoring();
             }
             
             addToCallLog("Hello Hari protection deactivated");
@@ -638,6 +640,8 @@ private void startProtection() {
         addToCallLog("Audio compatibility test completed");
     }
     
+    // Implementation of CallDetectionListener interface methods
+    
     @Override
     public void onCallStarted(String phoneNumber) {
         addToCallLog("Call started: " + phoneNumber);
@@ -650,6 +654,50 @@ private void startProtection() {
         if (currentRecordingPath != null) {
             analyzeRecordingForScamsAI(currentRecordingPath, phoneNumber);
         }
+    }
+    
+    @Override
+    public void onIncomingCallStarted(String number, String time) {
+        Log.d(TAG, "Incoming call started: " + number + " at " + time);
+        addToCallLog("Incoming call: " + number);
+        startCallRecording(number);
+    }
+    
+    @Override
+    public void onIncomingCallEnded(String number, String time) {
+        Log.d(TAG, "Incoming call ended: " + number + " at " + time);
+        addToCallLog("Call ended: " + number);
+        if (currentRecordingPath != null) {
+            analyzeRecordingForScamsAI(currentRecordingPath, number);
+        }
+    }
+    
+    @Override
+    public void onOutgoingCallStarted(String number, String time) {
+        Log.d(TAG, "Outgoing call started: " + number + " at " + time);
+        addToCallLog("Outgoing call: " + number);
+        startCallRecording(number);
+    }
+    
+    @Override
+    public void onOutgoingCallEnded(String number, String time) {
+        Log.d(TAG, "Outgoing call ended: " + number + " at " + time);
+        addToCallLog("Call ended: " + number);
+        if (currentRecordingPath != null) {
+            analyzeRecordingForScamsAI(currentRecordingPath, number);
+        }
+    }
+    
+    @Override
+    public void onMissedCall(String number, String time) {
+        Log.d(TAG, "Missed call: " + number + " at " + time);
+        addToCallLog("Missed call: " + number);
+    }
+    
+    @Override
+    public void onCallStateChanged(String number, String state) {
+        Log.d(TAG, "Call state changed: " + number + ", state: " + state);
+        addToCallLog("Call state changed: " + state + " for " + number);
     }
     
     private void startCallRecording(String phoneNumber) {
@@ -745,6 +793,18 @@ private void startProtection() {
         errorText.setGravity(Gravity.CENTER);
         errorText.setPadding(24, 24, 24, 24);
         setContentView(errorText);
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // No need to automatically start monitoring here
+    }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // No need to automatically stop monitoring here
     }
     
     @Override
