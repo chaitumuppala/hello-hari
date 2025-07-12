@@ -896,4 +896,59 @@ public class MultiLanguageScamDetector {
         
         public List<TranscriptionResult> getResults() { return results; }
     }
+
+    /**
+     * REAL VOSK INTEGRATION - This will replace the simulation above
+     */
+    public void analyzeWithVosk(String audioFilePath, VoskSpeechRecognizer voskRecognizer) {
+        if (voskRecognizer == null || !voskRecognizer.isInitialized()) {
+            Log.w(TAG, "VOSK not available, using simulation");
+            return;
+        }
+        
+        // Set up VOSK recognition listener
+        voskRecognizer.setRecognitionListener(new VoskSpeechRecognizer.VoskRecognitionListener() {
+            @Override
+            public void onPartialResult(String partialText, String language) {
+                Log.d(TAG, "VOSK Partial (" + language + "): " + partialText);
+            }
+            
+            @Override
+            public void onFinalResult(String finalText, String language, float confidence) {
+                Log.d(TAG, "VOSK Final (" + language + "): " + finalText + " (confidence: " + confidence + ")");
+                
+                // Analyze the real transcription with our scam patterns
+                ScamAnalysisResult result = analyzeTranscriptionForScams(
+                    new MultiLanguageTranscription(java.util.Arrays.asList(
+                        new TranscriptionResult(finalText, getLanguageName(language), language, confidence)
+                    ))
+                );
+                
+                Log.d(TAG, "VOSK Analysis Complete - Risk Score: " + result.getRiskScore() + "%");
+            }
+            
+            @Override
+            public void onError(String error) {
+                Log.e(TAG, "VOSK Recognition Error: " + error);
+            }
+            
+            @Override
+            public void onInitializationComplete(boolean success) {
+                Log.d(TAG, "VOSK Initialization: " + (success ? "SUCCESS" : "FAILED"));
+            }
+            
+            @Override
+            public void onModelDownloadProgress(String language, int progress) {
+                Log.d(TAG, "VOSK Model Download Progress - " + language + ": " + progress + "%");
+            }
+            
+            @Override
+            public void onModelDownloadComplete(String language, boolean success) {
+                Log.d(TAG, "VOSK Model Download Complete - " + language + ": " + (success ? "SUCCESS" : "FAILED"));
+            }
+        });
+        
+        // Start multi-language recognition
+        voskRecognizer.recognizeMultiLanguage(audioFilePath);
+    }
 }
