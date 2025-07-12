@@ -1,154 +1,210 @@
 package com.hellohari;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
+import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.util.Log;
-import android.widget.Toast;
+import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
+/**
+ * SimpleCallDetector - A class to detect incoming and outgoing calls
+ * with improved error handling and memory management.
+ */
 public class SimpleCallDetector {
     private static final String TAG = "SimpleCallDetector";
-    private Context context;
-    private BroadcastReceiver callReceiver;
-    private boolean isMonitoring = false;
+    private final WeakReference<Context> contextRef;
+    private TelephonyManager telephonyManager;
+    private CallStateListener callStateListener;
+    private CallDetectionListener detectionListener;
     
-    // Define constants for switch-case compatibility
-    private static final String STATE_RINGING = TelephonyManager.EXTRA_STATE_RINGING;
-    private static final String STATE_OFFHOOK = TelephonyManager.EXTRA_STATE_OFFHOOK;
-    private static final String STATE_IDLE = TelephonyManager.EXTRA_STATE_IDLE;
-    
+    // Track call state between callbacks
+    private int lastState = TelephonyManager.CALL_STATE_IDLE;
+    private String lastNumber = "";
+    private long callStartTime = 0;
+    private boolean isIncoming = false;
+
+    /**
+     * Interface for call detection callback events
+     */
     public interface CallDetectionListener {
-        void onCallStateChanged(String state, String phoneNumber);
+        void onIncomingCallStarted(String number, String time);
+        void onIncomingCallEnded(String number, String time);
+        void onOutgoingCallStarted(String number, String time);
+        void onOutgoingCallEnded(String number, String time);
+        void onMissedCall(String number, String time);
+        void onCallStateChanged(String number, String state);
+        
+        // Deprecated methods - included for backward compatibility
+        void onCallStarted(String phoneNumber);
+        void onCallEnded(String phoneNumber);
     }
-    
-    private CallDetectionListener listener;
 
+    /**
+     * Constructor for SimpleCallDetector
+     * @param context Application context
+     */
     public SimpleCallDetector(Context context) {
-        this.context = context;
-    }
-    
-    public void setCallDetectionListener(CallDetectionListener listener) {
-        this.listener = listener;
-    }
-
-    public boolean startCallDetection() {
-        if (isMonitoring) {
-            Log.d(TAG, "Call detection already running");
-            return false;
-        }
-
-        try {
-            callReceiver = new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context context, Intent intent) {
-                    String action = intent.getAction();
-                    Log.d(TAG, "Received broadcast: " + action);
-                    
-                    if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action)) {
-                        String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
-                        String phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
-                        
-                        Log.d(TAG, "Phone state changed: " + state + ", Number: " + phoneNumber);
-                        
-                        // Show toast for testing
-                        showToast("Call State: " + state + (phoneNumber != null ? " from " + phoneNumber : ""));
-                        
-                        // Handle different call states
-                        handleCallStateChange(state, phoneNumber);
-                        
-                        // Notify listener
-                        if (listener != null) {
-                            listener.onCallStateChanged(state, phoneNumber);
-                        }
-                    }
-                }
-            };
-
-            IntentFilter filter = new IntentFilter();
-            filter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
-            filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
-            
-            context.registerReceiver(callReceiver, filter);
-            isMonitoring = true;
-            
-            Log.d(TAG, "Call detection started successfully");
-            showToast("Hello Hari: Call monitoring started");
-            return true;
-            
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to start call detection", e);
-            showToast("Failed to start call monitoring: " + e.getMessage());
-            return false;
-        }
-    }
-
-    public boolean stopCallDetection() {
-        if (!isMonitoring || callReceiver == null) {
-            Log.d(TAG, "Call detection not running");
-            return false;
-        }
-
-        try {
-            context.unregisterReceiver(callReceiver);
-            callReceiver = null;
-            isMonitoring = false;
-            
-            Log.d(TAG, "Call detection stopped");
-            showToast("Hello Hari: Call monitoring stopped");
-            return true;
-            
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to stop call detection", e);
-            return false;
-        }
-    }
-    
-    public boolean isMonitoring() {
-        return isMonitoring;
-    }
-
-    private void handleCallStateChange(String state, String phoneNumber) {
-        // Use if-else instead of switch for string comparison
-        if (STATE_RINGING.equals(state)) {
-            Log.i(TAG, "📞 INCOMING CALL detected from: " + (phoneNumber != null ? phoneNumber : "Unknown"));
-            onIncomingCall(phoneNumber);
-        } else if (STATE_OFFHOOK.equals(state)) {
-            Log.i(TAG, "📱 CALL ANSWERED or OUTGOING CALL started");
-            onCallAnswered(phoneNumber);
-        } else if (STATE_IDLE.equals(state)) {
-            Log.i(TAG, "📴 CALL ENDED or PHONE IDLE");
-            onCallEnded(phoneNumber);
+        this.contextRef = new WeakReference<>(context);
+        Context ctx = contextRef.get();
+        if (ctx != null) {
+            try {
+                telephonyManager = (TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE);
+                Log.d(TAG, "SimpleCallDetector initialized");
+            } catch (Exception e) {
+                Log.e(TAG, "Error initializing telephony manager", e);
+            }
         } else {
-            Log.d(TAG, "Unknown call state: " + state);
+            Log.e(TAG, "Context is null, cannot initialize telephony manager");
         }
     }
 
-    private void onIncomingCall(String phoneNumber) {
-        // This is where we'll add scam detection logic later
-        String displayNumber = phoneNumber != null ? phoneNumber : "Unknown Number";
-        showToast("🚨 Incoming call from " + displayNumber + " - Analyzing...");
-        
-        // TODO: Add scam pattern detection
-        // TODO: Start audio recording preparation
+    /**
+     * Set the call detection listener for callbacks
+     * @param listener CallDetectionListener implementation
+     */
+    public void setCallDetectionListener(CallDetectionListener listener) {
+        this.detectionListener = listener;
     }
 
-    private void onCallAnswered(String phoneNumber) {
-        String displayNumber = phoneNumber != null ? phoneNumber : "Unknown Number";
-        showToast("📞 Call with " + displayNumber + " - Recording for safety");
-        
-        // TODO: Start actual call recording
+    /**
+     * Start monitoring phone state
+     */
+    public void startMonitoring() {
+        try {
+            if (callStateListener == null && telephonyManager != null) {
+                callStateListener = new CallStateListener();
+                telephonyManager.listen(callStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+                Log.d(TAG, "Started call monitoring");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting call monitoring", e);
+        }
+    }
+    
+    /**
+     * Stop monitoring phone state
+     */
+    public void stopMonitoring() {
+        try {
+            if (callStateListener != null && telephonyManager != null) {
+                telephonyManager.listen(callStateListener, PhoneStateListener.LISTEN_NONE);
+                callStateListener = null;
+                Log.d(TAG, "Stopped call monitoring");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error stopping call monitoring", e);
+        }
+    }
+    
+    // Aliases for startMonitoring and stopMonitoring for API consistency
+    public void startCallDetection() {
+        startMonitoring();
+    }
+    
+    public void stopCallDetection() {
+        stopMonitoring();
     }
 
-    private void onCallEnded(String phoneNumber) {
-        showToast("📴 Call ended - Analysis complete");
-        
-        // TODO: Stop recording and analyze for scam patterns
-        // TODO: Generate risk report
+    /**
+     * Get formatted time string for current time
+     * @return Formatted time string
+     */
+    private String getCurrentTimeString() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        return sdf.format(new Date());
+    }
+    
+    /**
+     * Convert milliseconds to formatted duration
+     * @param millis Duration in milliseconds
+     * @return Formatted duration string
+     */
+    private String formatCallDuration(long millis) {
+        long seconds = millis / 1000;
+        long minutes = seconds / 60;
+        seconds = seconds % 60;
+        return String.format(Locale.getDefault(), "%d:%02d", minutes, seconds);
     }
 
-    private void showToast(String message) {
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+    /**
+     * Phone state listener to detect call events
+     */
+    private class CallStateListener extends PhoneStateListener {
+        @Override
+        public void onCallStateChanged(int state, String phoneNumber) {
+            try {
+                if (detectionListener == null) {
+                    return;
+                }
+                
+                // Clean phone number
+                if (phoneNumber == null || phoneNumber.isEmpty()) {
+                    phoneNumber = "unknown";
+                }
+                
+                // Report raw state change
+                String stateStr = getStateString(state);
+                detectionListener.onCallStateChanged(phoneNumber, stateStr);
+                
+                // Handle call state transitions
+                switch (state) {
+                    case TelephonyManager.CALL_STATE_RINGING:
+                        isIncoming = true;
+                        callStartTime = System.currentTimeMillis();
+                        lastNumber = phoneNumber;
+                        detectionListener.onIncomingCallStarted(phoneNumber, getCurrentTimeString());
+                        break;
+                        
+                    case TelephonyManager.CALL_STATE_OFFHOOK:
+                        // Transition from IDLE to OFFHOOK = outgoing call
+                        if (lastState == TelephonyManager.CALL_STATE_IDLE) {
+                            isIncoming = false;
+                            callStartTime = System.currentTimeMillis();
+                            detectionListener.onOutgoingCallStarted(phoneNumber, getCurrentTimeString());
+                        }
+                        break;
+                        
+                    case TelephonyManager.CALL_STATE_IDLE:
+                        // Call ended
+                        if (lastState == TelephonyManager.CALL_STATE_RINGING) {
+                            // Missed call
+                            detectionListener.onMissedCall(lastNumber, getCurrentTimeString());
+                        } else if (lastState == TelephonyManager.CALL_STATE_OFFHOOK) {
+                            // Call ended
+                            long callDuration = System.currentTimeMillis() - callStartTime;
+                            String durationStr = formatCallDuration(callDuration);
+                            
+                            if (isIncoming) {
+                                detectionListener.onIncomingCallEnded(lastNumber, durationStr);
+                            } else {
+                                detectionListener.onOutgoingCallEnded(lastNumber, durationStr);
+                            }
+                        }
+                        break;
+                }
+                
+                lastState = state;
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error in call state changed", e);
+            }
+        }
+        
+        /**
+         * Convert phone state integer to readable string
+         * @param state Phone state
+         * @return Readable string representation
+         */
+        private String getStateString(int state) {
+            switch (state) {
+                case TelephonyManager.CALL_STATE_IDLE: return "IDLE";
+                case TelephonyManager.CALL_STATE_RINGING: return "RINGING";
+                case TelephonyManager.CALL_STATE_OFFHOOK: return "OFFHOOK";
+                default: return "UNKNOWN";
+            }
+        }
     }
 }
