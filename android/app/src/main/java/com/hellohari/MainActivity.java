@@ -532,7 +532,7 @@ public class MainActivity extends Activity implements SimpleCallDetector.CallDet
         }
     }
     
-    private void startProtection() {
+private void startProtection() {
         try {
             if (callDetector != null) {
                 callDetector.startCallDetection();
