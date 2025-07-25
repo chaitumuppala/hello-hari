@@ -1,6 +1,7 @@
 package com.hellohari;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -686,6 +687,11 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
     
     private void startProtection() {
         try {
+            // Start the call detection service for background monitoring
+            Intent serviceIntent = new Intent(this, CallDetectionService.class);
+            startForegroundService(serviceIntent);
+            Log.d(TAG, "CallDetectionService started");
+            
             if (callDetector != null) {
                 // Fix: Change method call to match SimpleCallDetector implementation
                 callDetector.startMonitoring();
@@ -702,6 +708,11 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
     
     private void stopProtection() {
         try {
+            // Stop the call detection service
+            Intent serviceIntent = new Intent(this, CallDetectionService.class);
+            stopService(serviceIntent);
+            Log.d(TAG, "CallDetectionService stopped");
+            
             if (callDetector != null) {
                 // Fix: Change method call to match SimpleCallDetector implementation
                 callDetector.stopMonitoring();
@@ -1149,7 +1160,24 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
             debugLog.append("VOSK Recognizer Initialized: ").append(voskRecognizer != null).append("\n");
             debugLog.append("VOSK Status: ").append(isVoskInitialized).append("\n");
             debugLog.append("Protection Active: ").append(isProtectionActive).append("\n");
-            debugLog.append("Service Running: ").append(serviceRunning).append("\n\n");
+            debugLog.append("Service Running: ").append(isCallDetectionServiceRunning()).append("\n");
+            
+            // Call Detection Status
+            debugLog.append("\n=== CALL DETECTION STATUS ===\n");
+            debugLog.append("Call Detector Service: ").append(isCallDetectionServiceRunning()).append("\n");
+            debugLog.append("Permission Phone State: ").append(hasPermission(android.Manifest.permission.READ_PHONE_STATE)).append("\n");
+            debugLog.append("Permission Read Contacts: ").append(hasPermission(android.Manifest.permission.READ_CONTACTS)).append("\n");
+            debugLog.append("Permission Record Audio: ").append(hasPermission(android.Manifest.permission.RECORD_AUDIO)).append("\n");
+            debugLog.append("Permission Modify Audio: ").append(hasPermission(android.Manifest.permission.MODIFY_AUDIO_SETTINGS)).append("\n");
+            debugLog.append("Current Call State: ").append(getCurrentCallState()).append("\n");
+            
+            // Analysis Status
+            debugLog.append("\n=== CALL ANALYSIS STATUS ===\n");
+            debugLog.append("Audio Recording Active: ").append(isAudioRecordingActive()).append("\n");
+            debugLog.append("Speech Recognition Running: ").append(isSpeechRecognitionRunning()).append("\n");
+            debugLog.append("Last Analysis Result: ").append(getLastAnalysisResult()).append("\n");
+            debugLog.append("Risk Score: ").append(getCurrentRiskScore()).append("\n");
+            debugLog.append("Total Calls Analyzed: ").append(getTotalCallsAnalyzed()).append("\n\n");
             
             // VOSK Model Status
             if (voskRecognizer != null) {
@@ -1248,5 +1276,68 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         
         // Reset risk level
         updateRiskLevel(0, "No active calls - Risk: 0%");
+    }
+    
+    // === DEBUG HELPER METHODS ===
+    
+    private boolean isCallDetectionServiceRunning() {
+        try {
+            android.app.ActivityManager activityManager = (android.app.ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+            for (android.app.ActivityManager.RunningServiceInfo service : activityManager.getRunningServices(Integer.MAX_VALUE)) {
+                if ("com.hellohari.CallDetectionService".equals(service.service.getClassName())) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            Log.e("DEBUG", "Error checking service status", e);
+        }
+        return false;
+    }
+    
+    private boolean hasPermission(String permission) {
+        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED;
+    }
+    
+    private String getCurrentCallState() {
+        try {
+            TelephonyManager telephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+            if (telephonyManager != null) {
+                int callState = telephonyManager.getCallState();
+                switch (callState) {
+                    case TelephonyManager.CALL_STATE_IDLE: return "IDLE";
+                    case TelephonyManager.CALL_STATE_RINGING: return "RINGING";
+                    case TelephonyManager.CALL_STATE_OFFHOOK: return "ACTIVE";
+                    default: return "UNKNOWN";
+                }
+            }
+        } catch (Exception e) {
+            Log.e("DEBUG", "Error getting call state", e);
+        }
+        return "ERROR";
+    }
+    
+    private boolean isAudioRecordingActive() {
+        // This would need to check if audio recording is currently active
+        // For now, return a basic check
+        return false; // TODO: Implement proper audio recording status check
+    }
+    
+    private boolean isSpeechRecognitionRunning() {
+        return voskRecognizer != null && isVoskInitialized;
+    }
+    
+    private String getLastAnalysisResult() {
+        // This would return the last call analysis result
+        return "No recent analysis"; // TODO: Implement proper analysis result tracking
+    }
+    
+    private String getCurrentRiskScore() {
+        // This would return the current risk score
+        return "0"; // TODO: Implement proper risk score tracking
+    }
+    
+    private String getTotalCallsAnalyzed() {
+        // This would return the total number of calls analyzed
+        return "0"; // TODO: Implement proper call count tracking
     }
 }
