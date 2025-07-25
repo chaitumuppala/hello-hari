@@ -54,7 +54,7 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
     private TextView callLogText;
     private ScrollView callLogScrollView;
     
-    // VOSK Download UI Components
+    // AI Model Download UI Components
     private LinearLayout modelDownloadCard;
     private TextView downloadStatusText;
     private ProgressBar downloadProgressBar;
@@ -103,21 +103,21 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
     
     private void initializeVosk() {
         try {
-            addToCallLog("Initializing VOSK speech recognition...");
+            addToCallLog("Initializing AI speech recognition...");
             
             voskRecognizer = new VoskSpeechRecognizer(this);
             voskRecognizer.setRecognitionListener(new VoskSpeechRecognizer.VoskRecognitionListener() {
                 @Override
                 public void onPartialResult(String partialText, String language) {
                     runOnUiThread(() -> {
-                        addToCallLog("VOSK Partial (" + language + "): " + partialText);
+                        addToCallLog("AI Partial (" + language + "): " + partialText);
                     });
                 }
                 
                 @Override
                 public void onFinalResult(String finalText, String language, float confidence) {
                     runOnUiThread(() -> {
-                        addToCallLog("VOSK Final (" + language + "): " + finalText + " (" + (int)(confidence*100) + "% confidence)");
+                        addToCallLog("AI Final (" + language + "): " + finalText + " (" + (int)(confidence*100) + "% confidence)");
                         
                         // Analyze with real VOSK transcription
                         if (aiDetector != null) {
@@ -129,7 +129,7 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
                 @Override
                 public void onError(String error) {
                     runOnUiThread(() -> {
-                        addToCallLog("VOSK Error: " + error);
+                        addToCallLog("AI Error: " + error);
                     });
                 }
                 
@@ -138,10 +138,10 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
                     isVoskInitialized = success;
                     runOnUiThread(() -> {
                         if (success) {
-                            addToCallLog("VOSK initialization complete - AI models ready!");
+                            addToCallLog("AI initialization complete - Protection models ready!");
                             updateVoskDownloadUI();
                         } else {
-                            addToCallLog("VOSK initialization failed - select and download models above");
+                            addToCallLog("AI initialization failed - select and download models above");
                         }
                         updateSystemStatus();
                     });
@@ -169,11 +169,11 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
             
             // Check for existing models but don't auto-download
             voskRecognizer.checkExistingModels();
-            addToCallLog("VOSK initialized - Please select languages to download above");
+            addToCallLog("AI initialized - Please select languages to download above");
             
         } catch (Exception e) {
-            Log.e(TAG, "VOSK initialization error", e);
-            addToCallLog("VOSK initialization error: " + e.getMessage());
+            Log.e(TAG, "AI initialization error", e);
+            addToCallLog("AI initialization error: " + e.getMessage());
         }
     }
     
@@ -285,7 +285,7 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         modelDownloadCard.setPadding(24, 24, 24, 24);
         
         TextView title = new TextView(this);
-        title.setText("VOSK AI Models");
+        title.setText("AI Protection Models");
         title.setTextSize(18);
         title.setTextColor(Color.parseColor("#111827"));
         title.setTypeface(null, Typeface.BOLD);
@@ -419,8 +419,8 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         aiTestRow.setOrientation(LinearLayout.HORIZONTAL);
         aiTestRow.setWeightSum(2.0f);
         
-        Button testAIButton = createActionButton("Test VOSK AI", "#2563EB");
-        testAIButton.setOnClickListener(v -> testVoskIntegration());
+        Button testAIButton = createActionButton("Test AI Protection", "#2563EB");
+        testAIButton.setOnClickListener(v -> testAiProtection());
         aiTestRow.addView(testAIButton);
         
         addHorizontalSpacing(aiTestRow, 12);
@@ -721,7 +721,7 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         }
     }
     
-    private void testVoskIntegration() {
+    private void testAiProtection() {
         addToCallLog("Testing VOSK AI integration...");
         
         if (voskRecognizer == null) {

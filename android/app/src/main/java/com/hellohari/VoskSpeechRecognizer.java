@@ -312,18 +312,36 @@ public class VoskSpeechRecognizer {
      */
     private boolean extractZipFile(String zipPath, String extractPath) {
         try {
-            FileInputStream fis = new FileInputStream(zipPath);
+            Log.d(TAG, "Starting extraction of: " + zipPath + " to: " + extractPath);
+            
+            File zipFile = new File(zipPath);
+            if (!zipFile.exists()) {
+                Log.e(TAG, "ZIP file does not exist: " + zipPath);
+                return false;
+            }
+            
+            FileInputStream fis = new FileInputStream(zipFile);
             ZipInputStream zis = new ZipInputStream(fis);
             ZipEntry entry;
+            int extractedFiles = 0;
             
             while ((entry = zis.getNextEntry()) != null) {
-                String filePath = extractPath + entry.getName();
+                String entryName = entry.getName();
+                String filePath = extractPath + entryName;
+                
+                Log.d(TAG, "Extracting: " + entryName);
                 
                 if (entry.isDirectory()) {
-                    new File(filePath).mkdirs();
+                    File dir = new File(filePath);
+                    if (!dir.exists()) {
+                        dir.mkdirs();
+                    }
                 } else {
                     // Create parent directories
-                    new File(filePath).getParentFile().mkdirs();
+                    File parentDir = new File(filePath).getParentFile();
+                    if (parentDir != null && !parentDir.exists()) {
+                        parentDir.mkdirs();
+                    }
                     
                     // Extract file
                     FileOutputStream fos = new FileOutputStream(filePath);
@@ -333,6 +351,7 @@ public class VoskSpeechRecognizer {
                         fos.write(buffer, 0, length);
                     }
                     fos.close();
+                    extractedFiles++;
                 }
                 zis.closeEntry();
             }
@@ -340,10 +359,18 @@ public class VoskSpeechRecognizer {
             zis.close();
             fis.close();
             
+            Log.d(TAG, "Extraction completed. Files extracted: " + extractedFiles);
+            
+            // Verify extraction by checking if required files exist
+            if (extractedFiles == 0) {
+                Log.e(TAG, "No files were extracted from ZIP");
+                return false;
+            }
+            
             return true;
             
         } catch (Exception e) {
-            Log.e(TAG, "ZIP extraction failed", e);
+            Log.e(TAG, "ZIP extraction failed: " + e.getMessage(), e);
             return false;
         }
     }
@@ -367,16 +394,40 @@ public class VoskSpeechRecognizer {
      */
     private boolean isValidModel(String modelPath) {
         File modelDir = new File(modelPath);
-        if (!modelDir.exists()) return false;
+        Log.d(TAG, "Checking model validity at: " + modelPath);
+        
+        if (!modelDir.exists()) {
+            Log.d(TAG, "Model directory does not exist: " + modelPath);
+            return false;
+        }
+        
+        if (!modelDir.isDirectory()) {
+            Log.w(TAG, "Model path is not a directory: " + modelPath);
+            return false;
+        }
+        
+        // List contents for debugging
+        File[] files = modelDir.listFiles();
+        if (files != null) {
+            Log.d(TAG, "Model directory contains " + files.length + " items:");
+            for (File file : files) {
+                Log.d(TAG, "  - " + file.getName() + (file.isDirectory() ? " (dir)" : " (file)"));
+            }
+        }
         
         // Check for required VOSK model files
         String[] requiredFiles = {"conf/model.conf", "am/final.mdl", "graph/HCLG.fst"};
         for (String file : requiredFiles) {
-            if (!new File(modelDir, file).exists()) {
-                Log.w(TAG, "Missing required model file: " + file);
+            File requiredFile = new File(modelDir, file);
+            if (!requiredFile.exists()) {
+                Log.w(TAG, "Missing required model file: " + file + " at " + requiredFile.getAbsolutePath());
                 return false;
+            } else {
+                Log.d(TAG, "Found required file: " + file);
             }
         }
+        
+        Log.d(TAG, "Model validation successful for: " + modelPath);
         return true;
     }
     
