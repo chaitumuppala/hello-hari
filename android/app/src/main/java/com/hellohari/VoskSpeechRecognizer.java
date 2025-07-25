@@ -189,36 +189,43 @@ public class VoskSpeechRecognizer {
                     Log.d(TAG, "Waiting for " + totalDownloads + " downloads to complete...");
                     downloadLatch.await();
                     Log.d(TAG, "All downloads completed. Success count: " + successCount.get());
+                    
+                    // Give a small delay to ensure file system operations are complete
+                    Thread.sleep(1000);
+                    Log.d(TAG, "Proceeding with model initialization after delay...");
+                    
                 } catch (InterruptedException e) {
                     Log.e(TAG, "Download wait interrupted", e);
                     Thread.currentThread().interrupt();
                 }
                 
-                // Now try to initialize with any available model
+                // Now try to initialize with any available model (regardless of what was requested)
                 boolean initSuccess = false;
                 Exception initError = null;
                 
                 try {
-                    if (downloadEnglish && isModelAvailable("en")) {
+                    // Check all models and initialize with the first available one
+                    if (isModelAvailable("en")) {
                         Log.d(TAG, "Attempting to load English model...");
                         loadModel("en");
                         initSuccess = true;
                         Log.d(TAG, "Successfully initialized with English model");
-                    } else if (downloadHindi && isModelAvailable("hi")) {
+                    } else if (isModelAvailable("hi")) {
                         Log.d(TAG, "Attempting to load Hindi model...");
                         loadModel("hi");
                         initSuccess = true;
                         Log.d(TAG, "Successfully initialized with Hindi model");
-                    } else if (downloadTelugu && isModelAvailable("te")) {
+                    } else if (isModelAvailable("te")) {
                         Log.d(TAG, "Attempting to load Telugu model...");
                         loadModel("te");
                         initSuccess = true;
                         Log.d(TAG, "Successfully initialized with Telugu model");
                     } else {
-                        Log.w(TAG, "No valid models found after download. English available: " + 
-                              (downloadEnglish ? isModelAvailable("en") : "not requested") +
-                              ", Hindi available: " + (downloadHindi ? isModelAvailable("hi") : "not requested") +
-                              ", Telugu available: " + (downloadTelugu ? isModelAvailable("te") : "not requested"));
+                        Log.w(TAG, "No valid models found after download. Checking model status:");
+                        Log.w(TAG, "  English model available: " + isModelAvailable("en"));
+                        Log.w(TAG, "  Hindi model available: " + isModelAvailable("hi"));
+                        Log.w(TAG, "  Telugu model available: " + isModelAvailable("te"));
+                        Log.w(TAG, "  Download requests - EN:" + downloadEnglish + " HI:" + downloadHindi + " TE:" + downloadTelugu);
                     }
                 } catch (Exception e) {
                     Log.e(TAG, "Model loading failed during initialization", e);
