@@ -1010,7 +1010,8 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
             
             if (aiDetector != null) {
                 // Test scam detection
-                int riskScore = aiDetector.analyzeText(phrase, "en");
+                MultiLanguageScamDetector.ScamAnalysisResult result = aiDetector.analyzeText(phrase);
+                int riskScore = result.getRiskScore();
                 addToCallLog("Risk Analysis: " + riskScore + "% risk detected");
                 updateRiskLevel(riskScore, "SCAM DETECTED: " + phrase.substring(0, Math.min(30, phrase.length())) + "...");
             }
@@ -1052,7 +1053,8 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
             addToCallLog("Mock Transcription: \"" + phrase + "\"");
             
             if (aiDetector != null) {
-                int riskScore = aiDetector.analyzeText(phrase, "en");
+                MultiLanguageScamDetector.ScamAnalysisResult result = aiDetector.analyzeText(phrase);
+                int riskScore = result.getRiskScore();
                 addToCallLog("Risk Analysis: " + riskScore + "% risk detected");
                 updateRiskLevel(riskScore, "Normal conversation: " + phrase.substring(0, Math.min(30, phrase.length())) + "...");
             }
@@ -1103,7 +1105,8 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
             String lang = languages[i];
             
             addToCallLog("Testing (" + lang + "): \"" + phrase + "\"");
-            int riskScore = aiDetector.analyzeText(phrase, lang);
+            MultiLanguageScamDetector.ScamAnalysisResult result = aiDetector.analyzeText(phrase);
+            int riskScore = result.getRiskScore();
             
             String risk = "LOW";
             if (riskScore > 70) risk = "HIGH";
