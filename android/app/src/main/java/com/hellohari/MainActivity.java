@@ -32,12 +32,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity implements SimpleCallDetector.CallDetectionListener {
+public class MainActivity extends AppCompatActivity implements EnhancedCallDetector.CallDetectionListener {
     private static final String TAG = "HelloHariMain";
     private static final int PERMISSION_REQUEST_CODE = 123;
     
     // Core Components
-    private SimpleCallDetector callDetector;
+    private EnhancedCallDetector callDetector;
     private AudioManager audioManager;
     private MultiLanguageScamDetector aiDetector;
     private VoskSpeechRecognizer voskRecognizer;
@@ -639,7 +639,7 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
             audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
             aiDetector = new MultiLanguageScamDetector(this);
             
-            callDetector = new SimpleCallDetector(this);
+            callDetector = new EnhancedCallDetector(this);
             callDetector.setCallDetectionListener(this);
             
             addToCallLog("Core components initialized successfully");
@@ -693,8 +693,8 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
             Log.d(TAG, "CallDetectionService started");
             
             if (callDetector != null) {
-                // Fix: Change method call to match SimpleCallDetector implementation
-                callDetector.startMonitoring();
+                // Start enhanced call detection with real-time analysis
+                callDetector.startCallDetection();
             }
             
             addToCallLog("Hello Hari protection activated");
@@ -714,8 +714,8 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
             Log.d(TAG, "CallDetectionService stopped");
             
             if (callDetector != null) {
-                // Fix: Change method call to match SimpleCallDetector implementation
-                callDetector.stopMonitoring();
+                // Stop enhanced call detection
+                callDetector.stopCallDetection();
             }
             
             addToCallLog("Hello Hari protection deactivated");
@@ -834,6 +834,35 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
                 break;
             default:
                 Log.w(TAG, "Unknown call state: " + state);
+        }
+    }
+    
+    // Helper methods for different call states (no longer @Override)
+    
+    @Override
+    public void onRecordingStatusChanged(boolean isRecording, String filePath) {
+        Log.d(TAG, "Recording status changed: " + isRecording + " - " + filePath);
+        if (isRecording) {
+            addToCallLog("Started recording call audio...");
+        } else {
+            addToCallLog("Stopped recording call audio");
+            if (filePath != null) {
+                addToCallLog("Recording saved: " + filePath);
+            }
+        }
+    }
+    
+    @Override
+    public void onRiskLevelChanged(int riskScore, String analysis) {
+        Log.d(TAG, "Risk level changed: " + riskScore + "% - " + analysis);
+        addToCallLog("Risk Analysis: " + riskScore + "% - " + analysis);
+        updateRiskLevel(riskScore, analysis);
+        
+        // Show alerts for high risk
+        if (riskScore > 70) {
+            addToCallLog("🚨 HIGH RISK DETECTED: " + analysis);
+        } else if (riskScore > 50) {
+            addToCallLog("⚠️ MEDIUM RISK DETECTED: " + analysis);
         }
     }
     
@@ -996,7 +1025,7 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         super.onDestroy();
         try {
             if (callDetector != null) {
-                callDetector.stopMonitoring();
+                callDetector.stopCallDetection();
             }
             if (voskRecognizer != null) {
                 voskRecognizer.cleanup();
@@ -1207,12 +1236,34 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
                                     debugLog.append("\n");
                                 }
                                 
-                                // Check required files
-                                String[] requiredFiles = {"conf/model.conf", "am/final.mdl", "graph/HCLG.fst"};
-                                debugLog.append("  Required Files Check:\n");
-                                for (String reqFile : requiredFiles) {
+                                // Check required files (based on official VOSK structure)
+                                String[] coreFiles = {"conf/model.conf", "conf/mfcc.conf", "am/final.mdl", "graph/phones/word_boundary.int"};
+                                debugLog.append("  Core Files Check:\n");
+                                for (String reqFile : coreFiles) {
                                     File f = new File(modelDir, reqFile);
                                     debugLog.append("    ").append(reqFile).append(": ").append(f.exists() ? "FOUND" : "MISSING").append("\n");
+                                }
+                                
+                                // Check graph files - can be either single HCLG.fst or split HCLr.fst + Gr.fst
+                                File hclgFile = new File(modelDir, "graph/HCLG.fst");
+                                File hclrFile = new File(modelDir, "graph/HCLr.fst");
+                                File grFile = new File(modelDir, "graph/Gr.fst");
+                                
+                                debugLog.append("  Graph Files Check:\n");
+                                boolean hasSingleGraph = hclgFile.exists();
+                                boolean hasSplitGraph = hclrFile.exists() && grFile.exists();
+                                
+                                if (hasSingleGraph) {
+                                    debugLog.append("    graph/HCLG.fst: FOUND (single graph)\n");
+                                } else if (hasSplitGraph) {
+                                    debugLog.append("    graph/HCLr.fst: FOUND\n");
+                                    debugLog.append("    graph/Gr.fst: FOUND\n");
+                                    debugLog.append("    Graph Type: SPLIT (recommended)\n");
+                                } else {
+                                    debugLog.append("    graph/HCLG.fst: MISSING\n");
+                                    debugLog.append("    graph/HCLr.fst: ").append(hclrFile.exists() ? "FOUND" : "MISSING").append("\n");
+                                    debugLog.append("    graph/Gr.fst: ").append(grFile.exists() ? "FOUND" : "MISSING").append("\n");
+                                    debugLog.append("    ERROR: No valid graph files found!\n");
                                 }
                             } else {
                                 debugLog.append("  ERROR: Cannot list directory contents\n");
