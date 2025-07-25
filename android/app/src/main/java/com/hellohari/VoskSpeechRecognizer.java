@@ -58,6 +58,10 @@ public class VoskSpeechRecognizer {
         void onDownloadComplete(String language, boolean success);
     }
     
+    public interface DownloadCallback {
+        void onComplete(boolean success);
+    }
+    
     public VoskSpeechRecognizer(Context context) {
         this.context = context;
         this.downloadExecutor = Executors.newFixedThreadPool(3);
@@ -115,30 +119,97 @@ public class VoskSpeechRecognizer {
             try {
                 Log.d(TAG, "Starting download for selected models...");
                 
+                // Count total downloads needed
+                int totalDownloads = 0;
+                if (downloadEnglish) totalDownloads++;
+                if (downloadHindi) totalDownloads++;
+                if (downloadTelugu) totalDownloads++;
+                
+                if (totalDownloads == 0) {
+                    Log.w(TAG, "No models selected for download");
+                    if (recognitionListener != null) {
+                        recognitionListener.onInitializationComplete(false);
+                    }
+                    return;
+                }
+                
+                // Use CountDownLatch to wait for all downloads to complete
+                java.util.concurrent.CountDownLatch downloadLatch = new java.util.concurrent.CountDownLatch(totalDownloads);
+                
+                // Track download results
+                java.util.concurrent.atomic.AtomicInteger successCount = new java.util.concurrent.atomic.AtomicInteger(0);
+                
+                // Download completion callback
+                Runnable onDownloadComplete = () -> {
+                    downloadLatch.countDown();
+                    Log.d(TAG, "Download completed. Remaining: " + downloadLatch.getCount());
+                };
+                
+                // Start downloads
                 if (downloadEnglish) {
-                    checkAndDownloadModel("en", ENGLISH_MODEL);
+                    downloadModelWithCallback("en", ENGLISH_MODEL, new DownloadCallback() {
+                        @Override
+                        public void onComplete(boolean success) {
+                            if (success) successCount.incrementAndGet();
+                            onDownloadComplete.run();
+                        }
+                    });
                 }
                 if (downloadHindi) {
-                    checkAndDownloadModel("hi", HINDI_MODEL);
+                    downloadModelWithCallback("hi", HINDI_MODEL, new DownloadCallback() {
+                        @Override
+                        public void onComplete(boolean success) {
+                            if (success) successCount.incrementAndGet();
+                            onDownloadComplete.run();
+                        }
+                    });
                 }
                 if (downloadTelugu) {
-                    checkAndDownloadModel("te", TELUGU_MODEL);
+                    downloadModelWithCallback("te", TELUGU_MODEL, new DownloadCallback() {
+                        @Override
+                        public void onComplete(boolean success) {
+                            if (success) successCount.incrementAndGet();
+                            onDownloadComplete.run();
+                        }
+                    });
                 }
                 
-                // Initialize with first available model after download
+                // Wait for all downloads to complete
+                try {
+                    Log.d(TAG, "Waiting for " + totalDownloads + " downloads to complete...");
+                    downloadLatch.await();
+                    Log.d(TAG, "All downloads completed. Success count: " + successCount.get());
+                } catch (InterruptedException e) {
+                    Log.e(TAG, "Download wait interrupted", e);
+                    Thread.currentThread().interrupt();
+                }
+                
+                // Now try to initialize with any available model
+                boolean initSuccess = false;
                 if (downloadEnglish && isModelAvailable("en")) {
                     loadModel("en");
-                    isInitialized = true;
+                    initSuccess = true;
+                    Log.d(TAG, "Initialized with English model");
                 } else if (downloadHindi && isModelAvailable("hi")) {
                     loadModel("hi");
-                    isInitialized = true;
+                    initSuccess = true;
+                    Log.d(TAG, "Initialized with Hindi model");
                 } else if (downloadTelugu && isModelAvailable("te")) {
                     loadModel("te");
-                    isInitialized = true;
+                    initSuccess = true;
+                    Log.d(TAG, "Initialized with Telugu model");
                 }
                 
+                isInitialized = initSuccess;
+                
                 if (recognitionListener != null) {
-                    recognitionListener.onInitializationComplete(isInitialized);
+                    recognitionListener.onInitializationComplete(initSuccess);
+                }
+                
+                if (initSuccess) {
+                    Log.d(TAG, "VOSK initialization successful after model download");
+                } else {
+                    Log.e(TAG, "VOSK initialization failed - no valid models found after download");
                 }
                 
             } catch (Exception e) {
@@ -254,6 +325,71 @@ public class VoskSpeechRecognizer {
                 recognitionListener.onError("Model download failed for " + language + ": " + e.getMessage());
             }
         }
+    }
+    
+    /**
+     * Download model with callback for completion
+     */
+    private void downloadModelWithCallback(String language, String modelFileName, DownloadCallback callback) {
+        downloadExecutor.execute(() -> {
+            String modelPath = getModelPath(language);
+            File modelDir = new File(modelPath);
+            
+            if (modelDir.exists() && isValidModel(modelPath)) {
+                Log.d(TAG, "Model for " + language + " already exists");
+                updateDownloadStatus(language, DownloadStatus.COMPLETED);
+                if (recognitionListener != null) {
+                    recognitionListener.onModelDownloadComplete(language, true);
+                }
+                callback.onComplete(true);
+                return;
+            }
+            
+            try {
+                updateDownloadStatus(language, DownloadStatus.DOWNLOADING);
+                
+                String downloadUrl = MODEL_BASE_URL + modelFileName;
+                String modelsDir = context.getFilesDir() + "/vosk-models/";
+                String zipPath = modelsDir + modelFileName;
+                
+                // Create models directory
+                new File(modelsDir).mkdirs();
+                
+                Log.d(TAG, "Downloading " + language + " model from: " + downloadUrl);
+                
+                // Download the zip file
+                if (downloadFile(downloadUrl, zipPath, language)) {
+                    Log.d(TAG, "Download complete for " + language + ", extracting...");
+                    
+                    // Extract the zip file
+                    if (extractZipFile(zipPath, modelsDir)) {
+                        Log.d(TAG, "Extraction complete for " + language);
+                        
+                        // Clean up zip file
+                        new File(zipPath).delete();
+                        
+                        updateDownloadStatus(language, DownloadStatus.COMPLETED);
+                        if (recognitionListener != null) {
+                            recognitionListener.onModelDownloadComplete(language, true);
+                        }
+                        callback.onComplete(true);
+                    } else {
+                        throw new Exception("Failed to extract model");
+                    }
+                } else {
+                    throw new Exception("Failed to download model");
+                }
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Model download failed for " + language, e);
+                updateDownloadStatus(language, DownloadStatus.FAILED);
+                if (recognitionListener != null) {
+                    recognitionListener.onModelDownloadComplete(language, false);
+                    recognitionListener.onError("Model download failed for " + language + ": " + e.getMessage());
+                }
+                callback.onComplete(false);
+            }
+        });
     }
     
     /**
