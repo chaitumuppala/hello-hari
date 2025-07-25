@@ -644,15 +644,47 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         addToCallLog("Audio compatibility test completed");
     }
     
-    // Implementation of CallDetectionListener interface methods
+    // Implementation of CallDetectionListener interface method
     
     @Override
+    public void onCallStateChanged(String state, String phoneNumber) {
+        Log.d(TAG, "Call state changed: " + state + " for number: " + phoneNumber);
+        
+        // Handle different call states
+        switch (state) {
+            case "INCOMING_CALL_STARTED":
+                onIncomingCallStarted(phoneNumber, System.currentTimeMillis() + "");
+                break;
+            case "INCOMING_CALL_ENDED":
+                onIncomingCallEnded(phoneNumber, System.currentTimeMillis() + "");
+                break;
+            case "OUTGOING_CALL_STARTED":
+                onOutgoingCallStarted(phoneNumber, System.currentTimeMillis() + "");
+                break;
+            case "OUTGOING_CALL_ENDED":
+                onOutgoingCallEnded(phoneNumber, System.currentTimeMillis() + "");
+                break;
+            case "MISSED_CALL":
+                onMissedCall(phoneNumber, System.currentTimeMillis() + "");
+                break;
+            case "CALL_STARTED":
+                onCallStarted(phoneNumber);
+                break;
+            case "CALL_ENDED":
+                onCallEnded(phoneNumber);
+                break;
+            default:
+                Log.w(TAG, "Unknown call state: " + state);
+        }
+    }
+    
+    // Helper methods for different call states (no longer @Override)
+    
     public void onCallStarted(String phoneNumber) {
         addToCallLog("Call started: " + phoneNumber);
         startCallRecording(phoneNumber);
     }
     
-    @Override
     public void onCallEnded(String phoneNumber) {
         addToCallLog("Call ended: " + phoneNumber);
         if (currentRecordingPath != null) {
@@ -660,14 +692,12 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         }
     }
     
-    @Override
     public void onIncomingCallStarted(String number, String time) {
         Log.d(TAG, "Incoming call started: " + number + " at " + time);
         addToCallLog("Incoming call: " + number);
         startCallRecording(number);
     }
     
-    @Override
     public void onIncomingCallEnded(String number, String time) {
         Log.d(TAG, "Incoming call ended: " + number + " at " + time);
         addToCallLog("Call ended: " + number);
@@ -676,14 +706,12 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         }
     }
     
-    @Override
     public void onOutgoingCallStarted(String number, String time) {
         Log.d(TAG, "Outgoing call started: " + number + " at " + time);
         addToCallLog("Outgoing call: " + number);
         startCallRecording(number);
     }
     
-    @Override
     public void onOutgoingCallEnded(String number, String time) {
         Log.d(TAG, "Outgoing call ended: " + number + " at " + time);
         addToCallLog("Call ended: " + number);
@@ -692,16 +720,9 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         }
     }
     
-    @Override
     public void onMissedCall(String number, String time) {
         Log.d(TAG, "Missed call: " + number + " at " + time);
         addToCallLog("Missed call: " + number);
-    }
-    
-    @Override
-    public void onCallStateChanged(String number, String state) {
-        Log.d(TAG, "Call state changed: " + number + ", state: " + state);
-        addToCallLog("Call state changed: " + state + " for " + number);
     }
     
     private void startCallRecording(String phoneNumber) {
