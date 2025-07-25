@@ -21,6 +21,16 @@ import org.vosk.android.SpeechService;
 public class VoskSpeechRecognizer {
     private static final String TAG = "VoskRecognizer";
     
+    // Static initializer to ensure VOSK library is loaded
+    static {
+        try {
+            System.loadLibrary("vosk");
+            Log.d(TAG, "VOSK native library loaded successfully");
+        } catch (UnsatisfiedLinkError e) {
+            Log.e(TAG, "Failed to load VOSK native library", e);
+        }
+    }
+    
     // Model configuration
     private static final String MODEL_BASE_URL = "https://alphacephei.com/vosk/models/";
     private static final String ENGLISH_MODEL = "vosk-model-small-en-us-0.15.zip";
@@ -186,30 +196,50 @@ public class VoskSpeechRecognizer {
                 
                 // Now try to initialize with any available model
                 boolean initSuccess = false;
-                if (downloadEnglish && isModelAvailable("en")) {
-                    loadModel("en");
-                    initSuccess = true;
-                    Log.d(TAG, "Initialized with English model");
-                } else if (downloadHindi && isModelAvailable("hi")) {
-                    loadModel("hi");
-                    initSuccess = true;
-                    Log.d(TAG, "Initialized with Hindi model");
-                } else if (downloadTelugu && isModelAvailable("te")) {
-                    loadModel("te");
-                    initSuccess = true;
-                    Log.d(TAG, "Initialized with Telugu model");
+                Exception initError = null;
+                
+                try {
+                    if (downloadEnglish && isModelAvailable("en")) {
+                        Log.d(TAG, "Attempting to load English model...");
+                        loadModel("en");
+                        initSuccess = true;
+                        Log.d(TAG, "Successfully initialized with English model");
+                    } else if (downloadHindi && isModelAvailable("hi")) {
+                        Log.d(TAG, "Attempting to load Hindi model...");
+                        loadModel("hi");
+                        initSuccess = true;
+                        Log.d(TAG, "Successfully initialized with Hindi model");
+                    } else if (downloadTelugu && isModelAvailable("te")) {
+                        Log.d(TAG, "Attempting to load Telugu model...");
+                        loadModel("te");
+                        initSuccess = true;
+                        Log.d(TAG, "Successfully initialized with Telugu model");
+                    } else {
+                        Log.w(TAG, "No valid models found after download. English available: " + 
+                              (downloadEnglish ? isModelAvailable("en") : "not requested") +
+                              ", Hindi available: " + (downloadHindi ? isModelAvailable("hi") : "not requested") +
+                              ", Telugu available: " + (downloadTelugu ? isModelAvailable("te") : "not requested"));
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Model loading failed during initialization", e);
+                    initError = e;
+                    initSuccess = false;
                 }
                 
                 isInitialized = initSuccess;
                 
                 if (recognitionListener != null) {
                     recognitionListener.onInitializationComplete(initSuccess);
+                    if (!initSuccess && initError != null) {
+                        recognitionListener.onError("Model loading failed: " + initError.getMessage());
+                    }
                 }
                 
                 if (initSuccess) {
                     Log.d(TAG, "VOSK initialization successful after model download");
                 } else {
-                    Log.e(TAG, "VOSK initialization failed - no valid models found after download");
+                    Log.e(TAG, "VOSK initialization failed - no valid models found after download" + 
+                          (initError != null ? ": " + initError.getMessage() : ""));
                 }
                 
             } catch (Exception e) {
@@ -579,20 +609,34 @@ public class VoskSpeechRecognizer {
      */
     private void loadModel(String language) throws IOException {
         String modelPath = getModelPath(language);
+        Log.d(TAG, "Attempting to load model for " + language + " at path: " + modelPath);
+        
         if (!isValidModel(modelPath)) {
-            throw new IOException("Model not available for language: " + language);
+            String error = "Model not available for language: " + language + " at path: " + modelPath;
+            Log.e(TAG, error);
+            throw new IOException(error);
         }
         
         // Close current model if exists
         if (currentModel != null) {
-            currentModel.close();
+            Log.d(TAG, "Closing existing model for " + currentLanguage);
+            try {
+                currentModel.close();
+            } catch (Exception e) {
+                Log.w(TAG, "Error closing previous model", e);
+            }
         }
         
-        Log.d(TAG, "Loading VOSK model for language: " + language);
-        currentModel = new Model(modelPath);
-        currentLanguage = language;
-        
-        Log.d(TAG, "Model loaded successfully for " + language);
+        try {
+            Log.d(TAG, "Creating new VOSK model for language: " + language);
+            currentModel = new Model(modelPath);
+            currentLanguage = language;
+            Log.d(TAG, "Model loaded successfully for " + language);
+        } catch (Exception e) {
+            String error = "Failed to create VOSK model for " + language + ": " + e.getMessage();
+            Log.e(TAG, error, e);
+            throw new IOException(error, e);
+        }
     }
     
     /**
