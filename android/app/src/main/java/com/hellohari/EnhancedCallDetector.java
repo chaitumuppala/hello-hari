@@ -328,9 +328,10 @@ public class EnhancedCallDetector {
         
         // Start initial risk assessment based on number
         int initialRisk = analyzer.analyzePhoneNumber(phoneNumber);
-        if (listener != null) {
-            listener.onRiskLevelChanged(initialRisk, "Initial number analysis");
-        }
+        Log.d(TAG, "Initial phone number analysis: " + initialRisk + "% for " + displayNumber);
+        
+        // Use updateRiskScore instead of calling listener directly
+        updateRiskScore(initialRisk, "Initial number analysis for " + displayNumber, "PHONE-ANALYSIS");
     }
 
     private void onCallAnswered(String phoneNumber) {
@@ -554,9 +555,9 @@ public class EnhancedCallDetector {
                 int finalRiskScore = analyzer.analyzeFinalRecording(recordingPath, phoneNumber);
                 String finalAnalysis = analyzer.getFinalAnalysisReport(finalRiskScore);
                 
-                if (listener != null) {
-                    listener.onRiskLevelChanged(finalRiskScore, finalAnalysis);
-                }
+                Log.d(TAG, "Final recording analysis: " + finalRiskScore + "%");
+                // Use updateRiskScore instead of calling listener directly
+                updateRiskScore(finalRiskScore, finalAnalysis, "FINAL-RECORDING");
                 
                 // Show final result
                 String resultMessage;
@@ -584,23 +585,36 @@ public class EnhancedCallDetector {
     private static class CallRecordingAnalyzer {
         
         public int analyzePhoneNumber(String phoneNumber) {
-            if (phoneNumber == null) return 30;
+            Log.d(TAG, "=== ANALYZE PHONE NUMBER ===");
+            Log.d(TAG, "Phone number: " + (phoneNumber != null ? phoneNumber : "NULL"));
+            
+            if (phoneNumber == null) {
+                Log.d(TAG, "Phone number is NULL - returning 30%");
+                return 30;
+            }
             
             // Simple risk assessment based on number patterns
             int risk = 10;
+            Log.d(TAG, "Base risk: " + risk + "%");
             
             // Check for common scam patterns
             if (phoneNumber.startsWith("+1800") || phoneNumber.startsWith("1800")) {
                 risk += 20; // Toll-free numbers often used by scammers
+                Log.d(TAG, "Toll-free number detected: +" + 20 + "% (total: " + risk + "%)");
             }
             if (phoneNumber.length() < 10) {
                 risk += 25; // Short numbers suspicious
+                Log.d(TAG, "Short number detected: +" + 25 + "% (total: " + risk + "%)");
             }
             if (phoneNumber.contains("0000") || phoneNumber.contains("1111")) {
                 risk += 15; // Sequential patterns
+                Log.d(TAG, "Sequential pattern detected: +" + 15 + "% (total: " + risk + "%)");
             }
             
-            return Math.min(risk, 100);
+            int finalRisk = Math.min(risk, 100);
+            Log.d(TAG, "Final phone analysis risk: " + finalRisk + "%");
+            Log.d(TAG, "=== END ANALYZE PHONE NUMBER ===");
+            return finalRisk;
         }
         
         public int performRealTimeAnalysis(int analysisCount, String phoneNumber) {
