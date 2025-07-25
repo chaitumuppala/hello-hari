@@ -518,11 +518,18 @@ public class VoskSpeechRecognizer {
             ZipEntry entry;
             int extractedFiles = 0;
             
+            // Ensure extraction directory exists
+            File extractDir = new File(extractPath);
+            if (!extractDir.exists()) {
+                boolean created = extractDir.mkdirs();
+                Log.d(TAG, "Created extraction directory: " + extractPath + " - " + created);
+            }
+            
             while ((entry = zis.getNextEntry()) != null) {
                 String entryName = entry.getName();
-                String filePath = extractPath + entryName;
+                String filePath = extractPath + "/" + entryName; // Fixed: added missing "/"
                 
-                Log.d(TAG, "Extracting: " + entryName);
+                Log.d(TAG, "Processing ZIP entry: " + entryName + " (size: " + entry.getSize() + ")");
                 
                 if (entry.isDirectory()) {
                     File dir = new File(filePath);
@@ -536,15 +543,50 @@ public class VoskSpeechRecognizer {
                         parentDir.mkdirs();
                     }
                     
-                    // Extract file
-                    FileOutputStream fos = new FileOutputStream(filePath);
-                    byte[] buffer = new byte[8192];
-                    int length;
-                    while ((length = zis.read(buffer)) > 0) {
-                        fos.write(buffer, 0, length);
+                    // Extract file with better error handling and verification
+                    try {
+                        FileOutputStream fos = new FileOutputStream(filePath);
+                        BufferedOutputStream bos = new BufferedOutputStream(fos);
+                        byte[] buffer = new byte[16384]; // Larger buffer for better performance
+                        int length;
+                        long totalBytes = 0;
+                        long expectedSize = entry.getSize();
+                        
+                        while ((length = zis.read(buffer)) > 0) {
+                            bos.write(buffer, 0, length);
+                            totalBytes += length;
+                        }
+                        
+                        bos.flush();
+                        bos.close();
+                        fos.close();
+                        
+                        // Verify file size if known
+                        if (expectedSize > 0 && totalBytes != expectedSize) {
+                            Log.w(TAG, "Size mismatch for " + entryName + ": expected " + expectedSize + ", got " + totalBytes);
+                        }
+                        
+                        extractedFiles++;
+                        Log.d(TAG, "Extracted: " + entryName + " (" + totalBytes + " bytes)");
+                        
+                        // Special verification for critical VOSK files
+                        if (entryName.endsWith("graph/HCLG.fst") || entryName.endsWith("graph/HCLr.fst") || 
+                            entryName.endsWith("graph/Gr.fst") || entryName.endsWith("am/final.mdl") || 
+                            entryName.endsWith("conf/model.conf") || entryName.endsWith("conf/mfcc.conf") ||
+                            entryName.endsWith("graph/phones/word_boundary.int")) {
+                            File extractedFile = new File(filePath);
+                            if (extractedFile.exists() && extractedFile.length() > 0) {
+                                Log.i(TAG, "CRITICAL FILE: " + entryName + " extracted successfully - " + extractedFile.length() + " bytes");
+                            } else {
+                                Log.e(TAG, "CRITICAL FILE: " + entryName + " extraction failed or empty!");
+                                // Don't fail immediately, but log the issue
+                            }
+                        }
+                        
+                    } catch (Exception fileEx) {
+                        Log.e(TAG, "Failed to extract file: " + entryName, fileEx);
+                        // Continue with other files even if one fails
                     }
-                    fos.close();
-                    extractedFiles++;
                 }
                 zis.closeEntry();
             }
@@ -608,16 +650,40 @@ public class VoskSpeechRecognizer {
             }
         }
         
-        // Check for required VOSK model files
-        String[] requiredFiles = {"conf/model.conf", "am/final.mdl", "graph/HCLG.fst"};
+        // Check for required VOSK model files based on official documentation
+        // See: https://alphacephei.com/vosk/models
+        String[] requiredFiles = {
+            "conf/model.conf", 
+            "conf/mfcc.conf",
+            "am/final.mdl", 
+            "graph/phones/word_boundary.int"
+        };
+        
         for (String file : requiredFiles) {
             File requiredFile = new File(modelDir, file);
             if (!requiredFile.exists()) {
                 Log.w(TAG, "Missing required model file: " + file + " at " + requiredFile.getAbsolutePath());
                 return false;
             } else {
-                Log.d(TAG, "Found required file: " + file);
+                Log.d(TAG, "Found required file: " + file + " (" + requiredFile.length() + " bytes)");
             }
+        }
+        
+        // Check for graph files - can be either single HCLG.fst or split HCLr.fst + Gr.fst
+        File hclgFile = new File(modelDir, "graph/HCLG.fst");
+        File hclrFile = new File(modelDir, "graph/HCLr.fst");
+        File grFile = new File(modelDir, "graph/Gr.fst");
+        
+        boolean hasSingleGraph = hclgFile.exists();
+        boolean hasSplitGraph = hclrFile.exists() && grFile.exists();
+        
+        if (hasSingleGraph) {
+            Log.d(TAG, "Found single graph: HCLG.fst (" + hclgFile.length() + " bytes)");
+        } else if (hasSplitGraph) {
+            Log.d(TAG, "Found split graph: HCLr.fst (" + hclrFile.length() + " bytes) + Gr.fst (" + grFile.length() + " bytes)");
+        } else {
+            Log.w(TAG, "Missing graph files - need either HCLG.fst OR (HCLr.fst + Gr.fst)");
+            return false;
         }
         
         Log.d(TAG, "Model validation successful for: " + modelPath);
