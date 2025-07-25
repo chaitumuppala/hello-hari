@@ -93,6 +93,21 @@ public class EnhancedCallDetector {
             public void onError(String error) {
                 Log.e(TAG, "VOSK recognition error: " + error);
             }
+            
+            @Override
+            public void onInitializationComplete(boolean success) {
+                Log.d(TAG, "VOSK initialization in call detector: " + success);
+            }
+            
+            @Override
+            public void onModelDownloadProgress(String language, int progress) {
+                Log.d(TAG, "Model download progress for " + language + ": " + progress + "%");
+            }
+            
+            @Override
+            public void onModelDownloadComplete(String language, boolean success) {
+                Log.d(TAG, "Model download complete for " + language + ": " + success);
+            }
         });
     }
     
