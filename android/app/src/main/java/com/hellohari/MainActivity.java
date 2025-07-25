@@ -141,6 +141,12 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
                         if (success) {
                             addToCallLog("AI initialization complete - Protection models ready!");
                             updateVoskDownloadUI();
+                            
+                            // Connect VOSK to call detector for real-time analysis
+                            if (callDetector != null) {
+                                callDetector.setVoskRecognizer(voskRecognizer);
+                                addToCallLog("Real-time speech analysis activated!");
+                            }
                         } else {
                             addToCallLog("AI initialization failed - select and download models above");
                         }
@@ -641,6 +647,12 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
             
             callDetector = new EnhancedCallDetector(this);
             callDetector.setCallDetectionListener(this);
+            
+            // Connect VOSK to EnhancedCallDetector for real-time analysis
+            if (voskRecognizer != null) {
+                callDetector.setVoskRecognizer(voskRecognizer);
+                addToCallLog("VOSK connected to real-time call detector");
+            }
             
             addToCallLog("Core components initialized successfully");
         } catch (Exception e) {

@@ -1,8 +1,13 @@
 package com.hellohari;
 
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.os.AsyncTask;
 import android.util.Log;
+import androidx.core.content.ContextCompat;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -44,6 +49,15 @@ public class VoskSpeechRecognizer {
     private boolean isInitialized = false;
     private String currentLanguage = "en";
     private ExecutorService downloadExecutor;
+    
+    // Real-time audio processing
+    private AudioRecord audioRecord;
+    private boolean isListening = false;
+    private Thread audioThread;
+    private Recognizer recognizer;
+    private static final int SAMPLE_RATE = 16000;
+    private static final int BUFFER_SIZE = AudioRecord.getMinBufferSize(SAMPLE_RATE, 
+        AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT) * 2;
     
     // Model download status
     public enum DownloadStatus {
@@ -899,10 +913,199 @@ public class VoskSpeechRecognizer {
     }
     
     /**
+     * Start real-time audio recognition
+     */
+    public synchronized void startListening() {
+        if (isListening || !isInitialized || currentModel == null) {
+            Log.w(TAG, "Cannot start listening - already listening or not initialized");
+            return;
+        }
+        
+        // Check for audio recording permission
+        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) 
+            != PackageManager.PERMISSION_GRANTED) {
+            Log.e(TAG, "RECORD_AUDIO permission not granted");
+            if (recognitionListener != null) {
+                recognitionListener.onError("Microphone permission required for real-time analysis");
+            }
+            return;
+        }
+        
+        try {
+            // Create recognizer for real-time processing
+            recognizer = new Recognizer(currentModel, SAMPLE_RATE);
+            
+            // Initialize AudioRecord
+            audioRecord = new AudioRecord(
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION, // Better for call audio
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                BUFFER_SIZE
+            );
+            
+            if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
+                Log.e(TAG, "AudioRecord initialization failed");
+                if (recognitionListener != null) {
+                    recognitionListener.onError("Failed to initialize audio recording");
+                }
+                return;
+            }
+            
+            isListening = true;
+            audioRecord.startRecording();
+            
+            // Start audio processing thread
+            audioThread = new Thread(this::processAudioData);
+            audioThread.start();
+            
+            Log.d(TAG, "Real-time listening started for language: " + currentLanguage);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to start listening", e);
+            if (recognitionListener != null) {
+                recognitionListener.onError("Failed to start listening: " + e.getMessage());
+            }
+            stopListening();
+        }
+    }
+    
+    /**
+     * Stop real-time audio recognition
+     */
+    public synchronized void stopListening() {
+        if (!isListening) {
+            return;
+        }
+        
+        isListening = false;
+        
+        try {
+            if (audioRecord != null) {
+                audioRecord.stop();
+                audioRecord.release();
+                audioRecord = null;
+            }
+            
+            if (audioThread != null) {
+                audioThread.interrupt();
+                audioThread = null;
+            }
+            
+            if (recognizer != null) {
+                recognizer.close();
+                recognizer = null;
+            }
+            
+            Log.d(TAG, "Real-time listening stopped");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error stopping listening", e);
+        }
+    }
+    
+    /**
+     * Process audio data in real-time
+     */
+    private void processAudioData() {
+        byte[] buffer = new byte[BUFFER_SIZE];
+        
+        while (isListening && audioRecord != null) {
+            try {
+                int bytesRead = audioRecord.read(buffer, 0, buffer.length);
+                
+                if (bytesRead > 0 && recognizer != null) {
+                    if (recognizer.acceptWaveForm(buffer, bytesRead)) {
+                        // Final result
+                        String result = recognizer.getFinalResult();
+                        processFinalResult(result);
+                    } else {
+                        // Partial result
+                        String partial = recognizer.getPartialResult();
+                        processPartialResult(partial);
+                    }
+                }
+                
+            } catch (Exception e) {
+                if (isListening) {
+                    Log.e(TAG, "Error processing audio data", e);
+                    if (recognitionListener != null) {
+                        recognitionListener.onError("Audio processing error: " + e.getMessage());
+                    }
+                }
+                break;
+            }
+        }
+    }
+    
+    /**
+     * Process partial recognition results
+     */
+    private void processPartialResult(String jsonResult) {
+        try {
+            if (jsonResult != null && !jsonResult.trim().isEmpty() && recognitionListener != null) {
+                // Parse JSON and extract text
+                String text = extractTextFromJson(jsonResult);
+                if (text != null && !text.trim().isEmpty()) {
+                    recognitionListener.onPartialResult(text, currentLanguage);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error processing partial result", e);
+        }
+    }
+    
+    /**
+     * Process final recognition results
+     */
+    private void processFinalResult(String jsonResult) {
+        try {
+            if (jsonResult != null && !jsonResult.trim().isEmpty() && recognitionListener != null) {
+                // Parse JSON and extract text
+                String text = extractTextFromJson(jsonResult);
+                if (text != null && !text.trim().isEmpty()) {
+                    recognitionListener.onFinalResult(text, currentLanguage, 1.0f);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error processing final result", e);
+        }
+    }
+    
+    /**
+     * Extract text from VOSK JSON result
+     */
+    private String extractTextFromJson(String jsonResult) {
+        try {
+            // Simple JSON parsing - look for "text" field
+            if (jsonResult.contains("\"text\"")) {
+                int start = jsonResult.indexOf("\"text\":\"") + 8;
+                int end = jsonResult.indexOf("\"", start);
+                if (start > 7 && end > start) {
+                    return jsonResult.substring(start, end);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error extracting text from JSON", e);
+        }
+        return null;
+    }
+    
+    /**
+     * Check if currently listening
+     */
+    public boolean isListening() {
+        return isListening;
+    }
+    
+    /**
      * Clean up resources
      */
     public void cleanup() {
         try {
+            // Stop real-time listening
+            stopListening();
+            
             if (speechService != null) {
                 speechService.stop();
                 speechService = null;

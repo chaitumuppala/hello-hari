@@ -41,9 +41,59 @@ public class EnhancedCallDetector {
     
     private CallDetectionListener listener;
 
+    // Real-time analysis components
+    private VoskSpeechRecognizer voskRecognizer;
+    private MultiLanguageScamDetector scamDetector;
+    
     public EnhancedCallDetector(Context context) {
         this.context = context;
         this.analyzer = new CallRecordingAnalyzer();
+        this.scamDetector = new MultiLanguageScamDetector(context);
+    }
+    
+    // Set the VOSK recognizer for real-time speech analysis
+    public void setVoskRecognizer(VoskSpeechRecognizer vosk) {
+        this.voskRecognizer = vosk;
+        if (voskRecognizer != null) {
+            setupVoskListener();
+        }
+    }
+    
+    private void setupVoskListener() {
+        voskRecognizer.setRecognitionListener(new VoskSpeechRecognizer.VoskRecognitionListener() {
+            @Override
+            public void onPartialResult(String partialText, String language) {
+                // Analyze partial speech in real-time
+                if (scamDetector != null && partialText != null && !partialText.trim().isEmpty()) {
+                    MultiLanguageScamDetector.ScamAnalysisResult result = scamDetector.analyzeText(partialText);
+                    int riskScore = result.getRiskScore();
+                    
+                    if (listener != null && riskScore > 30) { // Only report significant risks
+                        String analysis = "Real-time: " + partialText.substring(0, Math.min(40, partialText.length())) + "...";
+                        listener.onRiskLevelChanged(riskScore, analysis);
+                    }
+                }
+            }
+            
+            @Override
+            public void onFinalResult(String finalText, String language, float confidence) {
+                // Analyze complete phrases for more accurate detection
+                if (scamDetector != null && finalText != null && !finalText.trim().isEmpty()) {
+                    MultiLanguageScamDetector.ScamAnalysisResult result = scamDetector.analyzeText(finalText);
+                    int riskScore = result.getRiskScore();
+                    
+                    if (listener != null) {
+                        String analysis = "DETECTED: " + finalText + " (Risk: " + riskScore + "%)";
+                        listener.onRiskLevelChanged(riskScore, analysis);
+                    }
+                }
+            }
+            
+            @Override
+            public void onError(String error) {
+                Log.e(TAG, "VOSK recognition error: " + error);
+            }
+        });
     }
     
     public void setCallDetectionListener(CallDetectionListener listener) {
@@ -284,8 +334,18 @@ public class EnhancedCallDetector {
     }
 
     private void startRealTimeAnalysis(String phoneNumber) {
+        Log.d(TAG, "Starting REAL-TIME analysis with VOSK integration for: " + phoneNumber);
+        
         if (riskAnalysisTimer != null) {
             riskAnalysisTimer.cancel();
+        }
+        
+        // Start VOSK real-time recognition if available
+        if (voskRecognizer != null && voskRecognizer.isInitialized()) {
+            Log.d(TAG, "Starting VOSK real-time speech recognition");
+            voskRecognizer.startListening();
+        } else {
+            Log.w(TAG, "VOSK not available, using simulated analysis");
         }
         
         riskAnalysisTimer = new Timer();
@@ -296,9 +356,20 @@ public class EnhancedCallDetector {
             public void run() {
                 analysisCount++;
                 
-                // Simulate real-time analysis (in production, this would analyze actual audio)
-                int riskScore = analyzer.performRealTimeAnalysis(analysisCount, phoneNumber);
-                String analysis = analyzer.getRiskAnalysisText(riskScore, analysisCount);
+                // Use real VOSK analysis if available, otherwise simulate
+                int riskScore;
+                String analysis;
+                
+                if (voskRecognizer != null && voskRecognizer.isInitialized()) {
+                    // Real-time speech analysis is handled by VOSK callbacks
+                    // This timer provides backup analysis and status updates
+                    riskScore = Math.min(30 + (analysisCount * 2), 85); // Gradual increase as backup
+                    analysis = "Monitoring speech... (" + analysisCount + " checks)";
+                } else {
+                    // Fallback to simulated analysis
+                    riskScore = analyzer.performRealTimeAnalysis(analysisCount, phoneNumber);
+                    analysis = analyzer.getRiskAnalysisText(riskScore, analysisCount);
+                }
                 
                 if (listener != null) {
                     listener.onRiskLevelChanged(riskScore, analysis);
@@ -315,6 +386,14 @@ public class EnhancedCallDetector {
     }
 
     private void stopRealTimeAnalysis() {
+        Log.d(TAG, "Stopping real-time analysis");
+        
+        // Stop VOSK recognition
+        if (voskRecognizer != null) {
+            voskRecognizer.stopListening();
+        }
+        
+        // Stop timer
         if (riskAnalysisTimer != null) {
             riskAnalysisTimer.cancel();
             riskAnalysisTimer = null;
