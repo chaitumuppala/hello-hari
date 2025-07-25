@@ -1119,6 +1119,15 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         addToCallLog("=== PATTERN TESTING COMPLETED ===");
     }
     
+    private String getLanguageName(String languageCode) {
+        switch (languageCode) {
+            case "en": return "English";
+            case "hi": return "Hindi";
+            case "te": return "Telugu";
+            default: return languageCode;
+        }
+    }
+    
     private void clearCallLogs() {
         callLogs.clear();
         addToCallLog("Call logs cleared at " + new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date()));
