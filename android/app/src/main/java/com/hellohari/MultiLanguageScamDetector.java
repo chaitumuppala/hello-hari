@@ -978,6 +978,50 @@ public String getRiskAssessment(int riskScore) {
     } else if (riskScore > 40) {
         return "MEDIUM RISK - Suspicious patterns detected";
     } else {
+        return "LOW RISK - Appears legitimate";
+    }
+}
+
+// Method for testing text analysis without audio
+public ScamAnalysisResult analyzeText(String text) {
+    if (text == null || text.trim().isEmpty()) {
+        return new ScamAnalysisResult(0, new ArrayList<>(), "No text provided", "Unknown", new ArrayList<>());
+    }
+    
+    int riskScore = 0;
+    List<String> detectedPatterns = new ArrayList<>();
+    
+    String lowerText = text.toLowerCase().trim();
+    
+    // Check Digital Arrest patterns (highest priority)
+    riskScore += checkPatterns(lowerText, DIGITAL_ARREST_PATTERNS, detectedPatterns, "DIGITAL_ARREST");
+    
+    // Check other pattern categories
+    riskScore += checkPatterns(lowerText, TRAI_PATTERNS, detectedPatterns, "TRAI_SCAM");
+    riskScore += checkPatterns(lowerText, COURIER_PATTERNS, detectedPatterns, "COURIER_SCAM");
+    riskScore += checkPatterns(lowerText, INVESTMENT_PATTERNS, detectedPatterns, "INVESTMENT_FRAUD");
+    riskScore += checkPatterns(lowerText, FAMILY_EMERGENCY_PATTERNS, detectedPatterns, "FAMILY_EMERGENCY");
+    riskScore += checkPatterns(lowerText, ROMANCE_PATTERNS, detectedPatterns, "ROMANCE_SCAM");
+    riskScore += checkPatterns(lowerText, HINDI_ADVANCED_PATTERNS, detectedPatterns, "HINDI_SCAM");
+    riskScore += checkPatterns(lowerText, TELUGU_ADVANCED_PATTERNS, detectedPatterns, "TELUGU_SCAM");
+    riskScore += checkPatterns(lowerText, HINGLISH_PATTERNS, detectedPatterns, "HINGLISH_SCAM");
+    
+    // Check indicators
+    riskScore += checkUrgencyIndicators(lowerText, detectedPatterns);
+    riskScore += checkAuthorityIndicators(lowerText, detectedPatterns);
+    riskScore += checkFinancialRiskTerms(lowerText, detectedPatterns);
+    riskScore += checkTechSupportTerms(lowerText, detectedPatterns);
+    
+    // Cap the risk score at 100
+    riskScore = Math.min(riskScore, 100);
+    
+    String riskLevel = getRiskAssessment(riskScore);
+    String analysisMessage = generateAnalysisMessage(riskScore, detectedPatterns, "Text Analysis", "TEXT_ANALYSIS", new HashMap<>());
+    
+    return new ScamAnalysisResult(riskScore, detectedPatterns, analysisMessage, "Text Analysis", Arrays.asList("Mixed"));
+}
+
+}
         return "LOW RISK - Call appears normal";
     }
 }

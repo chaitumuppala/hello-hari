@@ -69,6 +69,89 @@ public class VoskSpeechRecognizer {
     }
     
     /**
+     * Check for existing models without auto-downloading
+     */
+    public void checkExistingModels() {
+        downloadExecutor.execute(() -> {
+            try {
+                Log.d(TAG, "Checking for existing VOSK models...");
+                
+                // Check which models are already available
+                boolean englishAvailable = isModelAvailable("en");
+                boolean hindiAvailable = isModelAvailable("hi");
+                boolean teluguAvailable = isModelAvailable("te");
+                
+                if (englishAvailable || hindiAvailable || teluguAvailable) {
+                    // At least one model is available, initialize with it
+                    String firstAvailable = englishAvailable ? "en" : (hindiAvailable ? "hi" : "te");
+                    loadModel(firstAvailable);
+                    isInitialized = true;
+                    if (recognitionListener != null) {
+                        recognitionListener.onInitializationComplete(true);
+                    }
+                    Log.d(TAG, "VOSK initialized with existing models");
+                } else {
+                    Log.d(TAG, "No existing models found");
+                    if (recognitionListener != null) {
+                        recognitionListener.onInitializationComplete(false);
+                    }
+                }
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Model check failed", e);
+                if (recognitionListener != null) {
+                    recognitionListener.onInitializationComplete(false);
+                    recognitionListener.onError("Model check failed: " + e.getMessage());
+                }
+            }
+        });
+    }
+    
+    /**
+     * Download only selected models
+     */
+    public void downloadSelectedModels(boolean downloadEnglish, boolean downloadHindi, boolean downloadTelugu) {
+        downloadExecutor.execute(() -> {
+            try {
+                Log.d(TAG, "Starting download for selected models...");
+                
+                if (downloadEnglish) {
+                    checkAndDownloadModel("en", ENGLISH_MODEL);
+                }
+                if (downloadHindi) {
+                    checkAndDownloadModel("hi", HINDI_MODEL);
+                }
+                if (downloadTelugu) {
+                    checkAndDownloadModel("te", TELUGU_MODEL);
+                }
+                
+                // Initialize with first available model after download
+                if (downloadEnglish && isModelAvailable("en")) {
+                    loadModel("en");
+                    isInitialized = true;
+                } else if (downloadHindi && isModelAvailable("hi")) {
+                    loadModel("hi");
+                    isInitialized = true;
+                } else if (downloadTelugu && isModelAvailable("te")) {
+                    loadModel("te");
+                    isInitialized = true;
+                }
+                
+                if (recognitionListener != null) {
+                    recognitionListener.onInitializationComplete(isInitialized);
+                }
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Selected model download failed", e);
+                if (recognitionListener != null) {
+                    recognitionListener.onInitializationComplete(false);
+                    recognitionListener.onError("Download failed: " + e.getMessage());
+                }
+            }
+        });
+    }
+    
+    /**
      * Initialize VOSK with automatic model downloading
      */
     public void initialize() {

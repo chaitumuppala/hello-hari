@@ -61,6 +61,14 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
     private Button downloadModelsButton;
     private TextView downloadSizeText;
     
+    // Language Selection Components
+    private android.widget.CheckBox englishCheckbox;
+    private android.widget.CheckBox hindiCheckbox;
+    private android.widget.CheckBox teluguCheckbox;
+    private boolean englishSelected = false;
+    private boolean hindiSelected = false;
+    private boolean teluguSelected = false;
+    
     // State Management
     private boolean isProtectionActive = false;
     private boolean isVoskInitialized = false;
@@ -130,10 +138,10 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
                     isVoskInitialized = success;
                     runOnUiThread(() -> {
                         if (success) {
-                            addToCallLog("VOSK initialization complete - Real AI ready!");
+                            addToCallLog("VOSK initialization complete - AI models ready!");
                             updateVoskDownloadUI();
                         } else {
-                            addToCallLog("VOSK initialization failed - using simulation mode");
+                            addToCallLog("VOSK initialization failed - select and download models above");
                         }
                         updateSystemStatus();
                     });
@@ -150,7 +158,7 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
                 public void onModelDownloadComplete(String language, boolean success) {
                     runOnUiThread(() -> {
                         if (success) {
-                            addToCallLog(language + " model download completed");
+                            addToCallLog(language + " model download completed successfully!");
                         } else {
                             addToCallLog(language + " model download failed");
                         }
@@ -159,8 +167,9 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
                 }
             });
             
-            // Start VOSK initialization (will auto-download models)
-            voskRecognizer.initialize();
+            // Check for existing models but don't auto-download
+            voskRecognizer.checkExistingModels();
+            addToCallLog("VOSK initialized - Please select languages to download above");
             
         } catch (Exception e) {
             Log.e(TAG, "VOSK initialization error", e);
@@ -283,8 +292,22 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         title.setPadding(0, 0, 0, 16);
         modelDownloadCard.addView(title);
         
+        // Language selection section
+        TextView languageLabel = new TextView(this);
+        languageLabel.setText("Select Languages to Download:");
+        languageLabel.setTextSize(14);
+        languageLabel.setTextColor(Color.parseColor("#374151"));
+        languageLabel.setTypeface(null, Typeface.BOLD);
+        languageLabel.setPadding(0, 0, 0, 12);
+        modelDownloadCard.addView(languageLabel);
+        
+        // Create language checkboxes
+        createLanguageSelection();
+        
+        addSpacing(modelDownloadCard, 16);
+        
         downloadStatusText = new TextView(this);
-        downloadStatusText.setText("Checking model availability...");
+        downloadStatusText.setText("Select languages above to start download");
         downloadStatusText.setTextSize(14);
         downloadStatusText.setTextColor(Color.parseColor("#6B7280"));
         modelDownloadCard.addView(downloadStatusText);
@@ -292,7 +315,7 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         addSpacing(modelDownloadCard, 12);
         
         downloadSizeText = new TextView(this);
-        downloadSizeText.setText("Download size: Calculating...");
+        downloadSizeText.setText("Total download size: 0 MB");
         downloadSizeText.setTextSize(12);
         downloadSizeText.setTextColor(Color.parseColor("#9CA3AF"));
         modelDownloadCard.addView(downloadSizeText);
@@ -310,8 +333,9 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         
         addSpacing(modelDownloadCard, 16);
         
-        downloadModelsButton = createActionButton("Download AI Models", "#2563EB");
-        downloadModelsButton.setOnClickListener(v -> startModelDownload());
+        downloadModelsButton = createActionButton("Download Selected Models", "#2563EB");
+        downloadModelsButton.setOnClickListener(v -> startSelectedModelsDownload());
+        downloadModelsButton.setEnabled(false); // Enable when languages are selected
         modelDownloadCard.addView(downloadModelsButton);
         
         rootContainer.addView(modelDownloadCard);
@@ -390,21 +414,59 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
     }
     
     private void createQuickActions(LinearLayout parent) {
-        LinearLayout actionsRow = new LinearLayout(this);
-        actionsRow.setOrientation(LinearLayout.HORIZONTAL);
-        actionsRow.setWeightSum(2.0f);
+        // First row - AI Testing
+        LinearLayout aiTestRow = new LinearLayout(this);
+        aiTestRow.setOrientation(LinearLayout.HORIZONTAL);
+        aiTestRow.setWeightSum(2.0f);
         
         Button testAIButton = createActionButton("Test VOSK AI", "#2563EB");
         testAIButton.setOnClickListener(v -> testVoskIntegration());
-        actionsRow.addView(testAIButton);
+        aiTestRow.addView(testAIButton);
         
-        addHorizontalSpacing(actionsRow, 12);
+        addHorizontalSpacing(aiTestRow, 12);
         
         Button testAudioButton = createActionButton("Test Audio", "#6B7280");
         testAudioButton.setOnClickListener(v -> testAudioCompatibility());
-        actionsRow.addView(testAudioButton);
+        aiTestRow.addView(testAudioButton);
         
-        parent.addView(actionsRow);
+        parent.addView(aiTestRow);
+        addSpacing(parent, 12);
+        
+        // Second row - Mock Testing
+        LinearLayout mockTestRow = new LinearLayout(this);
+        mockTestRow.setOrientation(LinearLayout.HORIZONTAL);
+        mockTestRow.setWeightSum(2.0f);
+        
+        Button mockCallButton = createActionButton("Mock Scam Call", "#EF4444");
+        mockCallButton.setOnClickListener(v -> runMockScamCall());
+        mockTestRow.addView(mockCallButton);
+        
+        addHorizontalSpacing(mockTestRow, 12);
+        
+        Button mockSafeButton = createActionButton("Mock Safe Call", "#10B981");
+        mockSafeButton.setOnClickListener(v -> runMockSafeCall());
+        mockTestRow.addView(mockSafeButton);
+        
+        parent.addView(mockTestRow);
+        addSpacing(parent, 12);
+        
+        // Third row - Advanced Testing
+        LinearLayout advancedTestRow = new LinearLayout(this);
+        advancedTestRow.setOrientation(LinearLayout.HORIZONTAL);
+        advancedTestRow.setWeightSum(2.0f);
+        
+        Button patternTestButton = createActionButton("Test Patterns", "#F59E0B");
+        patternTestButton.setOnClickListener(v -> testScamPatterns());
+        advancedTestRow.addView(patternTestButton);
+        
+        addHorizontalSpacing(advancedTestRow, 12);
+        
+        Button clearLogsButton = createActionButton("Clear Logs", "#6B7280");
+        clearLogsButton.setOnClickListener(v -> clearCallLogs());
+        advancedTestRow.addView(clearLogsButton);
+        
+        parent.addView(advancedTestRow);
+        addSpacing(parent, 16);
     }
     
     private void createCallLogCard(LinearLayout parent) {
@@ -483,6 +545,80 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
             (int)(dpWidth * getResources().getDisplayMetrics().density), LinearLayout.LayoutParams.MATCH_PARENT);
         spacer.setLayoutParams(params);
         parent.addView(spacer);
+    }
+    
+    private void createLanguageSelection() {
+        // Create checkboxes for language selection
+        englishCheckbox = new android.widget.CheckBox(this);
+        englishCheckbox.setText("English (20 MB)");
+        englishCheckbox.setTextColor(Color.parseColor("#374151"));
+        englishCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            englishSelected = isChecked;
+            updateDownloadButton();
+        });
+        modelDownloadCard.addView(englishCheckbox);
+        
+        hindiCheckbox = new android.widget.CheckBox(this);
+        hindiCheckbox.setText("Hindi/हिंदी (25 MB)");
+        hindiCheckbox.setTextColor(Color.parseColor("#374151"));
+        hindiCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            hindiSelected = isChecked;
+            updateDownloadButton();
+        });
+        modelDownloadCard.addView(hindiCheckbox);
+        
+        teluguCheckbox = new android.widget.CheckBox(this);
+        teluguCheckbox.setText("Telugu/తెలుగు (30 MB)");
+        teluguCheckbox.setTextColor(Color.parseColor("#374151"));
+        teluguCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            teluguSelected = isChecked;
+            updateDownloadButton();
+        });
+        modelDownloadCard.addView(teluguCheckbox);
+    }
+    
+    private void updateDownloadButton() {
+        int totalSize = 0;
+        int selectedCount = 0;
+        
+        if (englishSelected) {
+            totalSize += 20;
+            selectedCount++;
+        }
+        if (hindiSelected) {
+            totalSize += 25;
+            selectedCount++;
+        }
+        if (teluguSelected) {
+            totalSize += 30;
+            selectedCount++;
+        }
+        
+        downloadSizeText.setText("Total download size: " + totalSize + " MB");
+        
+        if (selectedCount > 0) {
+            downloadModelsButton.setEnabled(true);
+            downloadModelsButton.setText("Download " + selectedCount + " Model(s) (" + totalSize + " MB)");
+        } else {
+            downloadModelsButton.setEnabled(false);
+            downloadModelsButton.setText("Select Languages to Download");
+        }
+    }
+    
+    private void startSelectedModelsDownload() {
+        if (!englishSelected && !hindiSelected && !teluguSelected) {
+            addToCallLog("Please select at least one language to download");
+            return;
+        }
+        
+        downloadModelsButton.setEnabled(false);
+        downloadModelsButton.setText("Downloading...");
+        addToCallLog("Starting download for selected language models...");
+        
+        // Initialize VOSK with selected languages only
+        if (voskRecognizer != null) {
+            voskRecognizer.downloadSelectedModels(englishSelected, hindiSelected, teluguSelected);
+        }
     }
     
     private void initializeComponents() {
@@ -845,5 +981,147 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         } catch (Exception e) {
             Log.e(TAG, "Cleanup error", e);
         }
+    }
+    
+    // Mock Testing Methods
+    
+    private void runMockScamCall() {
+        addToCallLog("=== MOCK SCAM CALL TEST ===");
+        
+        // Simulate incoming scam call
+        String mockScamNumber = "+1-800-SCAMMER";
+        addToCallLog("Simulating incoming call from: " + mockScamNumber);
+        
+        // Simulate call start
+        onCallStateChanged("INCOMING_CALL_STARTED", mockScamNumber);
+        
+        // Simulate scam conversation patterns
+        String[] scamPhrases = {
+            "Your social security number has been suspended",
+            "This is IRS calling about tax fraud",
+            "Your bank account will be frozen",
+            "You have won a lottery prize of $50,000",
+            "Pay immediately or face legal action"
+        };
+        
+        // Test each phrase
+        for (String phrase : scamPhrases) {
+            addToCallLog("Mock Transcription: \"" + phrase + "\"");
+            
+            if (aiDetector != null) {
+                // Test scam detection
+                int riskScore = aiDetector.analyzeText(phrase, "en");
+                addToCallLog("Risk Analysis: " + riskScore + "% risk detected");
+                updateRiskLevel(riskScore, "SCAM DETECTED: " + phrase.substring(0, Math.min(30, phrase.length())) + "...");
+            }
+            
+            try {
+                Thread.sleep(1500); // Pause between phrases
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        
+        // Simulate call end
+        addToCallLog("Mock call ended after 45 seconds");
+        onCallStateChanged("INCOMING_CALL_ENDED", mockScamNumber);
+        addToCallLog("=== MOCK TEST COMPLETED ===");
+    }
+    
+    private void runMockSafeCall() {
+        addToCallLog("=== MOCK SAFE CALL TEST ===");
+        
+        // Simulate safe call
+        String mockSafeNumber = "+1-555-FRIEND";
+        addToCallLog("Simulating safe call from: " + mockSafeNumber);
+        
+        // Simulate call start
+        onCallStateChanged("INCOMING_CALL_STARTED", mockSafeNumber);
+        
+        // Simulate normal conversation
+        String[] safePhrases = {
+            "Hi, how are you doing?",
+            "Do you want to meet for lunch today?",
+            "I saw your message about the project",
+            "The weather is really nice today",
+            "Thanks for helping me yesterday"
+        };
+        
+        // Test each phrase
+        for (String phrase : safePhrases) {
+            addToCallLog("Mock Transcription: \"" + phrase + "\"");
+            
+            if (aiDetector != null) {
+                int riskScore = aiDetector.analyzeText(phrase, "en");
+                addToCallLog("Risk Analysis: " + riskScore + "% risk detected");
+                updateRiskLevel(riskScore, "Normal conversation: " + phrase.substring(0, Math.min(30, phrase.length())) + "...");
+            }
+            
+            try {
+                Thread.sleep(1000); // Pause between phrases
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        
+        // Simulate call end
+        addToCallLog("Mock safe call ended after 30 seconds");
+        onCallStateChanged("INCOMING_CALL_ENDED", mockSafeNumber);
+        addToCallLog("=== SAFE CALL TEST COMPLETED ===");
+    }
+    
+    private void testScamPatterns() {
+        addToCallLog("=== TESTING SCAM PATTERNS ===");
+        
+        if (aiDetector == null) {
+            addToCallLog("AI Detector not initialized!");
+            return;
+        }
+        
+        addToCallLog("Total patterns loaded: " + aiDetector.getPatternCount());
+        
+        // Test different language patterns
+        String[] testPhrases = {
+            // English scam patterns
+            "You owe money to IRS pay now",
+            "Your computer has virus call support",
+            "Bank account compromised verify details",
+            
+            // Hindi patterns (romanized)
+            "Aapka account band ho jayega",
+            "Paisa bhejiye emergency hai",
+            
+            // Telugu patterns (romanized)  
+            "Meeru money send cheyali",
+            "Police case vestaru"
+        };
+        
+        String[] languages = {"en", "en", "en", "hi", "hi", "te", "te"};
+        
+        for (int i = 0; i < testPhrases.length; i++) {
+            String phrase = testPhrases[i];
+            String lang = languages[i];
+            
+            addToCallLog("Testing (" + lang + "): \"" + phrase + "\"");
+            int riskScore = aiDetector.analyzeText(phrase, lang);
+            
+            String risk = "LOW";
+            if (riskScore > 70) risk = "HIGH";
+            else if (riskScore > 40) risk = "MEDIUM";
+            
+            addToCallLog("Result: " + riskScore + "% (" + risk + " RISK)");
+            addToCallLog("---");
+        }
+        
+        addToCallLog("=== PATTERN TESTING COMPLETED ===");
+    }
+    
+    private void clearCallLogs() {
+        callLogs.clear();
+        addToCallLog("Call logs cleared at " + new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date()));
+        addToCallLog("Hello Hari ready for new session");
+        
+        // Reset risk level
+        updateRiskLevel(0, "No active calls - Risk: 0%");
     }
 }
