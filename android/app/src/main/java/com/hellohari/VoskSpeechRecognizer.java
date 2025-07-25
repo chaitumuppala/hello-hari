@@ -226,6 +226,26 @@ public class VoskSpeechRecognizer {
                         Log.w(TAG, "  Hindi model available: " + isModelAvailable("hi"));
                         Log.w(TAG, "  Telugu model available: " + isModelAvailable("te"));
                         Log.w(TAG, "  Download requests - EN:" + downloadEnglish + " HI:" + downloadHindi + " TE:" + downloadTelugu);
+                        
+                        // Force detailed validation check for debugging
+                        String[] languages = {"en", "hi", "te"};
+                        for (String lang : languages) {
+                            String modelPath = getModelPath(lang);
+                            Log.w(TAG, "  Detailed check for " + lang + ":");
+                            Log.w(TAG, "    Model path: " + modelPath);
+                            File modelDir = new File(modelPath);
+                            Log.w(TAG, "    Directory exists: " + modelDir.exists());
+                            Log.w(TAG, "    Is directory: " + modelDir.isDirectory());
+                            if (modelDir.exists()) {
+                                File[] files = modelDir.listFiles();
+                                Log.w(TAG, "    Contains " + (files != null ? files.length : 0) + " items");
+                                if (files != null && files.length > 0) {
+                                    for (File f : files) {
+                                        Log.w(TAG, "      - " + f.getName());
+                                    }
+                                }
+                            }
+                        }
                     }
                 } catch (Exception e) {
                     Log.e(TAG, "Model loading failed during initialization", e);
