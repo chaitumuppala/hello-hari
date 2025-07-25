@@ -878,6 +878,13 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
         }
     }
     
+    @Override
+    public void onDebugLog(String message) {
+        // Bridge debug messages from EnhancedCallDetector to app's log system
+        Log.d(TAG, "Debug: " + message);
+        addToCallLog("DEBUG: " + message);
+    }
+    
     // Helper methods for different call states (no longer @Override)
     
     public void onCallStarted(String phoneNumber) {

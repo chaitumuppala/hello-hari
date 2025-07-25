@@ -42,9 +42,18 @@ public class EnhancedCallDetector {
         void onCallStateChanged(String state, String phoneNumber);
         void onRecordingStatusChanged(boolean isRecording, String filePath);
         void onRiskLevelChanged(int riskScore, String analysis);
+        void onDebugLog(String message); // Add debug logging to capture detailed logs
     }
     
     private CallDetectionListener listener;
+
+    // Helper method for comprehensive debug logging
+    private void debugLog(String message) {
+        Log.d(TAG, message);
+        if (listener != null) {
+            listener.onDebugLog(message);
+        }
+    }
 
     // Real-time analysis components
     private VoskSpeechRecognizer voskRecognizer;
@@ -68,51 +77,51 @@ public class EnhancedCallDetector {
         voskRecognizer.setRecognitionListener(new VoskSpeechRecognizer.VoskRecognitionListener() {
             @Override
             public void onPartialResult(String partialText, String language) {
-                Log.d(TAG, "=== VOSK PARTIAL RESULT ===");
-                Log.d(TAG, "Partial text: '" + (partialText != null ? partialText : "null") + "'");
-                Log.d(TAG, "Language: " + language);
+                debugLog("=== VOSK PARTIAL RESULT ===");
+                debugLog("Partial text: '" + (partialText != null ? partialText : "null") + "'");
+                debugLog("Language: " + language);
                 
                 // Analyze partial speech in real-time with enhanced sensitivity
                 if (scamDetector != null && partialText != null && !partialText.trim().isEmpty()) {
                     MultiLanguageScamDetector.ScamAnalysisResult result = scamDetector.analyzeText(partialText);
                     int riskScore = result.getRiskScore();
                     
-                    Log.d(TAG, "Partial analysis result: " + riskScore + "%");
+                    debugLog("Partial analysis result: " + riskScore + "%");
                     
                     // Lower threshold for partial results to catch early warning signs
                     if (riskScore > 20) { // Lowered from 30 to catch more scams
                         String analysis = "LIVE: " + partialText.substring(0, Math.min(30, partialText.length())) + 
                                         "... (Risk: " + riskScore + "%)";
-                        Log.d(TAG, "🎤 VOSK PARTIAL: " + riskScore + "% - calling updateRiskScore");
+                        debugLog("🎤 VOSK PARTIAL: " + riskScore + "% - calling updateRiskScore");
                         updateRiskScore(riskScore, analysis, "VOSK-PARTIAL");
                     } else {
-                        Log.d(TAG, "Partial result below threshold (20%): " + riskScore + "%");
+                        debugLog("Partial result below threshold (20%): " + riskScore + "%");
                     }
                 } else {
-                    Log.d(TAG, "Partial result skipped - no detector or empty text");
+                    debugLog("Partial result skipped - no detector or empty text");
                 }
-                Log.d(TAG, "=== END VOSK PARTIAL ===");
+                debugLog("=== END VOSK PARTIAL ===");
             }
             
             @Override
             public void onFinalResult(String finalText, String language, float confidence) {
-                Log.d(TAG, "=== VOSK FINAL RESULT ===");
-                Log.d(TAG, "Final text: '" + (finalText != null ? finalText : "null") + "'");
-                Log.d(TAG, "Language: " + language);
-                Log.d(TAG, "Confidence: " + confidence);
+                debugLog("=== VOSK FINAL RESULT ===");
+                debugLog("Final text: '" + (finalText != null ? finalText : "null") + "'");
+                debugLog("Language: " + language);
+                debugLog("Confidence: " + confidence);
                 
                 // Analyze complete phrases with enhanced scoring for real test scenarios
                 if (scamDetector != null && finalText != null && !finalText.trim().isEmpty()) {
                     MultiLanguageScamDetector.ScamAnalysisResult result = scamDetector.analyzeText(finalText);
                     int riskScore = result.getRiskScore();
                     
-                    Log.d(TAG, "Initial analysis result: " + riskScore + "%");
+                    debugLog("Initial analysis result: " + riskScore + "%");
                     
                     // Apply confidence boost for clear speech recognition
                     if (confidence > 0.7f) {
                         int oldScore = riskScore;
                         riskScore = Math.min(100, riskScore + 10); // Boost confident results
-                        Log.d(TAG, "Confidence boost applied: " + oldScore + "% -> " + riskScore + "%");
+                        debugLog("Confidence boost applied: " + oldScore + "% -> " + riskScore + "%");
                     }
                     
                     // Enhanced pattern detection for common test words
@@ -125,17 +134,17 @@ public class EnhancedCallDetector {
                         lowerText.contains("parcel") || lowerText.contains("customs")) {
                         int oldScore = riskScore;
                         riskScore = Math.max(riskScore, 60); // Minimum 60% for these keywords
-                        Log.d(TAG, "Keyword boost applied: " + oldScore + "% -> " + riskScore + "%");
+                        debugLog("Keyword boost applied: " + oldScore + "% -> " + riskScore + "%");
                     }
                     
                     String analysis = "SPEECH: \"" + finalText + "\" (Risk: " + riskScore + "%, Conf: " + 
                                     (int)(confidence*100) + "%)";
-                    Log.d(TAG, "🎯 VOSK FINAL: " + riskScore + "% - calling updateRiskScore");
+                    debugLog("🎯 VOSK FINAL: " + riskScore + "% - calling updateRiskScore");
                     updateRiskScore(riskScore, analysis, "VOSK-FINAL");
                 } else {
-                    Log.d(TAG, "Final result skipped - no detector or empty text");
+                    debugLog("Final result skipped - no detector or empty text");
                 }
-                Log.d(TAG, "=== END VOSK FINAL ===");
+                debugLog("=== END VOSK FINAL ===");
             }
             
             @Override
@@ -168,25 +177,25 @@ public class EnhancedCallDetector {
         long currentTime = System.currentTimeMillis();
         
         // ENHANCED DEBUG LOGGING
-        Log.d(TAG, "=== RISK SCORE UPDATE ATTEMPT ===");
-        Log.d(TAG, "Source: " + source);
-        Log.d(TAG, "New Score: " + newRiskScore + "%");
-        Log.d(TAG, "Current Max Score: " + maxRiskScore + "%");
-        Log.d(TAG, "Analysis: " + analysis);
-        Log.d(TAG, "Time since last high risk: " + (currentTime - lastHighRiskTime) + "ms");
+        debugLog("=== RISK SCORE UPDATE ATTEMPT ===");
+        debugLog("Source: " + source);
+        debugLog("New Score: " + newRiskScore + "%");
+        debugLog("Current Max Score: " + maxRiskScore + "%");
+        debugLog("Analysis: " + analysis);
+        debugLog("Time since last high risk: " + (currentTime - lastHighRiskTime) + "ms");
         
         // Always update if it's higher risk
         if (newRiskScore > maxRiskScore) {
-            Log.d(TAG, "🔥 UPDATING TO HIGHER SCORE: " + newRiskScore + "% (was " + maxRiskScore + "%)");
+            debugLog("🔥 UPDATING TO HIGHER SCORE: " + newRiskScore + "% (was " + maxRiskScore + "%)");
             maxRiskScore = newRiskScore;
             lastHighRiskAnalysis = analysis;
             lastHighRiskTime = currentTime;
             
-            Log.d(TAG, "NEW HIGH RISK: " + newRiskScore + "% from " + source + " - " + analysis);
+            debugLog("NEW HIGH RISK: " + newRiskScore + "% from " + source + " - " + analysis);
             
             if (listener != null) {
                 listener.onRiskLevelChanged(newRiskScore, analysis + " [" + source + "]");
-                Log.d(TAG, "✅ LISTENER NOTIFIED with " + newRiskScore + "%");
+                debugLog("✅ LISTENER NOTIFIED with " + newRiskScore + "%");
             }
             
             // Show appropriate alerts
@@ -200,14 +209,14 @@ public class EnhancedCallDetector {
         } 
         // For lower scores, only update if no high risk detected in last 30 seconds
         else if (currentTime - lastHighRiskTime > 30000) {
-            Log.d(TAG, "📉 LOWER SCORE UPDATE: " + newRiskScore + "% (no high risk in 30s)");
+            debugLog("📉 LOWER SCORE UPDATE: " + newRiskScore + "% (no high risk in 30s)");
             if (listener != null) {
                 listener.onRiskLevelChanged(newRiskScore, analysis + " [" + source + "]");
-                Log.d(TAG, "✅ LISTENER NOTIFIED with lower score: " + newRiskScore + "%");
+                debugLog("✅ LISTENER NOTIFIED with lower score: " + newRiskScore + "%");
             }
         } else {
             // Just log but don't override UI
-            Log.d(TAG, "🚫 SCORE REJECTED: " + newRiskScore + "% from " + source + " (preserving higher score " + maxRiskScore + "%)");
+            debugLog("🚫 SCORE REJECTED: " + newRiskScore + "% from " + source + " (preserving higher score " + maxRiskScore + "%)");
         }
         Log.d(TAG, "=== END RISK SCORE UPDATE ===");
     }
@@ -477,7 +486,7 @@ public class EnhancedCallDetector {
             Log.w(TAG, "❌ VOSK not available, using simulated analysis");
         }
         
-        Log.d(TAG, "Starting Timer backup analysis...");
+        debugLog("Starting Timer backup analysis...");
         riskAnalysisTimer = new Timer();
         riskAnalysisTimer.scheduleAtFixedRate(new TimerTask() {
             private int analysisCount = 0;
@@ -491,12 +500,12 @@ public class EnhancedCallDetector {
                 boolean hasRecentHighRisk = timeSinceHighRisk < 10000; // 10 seconds
                 
                 // ENHANCED TIMER DEBUG LOGGING
-                Log.d(TAG, "=== TIMER BACKUP ANALYSIS ===");
-                Log.d(TAG, "Analysis Count: " + analysisCount);
-                Log.d(TAG, "Time since high risk: " + timeSinceHighRisk + "ms");
-                Log.d(TAG, "Has recent high risk: " + hasRecentHighRisk);
-                Log.d(TAG, "Current max risk score: " + maxRiskScore + "%");
-                Log.d(TAG, "VOSK initialized: " + (voskRecognizer != null && voskRecognizer.isInitialized()));
+                debugLog("=== TIMER BACKUP ANALYSIS ===");
+                debugLog("Analysis Count: " + analysisCount);
+                debugLog("Time since high risk: " + timeSinceHighRisk + "ms");
+                debugLog("Has recent high risk: " + hasRecentHighRisk);
+                debugLog("Current max risk score: " + maxRiskScore + "%");
+                debugLog("VOSK initialized: " + (voskRecognizer != null && voskRecognizer.isInitialized()));
                 
                 // Use real VOSK analysis if available, otherwise simulate
                 int riskScore;
@@ -508,25 +517,25 @@ public class EnhancedCallDetector {
                     if (hasRecentHighRisk && maxRiskScore > 50) {
                         // Don't override recent high-risk VOSK detection
                         analysis = "VOSK detected high risk - monitoring continues...";
-                        Log.d(TAG, "🚫 TIMER SKIPPED: Recent high-risk VOSK detection exists");
-                        Log.d(TAG, "=== END TIMER ANALYSIS (SKIPPED) ===");
+                        debugLog("🚫 TIMER SKIPPED: Recent high-risk VOSK detection exists");
+                        debugLog("=== END TIMER ANALYSIS (SKIPPED) ===");
                         return; // Skip this timer update
                     } else {
                         riskScore = Math.min(30 + (analysisCount * 2), 85); // Gradual increase as backup
                         analysis = "Monitoring speech... (" + analysisCount + " checks)";
-                        Log.d(TAG, "⏱️ TIMER BACKUP: " + riskScore + "% (no recent high-risk VOSK)");
+                        debugLog("⏱️ TIMER BACKUP: " + riskScore + "% (no recent high-risk VOSK)");
                     }
                 } else {
                     // Fallback to simulated analysis
                     riskScore = analyzer.performRealTimeAnalysis(analysisCount, phoneNumber);
                     analysis = analyzer.getRiskAnalysisText(riskScore, analysisCount);
-                    Log.d(TAG, "🔄 TIMER SIMULATION: " + riskScore + "% (VOSK not available)");
+                    debugLog("🔄 TIMER SIMULATION: " + riskScore + "% (VOSK not available)");
                 }
                 
-                Log.d(TAG, "Timer calling updateRiskScore with: " + riskScore + "%");
+                debugLog("Timer calling updateRiskScore with: " + riskScore + "%");
                 // Use updateRiskScore to prevent overriding higher VOSK scores
                 updateRiskScore(riskScore, analysis, "TIMER-BACKUP");
-                Log.d(TAG, "=== END TIMER ANALYSIS ===");
+                debugLog("=== END TIMER ANALYSIS ===");
             }
         }, 3000, 5000); // Start after 3s, repeat every 5s
     }
