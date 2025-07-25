@@ -1022,7 +1022,3 @@ public ScamAnalysisResult analyzeText(String text) {
 }
 
 }
-        return "LOW RISK - Call appears normal";
-    }
-}
-}
