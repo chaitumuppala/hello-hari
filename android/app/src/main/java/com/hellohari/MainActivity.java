@@ -461,11 +461,23 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         
         addHorizontalSpacing(advancedTestRow, 12);
         
-        Button clearLogsButton = createActionButton("Clear Logs", "#6B7280");
-        clearLogsButton.setOnClickListener(v -> clearCallLogs());
-        advancedTestRow.addView(clearLogsButton);
+        Button downloadLogsButton = createActionButton("Download Debug Logs", "#8B5CF6");
+        downloadLogsButton.setOnClickListener(v -> downloadDetailedLogs());
+        advancedTestRow.addView(downloadLogsButton);
         
         parent.addView(advancedTestRow);
+        addSpacing(parent, 12);
+        
+        // Fourth row - Clear Logs
+        LinearLayout clearRow = new LinearLayout(this);
+        clearRow.setOrientation(LinearLayout.HORIZONTAL);
+        clearRow.setWeightSum(1.0f);
+        
+        Button clearLogsButton = createActionButton("Clear Logs", "#6B7280");
+        clearLogsButton.setOnClickListener(v -> clearCallLogs());
+        clearRow.addView(clearLogsButton);
+        
+        parent.addView(clearRow);
         addSpacing(parent, 16);
     }
     
@@ -1117,6 +1129,107 @@ public class MainActivity extends AppCompatActivity implements SimpleCallDetecto
         }
         
         addToCallLog("=== PATTERN TESTING COMPLETED ===");
+    }
+    
+    private void downloadDetailedLogs() {
+        try {
+            addToCallLog("=== GENERATING DETAILED DEBUG LOGS ===");
+            
+            // Create detailed log content
+            StringBuilder debugLog = new StringBuilder();
+            debugLog.append("=== HELLO HARI DEBUG REPORT ===\n");
+            debugLog.append("Generated: ").append(new java.util.Date().toString()).append("\n");
+            debugLog.append("Device: ").append(android.os.Build.MANUFACTURER).append(" ").append(android.os.Build.MODEL).append("\n");
+            debugLog.append("Android Version: ").append(android.os.Build.VERSION.RELEASE).append("\n");
+            debugLog.append("App Version: 1.0\n\n");
+            
+            // System Status
+            debugLog.append("=== SYSTEM STATUS ===\n");
+            debugLog.append("AI Detector Initialized: ").append(aiDetector != null).append("\n");
+            debugLog.append("VOSK Recognizer Initialized: ").append(voskRecognizer != null).append("\n");
+            debugLog.append("VOSK Status: ").append(isVoskInitialized).append("\n");
+            debugLog.append("Protection Active: ").append(isProtectionActive).append("\n");
+            debugLog.append("Service Running: ").append(serviceRunning).append("\n\n");
+            
+            // VOSK Model Status
+            if (voskRecognizer != null) {
+                debugLog.append("=== VOSK MODEL STATUS ===\n");
+                try {
+                    // Force detailed model checking
+                    String[] languages = {"en", "hi", "te"};
+                    for (String lang : languages) {
+                        debugLog.append("Language: ").append(lang).append("\n");
+                        
+                        // Get model path
+                        String modelPath = getModelPathForDebugging(lang);
+                        debugLog.append("  Expected Path: ").append(modelPath).append("\n");
+                        
+                        // Check directory
+                        File modelDir = new File(modelPath);
+                        debugLog.append("  Directory Exists: ").append(modelDir.exists()).append("\n");
+                        debugLog.append("  Is Directory: ").append(modelDir.isDirectory()).append("\n");
+                        
+                        if (modelDir.exists() && modelDir.isDirectory()) {
+                            File[] files = modelDir.listFiles();
+                            if (files != null) {
+                                debugLog.append("  Contains ").append(files.length).append(" items:\n");
+                                for (File f : files) {
+                                    debugLog.append("    - ").append(f.getName());
+                                    if (f.isDirectory()) debugLog.append(" (DIR)");
+                                    debugLog.append("\n");
+                                }
+                                
+                                // Check required files
+                                String[] requiredFiles = {"conf/model.conf", "am/final.mdl", "graph/HCLG.fst"};
+                                debugLog.append("  Required Files Check:\n");
+                                for (String reqFile : requiredFiles) {
+                                    File f = new File(modelDir, reqFile);
+                                    debugLog.append("    ").append(reqFile).append(": ").append(f.exists() ? "FOUND" : "MISSING").append("\n");
+                                }
+                            } else {
+                                debugLog.append("  ERROR: Cannot list directory contents\n");
+                            }
+                        }
+                        debugLog.append("\n");
+                    }
+                } catch (Exception e) {
+                    debugLog.append("ERROR checking models: ").append(e.getMessage()).append("\n");
+                }
+            }
+            
+            // App Logs
+            debugLog.append("=== APP LOGS ===\n");
+            for (String log : callLogs) {
+                debugLog.append(log).append("\n");
+            }
+            
+            // Save to file
+            String fileName = "hello_hari_debug_" + System.currentTimeMillis() + ".txt";
+            File debugFile = new File(getExternalFilesDir(null), fileName);
+            
+            java.io.FileWriter writer = new java.io.FileWriter(debugFile);
+            writer.write(debugLog.toString());
+            writer.close();
+            
+            addToCallLog("Debug log saved to: " + debugFile.getAbsolutePath());
+            addToCallLog("You can share this file for debugging!");
+            addToCallLog("File size: " + (debugFile.length() / 1024) + " KB");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to generate debug logs", e);
+            addToCallLog("ERROR: Failed to generate debug logs: " + e.getMessage());
+        }
+    }
+    
+    private String getModelPathForDebugging(String language) {
+        String modelName;
+        switch (language) {
+            case "en": modelName = "vosk-model-small-en-us-0.15"; break;
+            case "hi": modelName = "vosk-model-small-hi-0.22"; break;
+            case "te": modelName = "vosk-model-small-te-0.42"; break;
+            default: modelName = "vosk-model-small-en-us-0.15"; break;
+        }
+        return getFilesDir() + "/vosk-models/" + modelName;
     }
     
     private String getLanguageName(String languageCode) {
