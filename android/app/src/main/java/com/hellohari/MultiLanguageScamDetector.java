@@ -1021,4 +1021,148 @@ public ScamAnalysisResult analyzeText(String text) {
     return new ScamAnalysisResult(riskScore, detectedPatterns, analysisMessage, "Text Analysis", Arrays.asList("Mixed"));
 }
 
+/**
+ * ENHANCED TEXT ANALYSIS FOR REAL-TIME TESTING
+ * This method is called by EnhancedCallDetector for live speech analysis
+ */
+public ScamAnalysisResult analyzeText(String text) {
+    if (text == null || text.trim().isEmpty()) {
+        return new ScamAnalysisResult(5, new ArrayList<>(), "No text to analyze", "Unknown", new ArrayList<>());
+    }
+    
+    Log.d(TAG, "Analyzing text: " + text.substring(0, Math.min(50, text.length())) + "...");
+    
+    String lowerText = text.toLowerCase();
+    List<String> detectedPatterns = new ArrayList<>();
+    int totalRiskScore = 0;
+    
+    // Check all pattern categories with enhanced sensitivity
+    totalRiskScore += checkPatterns(lowerText, DIGITAL_ARREST_PATTERNS, detectedPatterns, "DIGITAL_ARREST");
+    totalRiskScore += checkPatterns(lowerText, TRAI_PATTERNS, detectedPatterns, "TRAI_SCAM");
+    totalRiskScore += checkPatterns(lowerText, COURIER_PATTERNS, detectedPatterns, "COURIER_SCAM");
+    totalRiskScore += checkPatterns(lowerText, INVESTMENT_PATTERNS, detectedPatterns, "INVESTMENT_FRAUD");
+    totalRiskScore += checkPatterns(lowerText, FAMILY_EMERGENCY_PATTERNS, detectedPatterns, "FAMILY_EMERGENCY");
+    totalRiskScore += checkPatterns(lowerText, ROMANCE_PATTERNS, detectedPatterns, "ROMANCE_SCAM");
+    totalRiskScore += checkPatterns(lowerText, HINDI_ADVANCED_PATTERNS, detectedPatterns, "HINDI_SCAM");
+    totalRiskScore += checkPatterns(lowerText, TELUGU_ADVANCED_PATTERNS, detectedPatterns, "TELUGU_SCAM");
+    totalRiskScore += checkPatterns(lowerText, HINGLISH_PATTERNS, detectedPatterns, "HINGLISH_SCAM");
+    
+    // Enhanced keyword detection for common test scenarios
+    totalRiskScore += checkUrgencyIndicators(lowerText, detectedPatterns);
+    totalRiskScore += checkAuthorityIndicators(lowerText, detectedPatterns);
+    totalRiskScore += checkFinancialRiskTerms(lowerText, detectedPatterns);
+    totalRiskScore += checkTechSupportTerms(lowerText, detectedPatterns);
+    
+    // ENHANCED DETECTION FOR REAL TESTING
+    // Common scam trigger words that should boost score significantly
+    if (lowerText.contains("arrest") || lowerText.contains("warrant") || lowerText.contains("police")) {
+        totalRiskScore += 40;
+        detectedPatterns.add("HIGH_RISK_KEYWORD: Law enforcement threat (+40)");
+    }
+    
+    if (lowerText.contains("digital arrest") || lowerText.contains("cyber crime")) {
+        totalRiskScore += 50;
+        detectedPatterns.add("CRITICAL_SCAM: Digital arrest scam (+50)");
+    }
+    
+    if (lowerText.contains("account") && (lowerText.contains("block") || lowerText.contains("suspend") || lowerText.contains("freeze"))) {
+        totalRiskScore += 35;
+        detectedPatterns.add("BANKING_THREAT: Account suspension threat (+35)");
+    }
+    
+    if (lowerText.contains("drugs") || lowerText.contains("narcotics") || lowerText.contains("parcel")) {
+        totalRiskScore += 45;
+        detectedPatterns.add("COURIER_SCAM: Drug/parcel scam (+45)");
+    }
+    
+    if (lowerText.contains("verify") && (lowerText.contains("immediate") || lowerText.contains("urgent") || lowerText.contains("now"))) {
+        totalRiskScore += 30;
+        detectedPatterns.add("URGENCY_SCAM: Urgent verification request (+30)");
+    }
+    
+    if (lowerText.contains("money") || lowerText.contains("transfer") || lowerText.contains("payment")) {
+        totalRiskScore += 25;
+        detectedPatterns.add("FINANCIAL_REQUEST: Money/payment request (+25)");
+    }
+    
+    // Hindi common scam words
+    if (lowerText.contains("पुलिस") || lowerText.contains("गिरफ्तार") || lowerText.contains("arrest")) {
+        totalRiskScore += 40;
+        detectedPatterns.add("HINDI_THREAT: Police/arrest threat (+40)");
+    }
+    
+    if (lowerText.contains("खाता") && (lowerText.contains("बंद") || lowerText.contains("block"))) {
+        totalRiskScore += 35;
+        detectedPatterns.add("HINDI_BANKING: Account closure threat (+35)");
+    }
+    
+    // Telugu common scam words  
+    if (lowerText.contains("పోలీసు") || lowerText.contains("అరెస్ట్")) {
+        totalRiskScore += 40;
+        detectedPatterns.add("TELUGU_THREAT: Police/arrest threat (+40)");
+    }
+    
+    if (lowerText.contains("ఖాతా") && lowerText.contains("మూసివేయ")) {
+        totalRiskScore += 35;
+        detectedPatterns.add("TELUGU_BANKING: Account closure threat (+35)");
+    }
+    
+    // Bonus for multiple risk indicators
+    if (detectedPatterns.size() > 3) {
+        int bonus = Math.min(20, detectedPatterns.size() * 3);
+        totalRiskScore += bonus;
+        detectedPatterns.add("MULTIPLE_PATTERNS: " + detectedPatterns.size() + " patterns detected (+" + bonus + ")");
+    }
+    
+    // Cap at 100%
+    totalRiskScore = Math.min(100, totalRiskScore);
+    
+    // Generate analysis message
+    String analysisMessage = generateSimpleAnalysisMessage(totalRiskScore, detectedPatterns);
+    
+    Log.d(TAG, "Text analysis complete - Risk Score: " + totalRiskScore + "%, Patterns: " + detectedPatterns.size());
+    
+    return new ScamAnalysisResult(
+        totalRiskScore,
+        detectedPatterns, 
+        analysisMessage,
+        detectLanguage(text),
+        Arrays.asList(detectLanguage(text))
+    );
+}
+
+private String generateSimpleAnalysisMessage(int riskScore, List<String> patterns) {
+    StringBuilder message = new StringBuilder();
+    
+    if (riskScore > 80) {
+        message.append("🚨 CRITICAL SCAM ALERT");
+    } else if (riskScore > 60) {
+        message.append("⚠️ HIGH RISK DETECTED");  
+    } else if (riskScore > 40) {
+        message.append("⚡ SUSPICIOUS ACTIVITY");
+    } else if (riskScore > 20) {
+        message.append("⚠️ CAUTION ADVISED");
+    } else {
+        message.append("✅ APPEARS SAFE");
+    }
+    
+    message.append(" (").append(riskScore).append("%)");
+    
+    if (!patterns.isEmpty()) {
+        message.append("\nPatterns: ").append(patterns.size());
+    }
+    
+    return message.toString();
+}
+
+private String detectLanguage(String text) {
+    if (text.matches(".*[\\u0900-\\u097F].*")) {
+        return "Hindi";
+    } else if (text.matches(".*[\\u0C00-\\u0C7F].*")) {
+        return "Telugu";  
+    } else {
+        return "English";
+    }
+}
+
 }
