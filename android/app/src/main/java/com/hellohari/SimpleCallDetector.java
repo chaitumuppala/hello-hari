@@ -151,4 +151,13 @@ public class SimpleCallDetector {
     private void showToast(String message) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
     }
+    
+    // Legacy methods for MainActivity compatibility
+    public boolean startMonitoring() {
+        return startCallDetection();
+    }
+    
+    public boolean stopMonitoring() {
+        return stopCallDetection();
+    }
 }

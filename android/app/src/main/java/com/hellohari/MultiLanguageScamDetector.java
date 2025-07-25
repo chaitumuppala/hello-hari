@@ -960,4 +960,25 @@ private String getLanguageName(String languageCode) {
         case "en": default: return "English";
     }
 }
+
+// Legacy methods for CallDetectionService compatibility
+public int processRecording(String recordingPath) {
+    Log.d(TAG, "Processing recording: " + recordingPath);
+    // Simulate basic analysis for legacy compatibility
+    if (recordingPath != null && recordingPath.length() > 0) {
+        // Return a moderate risk score for now
+        return 35;
+    }
+    return 15;
+}
+
+public String getRiskAssessment(int riskScore) {
+    if (riskScore > 70) {
+        return "HIGH RISK - Likely scam call";
+    } else if (riskScore > 40) {
+        return "MEDIUM RISK - Suspicious patterns detected";
+    } else {
+        return "LOW RISK - Call appears normal";
+    }
+}
 }
