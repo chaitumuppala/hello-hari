@@ -316,16 +316,30 @@ public class EnhancedCallDetector {
     }
 
     private void handleCallStateChangeWithRecording(String state, String phoneNumber) {
+        debugLog("=== CALL STATE CHANGE ===");
+        debugLog("State: " + state);
+        debugLog("Phone Number: " + (phoneNumber != null ? phoneNumber : "null"));
+        debugLog("STATE_RINGING: " + STATE_RINGING);
+        debugLog("STATE_OFFHOOK: " + STATE_OFFHOOK);
+        debugLog("STATE_IDLE: " + STATE_IDLE);
+        
         if (STATE_RINGING.equals(state)) {
+            debugLog("📞 INCOMING CALL detected - Preparing recording");
             Log.i(TAG, "📞 INCOMING CALL detected - Preparing recording");
             onIncomingCallDetected(phoneNumber);
         } else if (STATE_OFFHOOK.equals(state)) {
+            debugLog("📱 CALL ANSWERED - Starting recording and analysis");
             Log.i(TAG, "📱 CALL ANSWERED - Starting recording and analysis");
             onCallAnswered(phoneNumber);
         } else if (STATE_IDLE.equals(state)) {
+            debugLog("📴 CALL ENDED - Stopping recording and analyzing");
             Log.i(TAG, "📴 CALL ENDED - Stopping recording and analyzing");
             onCallEnded(phoneNumber);
+        } else {
+            debugLog("❓ UNKNOWN CALL STATE: " + state);
+            Log.w(TAG, "❓ UNKNOWN CALL STATE: " + state);
         }
+        debugLog("=== END CALL STATE CHANGE ===");
     }
 
     private void onIncomingCallDetected(String phoneNumber) {
@@ -345,13 +359,20 @@ public class EnhancedCallDetector {
 
     private void onCallAnswered(String phoneNumber) {
         String displayNumber = phoneNumber != null ? phoneNumber : "Unknown Number";
+        debugLog("=== CALL ANSWERED ===");
+        debugLog("Phone Number: " + displayNumber);
         showToast("🎤 Recording call with " + displayNumber + " for safety");
         
         // Start recording
+        debugLog("Attempting to start recording...");
         if (startRecording()) {
+            debugLog("✅ Recording started successfully - starting real-time analysis");
             // Start real-time risk analysis
             startRealTimeAnalysis(phoneNumber);
+        } else {
+            debugLog("❌ Recording failed to start");
         }
+        debugLog("=== END CALL ANSWERED ===");
     }
 
     private void onCallEnded(String phoneNumber) {
@@ -460,10 +481,15 @@ public class EnhancedCallDetector {
     }
 
     private void startRealTimeAnalysis(String phoneNumber) {
+        debugLog("=== STARTING REAL-TIME ANALYSIS ===");
+        debugLog("Phone number: " + phoneNumber);
         Log.d(TAG, "=== STARTING REAL-TIME ANALYSIS ===");
         Log.d(TAG, "Phone number: " + phoneNumber);
         
         // Reset risk score tracking for new call
+        debugLog("Resetting risk score variables for new call");
+        debugLog("Previous maxRiskScore: " + maxRiskScore + "%");
+        debugLog("Previous lastHighRiskTime: " + lastHighRiskTime);
         Log.d(TAG, "Resetting risk score variables for new call");
         Log.d(TAG, "Previous maxRiskScore: " + maxRiskScore + "%");
         Log.d(TAG, "Previous lastHighRiskTime: " + lastHighRiskTime);
@@ -472,6 +498,7 @@ public class EnhancedCallDetector {
         lastHighRiskTime = 0;
         lastHighRiskAnalysis = "";
         
+        debugLog("Risk variables reset - maxRiskScore: " + maxRiskScore + "%, lastHighRiskTime: " + lastHighRiskTime);
         Log.d(TAG, "Risk variables reset - maxRiskScore: " + maxRiskScore + "%, lastHighRiskTime: " + lastHighRiskTime);
         
         if (riskAnalysisTimer != null) {
@@ -480,9 +507,12 @@ public class EnhancedCallDetector {
         
         // Start VOSK real-time recognition if available
         if (voskRecognizer != null && voskRecognizer.isInitialized()) {
+            debugLog("✅ VOSK is initialized - starting real-time speech recognition");
             Log.d(TAG, "✅ VOSK is initialized - starting real-time speech recognition");
             voskRecognizer.startListening();
+            debugLog("🎤 VOSK startListening() called - speech recognition should now be active");
         } else {
+            debugLog("❌ VOSK not available, using simulated analysis");
             Log.w(TAG, "❌ VOSK not available, using simulated analysis");
         }
         
