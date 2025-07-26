@@ -494,27 +494,16 @@ public class EnhancedCallDetector {
             Log.e(TAG, "Unexpected exception starting recording", e);
         }
         
+        // Cleanup on failure
+        if (mediaRecorder != null) {
+            try {
+                mediaRecorder.release();
+            } catch (Exception ignored) {}
+            mediaRecorder = null;
+        }
+        
         debugLog("=== END START RECORDING (FAILED) ===");
         return false;
-            
-            return true;
-            
-        } catch (Exception e) {
-            debugLog("❌ Recording failed with exception: " + e.getMessage());
-            debugLog("Exception type: " + e.getClass().getSimpleName());
-            Log.e(TAG, "Failed to start recording", e);
-            showToast("⚠️ Recording failed - continuing with basic monitoring");
-            
-            // Cleanup on failure
-            if (mediaRecorder != null) {
-                try {
-                    mediaRecorder.release();
-                } catch (Exception ignored) {}
-                mediaRecorder = null;
-            }
-            debugLog("=== END RECORDING ATTEMPT (FAILED) ===");
-            return false;
-        }
     }
 
     private String stopRecording() {
