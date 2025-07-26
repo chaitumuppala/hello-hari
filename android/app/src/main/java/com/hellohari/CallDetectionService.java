@@ -45,10 +45,10 @@ public class CallDetectionService extends Service {
         // Initialize components
         scamDetector = new MultiLanguageScamDetector(this);
         telephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-        callStateListener = new CallStateListener();
         
-        // Start listening for call state changes
-        telephonyManager.listen(callStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+        // DO NOT start PhoneStateListener here - let EnhancedCallDetector handle it
+        // This was causing conflicts with EnhancedCallDetector's BroadcastReceiver
+        Log.d(TAG, "Service initialized - EnhancedCallDetector will handle call states");
     }
     
     @Override
@@ -69,8 +69,7 @@ public class CallDetectionService extends Service {
         // Stop recording if in progress
         stopRecording();
         
-        // Stop listening for call state changes
-        telephonyManager.listen(callStateListener, PhoneStateListener.LISTEN_NONE);
+        // PhoneStateListener no longer used - EnhancedCallDetector handles call states
         
         super.onDestroy();
     }

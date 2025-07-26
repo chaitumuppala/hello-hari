@@ -253,12 +253,14 @@ public class EnhancedCallDetector {
                 public void onReceive(Context context, Intent intent) {
                     try {
                         String action = intent.getAction();
+                        debugLog("🚨 BROADCAST RECEIVED: " + action);
                         Log.d(TAG, "Received broadcast: " + action);
                         
                         if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action)) {
                             String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
                             String phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
                             
+                            debugLog("🚨 RAW PHONE STATE: " + state + ", Number: " + phoneNumber);
                             Log.d(TAG, "Phone state changed: " + state + ", Number: " + phoneNumber);
                             
                             // Handle different call states with recording
@@ -268,6 +270,8 @@ public class EnhancedCallDetector {
                             if (listener != null) {
                                 listener.onCallStateChanged(state, phoneNumber);
                             }
+                        } else {
+                            debugLog("🚨 NON-PHONE BROADCAST: " + action);
                         }
                     } catch (Exception e) {
                         debugLog("❌ CRITICAL: Exception in call receiver: " + e.getMessage());
@@ -279,8 +283,9 @@ public class EnhancedCallDetector {
 
             IntentFilter filter = new IntentFilter();
             filter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
-            filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
+            filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY - 1); // Higher priority to get calls first
             
+            debugLog("Registering broadcast receiver with high priority...");
             context.registerReceiver(callReceiver, filter);
             isMonitoring = true;
             
