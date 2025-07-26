@@ -11,6 +11,8 @@ import android.graphics.drawable.GradientDrawable;
 import android.media.AudioManager;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.Gravity;
@@ -31,6 +33,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class MainActivity extends AppCompatActivity implements EnhancedCallDetector.CallDetectionListener {
     private static final String TAG = "HelloHariMain";
@@ -77,6 +81,10 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
     private String currentRecordingPath = null;
     private boolean serviceRunning = false;
     private String currentAudioPath = null;
+    
+    // Protection monitoring timer
+    private Timer protectionMonitor;
+    private Handler mainHandler = new Handler(Looper.getMainLooper());
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -709,6 +717,9 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
                 callDetector.startCallDetection();
             }
             
+            // Start protection monitoring timer
+            startProtectionMonitor();
+            
             addToCallLog("Hello Hari protection activated");
             addToCallLog("Monitoring for incoming calls...");
             
@@ -720,6 +731,9 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
     
     private void stopProtection() {
         try {
+            // Stop protection monitoring timer
+            stopProtectionMonitor();
+            
             // Stop the call detection service
             Intent serviceIntent = new Intent(this, CallDetectionService.class);
             stopService(serviceIntent);
@@ -738,7 +752,50 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
         }
     }
     
+    private void startProtectionMonitor() {
+        stopProtectionMonitor(); // Stop any existing monitor
+        
+        protectionMonitor = new Timer("ProtectionMonitor");
+        protectionMonitor.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                mainHandler.post(() -> {
+                    if (isProtectionActive) {
+                        updateSystemStatus(); // This will check and auto-recover if needed
+                    }
+                });
+            }
+        }, 10000, 10000); // Check every 10 seconds
+        
+        Log.d(TAG, "Protection monitor started");
+    }
+    
+    private void stopProtectionMonitor() {
+        if (protectionMonitor != null) {
+            protectionMonitor.cancel();
+            protectionMonitor = null;
+            Log.d(TAG, "Protection monitor stopped");
+        }
+    }
+    
     private void updateSystemStatus() {
+        // Check if protection should be active but call detector is not monitoring
+        if (isProtectionActive && callDetector != null && !callDetector.isMonitoring()) {
+            addToCallLog("⚠️ PROTECTION FAILURE DETECTED - Auto-recovering...");
+            Log.w(TAG, "Protection failure detected - attempting auto-recovery");
+            
+            // Auto-restart protection
+            try {
+                callDetector.startCallDetection();
+                addToCallLog("✅ Protection auto-recovery successful");
+            } catch (Exception e) {
+                addToCallLog("❌ Protection auto-recovery failed: " + e.getMessage());
+                Log.e(TAG, "Auto-recovery failed", e);
+                // Set protection to inactive since recovery failed
+                isProtectionActive = false;
+            }
+        }
+        
         if (isProtectionActive) {
             statusIndicator.setTextColor(Color.parseColor("#10B981"));
             protectionStatusText.setText("Protection Active");
@@ -1043,6 +1100,9 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
     protected void onDestroy() {
         super.onDestroy();
         try {
+            // Stop protection monitor
+            stopProtectionMonitor();
+            
             if (callDetector != null) {
                 callDetector.stopCallDetection();
             }

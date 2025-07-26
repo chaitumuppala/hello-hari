@@ -251,22 +251,28 @@ public class EnhancedCallDetector {
             callReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    String action = intent.getAction();
-                    Log.d(TAG, "Received broadcast: " + action);
-                    
-                    if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action)) {
-                        String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
-                        String phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
+                    try {
+                        String action = intent.getAction();
+                        Log.d(TAG, "Received broadcast: " + action);
                         
-                        Log.d(TAG, "Phone state changed: " + state + ", Number: " + phoneNumber);
-                        
-                        // Handle different call states with recording
-                        handleCallStateChangeWithRecording(state, phoneNumber);
-                        
-                        // Notify listener
-                        if (listener != null) {
-                            listener.onCallStateChanged(state, phoneNumber);
+                        if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action)) {
+                            String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
+                            String phoneNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
+                            
+                            Log.d(TAG, "Phone state changed: " + state + ", Number: " + phoneNumber);
+                            
+                            // Handle different call states with recording
+                            handleCallStateChangeWithRecording(state, phoneNumber);
+                            
+                            // Notify listener
+                            if (listener != null) {
+                                listener.onCallStateChanged(state, phoneNumber);
+                            }
                         }
+                    } catch (Exception e) {
+                        debugLog("❌ CRITICAL: Exception in call receiver: " + e.getMessage());
+                        Log.e(TAG, "Exception in call receiver - protection may have stopped", e);
+                        // Don't let exceptions crash the receiver
                     }
                 }
             };
@@ -332,80 +338,115 @@ public class EnhancedCallDetector {
     }
 
     private void handleCallStateChangeWithRecording(String state, String phoneNumber) {
-        debugLog("=== CALL STATE CHANGE ===");
-        debugLog("State: " + state);
-        debugLog("Phone Number: " + (phoneNumber != null ? phoneNumber : "null"));
-        debugLog("STATE_RINGING: " + STATE_RINGING);
-        debugLog("STATE_OFFHOOK: " + STATE_OFFHOOK);
-        debugLog("STATE_IDLE: " + STATE_IDLE);
-        
-        if (STATE_RINGING.equals(state)) {
-            debugLog("📞 INCOMING CALL detected - Preparing recording");
-            Log.i(TAG, "📞 INCOMING CALL detected - Preparing recording");
-            onIncomingCallDetected(phoneNumber);
-        } else if (STATE_OFFHOOK.equals(state)) {
-            debugLog("📱 CALL ANSWERED - Starting recording and analysis");
-            Log.i(TAG, "📱 CALL ANSWERED - Starting recording and analysis");
-            onCallAnswered(phoneNumber);
-        } else if (STATE_IDLE.equals(state)) {
-            debugLog("📴 CALL ENDED - Stopping recording and analyzing");
-            Log.i(TAG, "📴 CALL ENDED - Stopping recording and analyzing");
-            onCallEnded(phoneNumber);
-        } else {
-            debugLog("❓ UNKNOWN CALL STATE: " + state);
-            Log.w(TAG, "❓ UNKNOWN CALL STATE: " + state);
+        try {
+            debugLog("=== CALL STATE CHANGE ===");
+            debugLog("State: " + state);
+            debugLog("Phone Number: " + (phoneNumber != null ? phoneNumber : "null"));
+            debugLog("STATE_RINGING: " + STATE_RINGING);
+            debugLog("STATE_OFFHOOK: " + STATE_OFFHOOK);
+            debugLog("STATE_IDLE: " + STATE_IDLE);
+            
+            if (STATE_RINGING.equals(state)) {
+                debugLog("📞 INCOMING CALL detected - Preparing recording");
+                Log.i(TAG, "📞 INCOMING CALL detected - Preparing recording");
+                onIncomingCallDetected(phoneNumber);
+            } else if (STATE_OFFHOOK.equals(state)) {
+                debugLog("📱 CALL ANSWERED - Starting recording and analysis");
+                Log.i(TAG, "📱 CALL ANSWERED - Starting recording and analysis");
+                onCallAnswered(phoneNumber);
+            } else if (STATE_IDLE.equals(state)) {
+                debugLog("📴 CALL ENDED - Stopping recording and analyzing");
+                Log.i(TAG, "📴 CALL ENDED - Stopping recording and analyzing");
+                onCallEnded(phoneNumber);
+            } else {
+                debugLog("❓ UNKNOWN CALL STATE: " + state);
+                Log.w(TAG, "❓ UNKNOWN CALL STATE: " + state);
+            }
+            debugLog("=== END CALL STATE CHANGE ===");
+        } catch (Exception e) {
+            debugLog("❌ CRITICAL: Exception in call state handling: " + e.getMessage());
+            Log.e(TAG, "Exception in call state handling", e);
+            // Continue monitoring even if one call state change fails
         }
-        debugLog("=== END CALL STATE CHANGE ===");
     }
 
     private void onIncomingCallDetected(String phoneNumber) {
-        String displayNumber = phoneNumber != null ? phoneNumber : "Unknown Number";
-        showToast("🚨 Incoming: " + displayNumber + " - Preparing analysis...");
-        
-        // Prepare recording setup
-        prepareRecording(phoneNumber);
-        
-        // Start initial risk assessment based on number
-        int initialRisk = analyzer.analyzePhoneNumber(phoneNumber);
-        Log.d(TAG, "Initial phone number analysis: " + initialRisk + "% for " + displayNumber);
-        
-        // Use updateRiskScore instead of calling listener directly
-        updateRiskScore(initialRisk, "Initial number analysis for " + displayNumber, "PHONE-ANALYSIS");
+        try {
+            String displayNumber = phoneNumber != null ? phoneNumber : "Unknown Number";
+            showToast("🚨 Incoming: " + displayNumber + " - Preparing analysis...");
+            
+            // Prepare recording setup
+            prepareRecording(phoneNumber);
+            
+            // Start initial risk assessment based on number
+            int initialRisk = analyzer.analyzePhoneNumber(phoneNumber);
+            Log.d(TAG, "Initial phone number analysis: " + initialRisk + "% for " + displayNumber);
+            
+            // Use updateRiskScore instead of calling listener directly
+            updateRiskScore(initialRisk, "Initial number analysis for " + displayNumber, "PHONE-ANALYSIS");
+        } catch (Exception e) {
+            debugLog("❌ Exception in onIncomingCallDetected: " + e.getMessage());
+            Log.e(TAG, "Exception in onIncomingCallDetected", e);
+        }
     }
 
     private void onCallAnswered(String phoneNumber) {
-        String displayNumber = phoneNumber != null ? phoneNumber : "Unknown Number";
-        debugLog("=== CALL ANSWERED ===");
-        debugLog("Phone Number: " + displayNumber);
-        showToast("🎤 Recording call with " + displayNumber + " for safety");
-        
-        // Start recording
-        debugLog("Attempting to start recording...");
-        boolean recordingStarted = startRecording();
-        if (recordingStarted) {
-            debugLog("✅ Recording started successfully - starting real-time analysis");
-        } else {
-            debugLog("❌ Recording failed to start - BUT still starting VOSK analysis");
-            showToast("⚠️ Recording unavailable - VOSK speech analysis still active");
+        try {
+            String displayNumber = phoneNumber != null ? phoneNumber : "Unknown Number";
+            debugLog("=== CALL ANSWERED ===");
+            debugLog("Phone Number: " + displayNumber);
+            showToast("🎤 Recording call with " + displayNumber + " for safety");
+            
+            // Start recording
+            debugLog("Attempting to start recording...");
+            boolean recordingStarted = startRecording();
+            if (recordingStarted) {
+                debugLog("✅ Recording started successfully - starting real-time analysis");
+            } else {
+                debugLog("❌ Recording failed to start - BUT still starting VOSK analysis");
+                showToast("⚠️ Recording unavailable - VOSK speech analysis still active");
+            }
+            
+            // CRITICAL: Start VOSK analysis regardless of recording status
+            debugLog("Starting real-time analysis regardless of recording status...");
+            startRealTimeAnalysis(phoneNumber);
+            debugLog("=== END CALL ANSWERED ===");
+        } catch (Exception e) {
+            debugLog("❌ Exception in onCallAnswered: " + e.getMessage());
+            Log.e(TAG, "Exception in onCallAnswered", e);
+            // Still try to start VOSK analysis if possible
+            try {
+                if (voskRecognizer != null) {
+                    startRealTimeAnalysis(phoneNumber);
+                }
+            } catch (Exception e2) {
+                debugLog("❌ Failed to start VOSK analysis as fallback: " + e2.getMessage());
+            }
         }
-        
-        // CRITICAL: Start VOSK analysis regardless of recording status
-        debugLog("Starting real-time analysis regardless of recording status...");
-        startRealTimeAnalysis(phoneNumber);
-        debugLog("=== END CALL ANSWERED ===");
     }
 
     private void onCallEnded(String phoneNumber) {
-        showToast("📴 Call ended - Analyzing recording for scams...");
-        
-        // Stop recording and analyze
-        String recordingPath = stopRecording();
-        if (recordingPath != null) {
-            analyzeRecording(recordingPath, phoneNumber);
+        try {
+            showToast("📴 Call ended - Analyzing recording for scams...");
+            
+            // Stop recording and analyze
+            String recordingPath = stopRecording();
+            if (recordingPath != null) {
+                analyzeRecording(recordingPath, phoneNumber);
+            }
+            
+            // Stop real-time analysis
+            stopRealTimeAnalysis();
+        } catch (Exception e) {
+            debugLog("❌ Exception in onCallEnded: " + e.getMessage());
+            Log.e(TAG, "Exception in onCallEnded", e);
+            // Always try to stop analysis even if other operations fail
+            try {
+                stopRealTimeAnalysis();
+            } catch (Exception e2) {
+                debugLog("❌ Failed to stop real-time analysis: " + e2.getMessage());
+            }
         }
-        
-        // Stop real-time analysis
-        stopRealTimeAnalysis();
     }
 
     private void prepareRecording(String phoneNumber) {
