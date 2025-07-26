@@ -916,24 +916,43 @@ public class VoskSpeechRecognizer {
      * Start real-time audio recognition
      */
     public synchronized void startListening() {
+        Log.d(TAG, "=== VOSK START LISTENING ATTEMPT ===");
+        Log.d(TAG, "isListening: " + isListening);
+        Log.d(TAG, "isInitialized: " + isInitialized);
+        Log.d(TAG, "currentModel: " + (currentModel != null ? "available" : "null"));
+        Log.d(TAG, "currentLanguage: " + currentLanguage);
+        
         if (isListening || !isInitialized || currentModel == null) {
             Log.w(TAG, "Cannot start listening - already listening or not initialized");
+            Log.d(TAG, "Precondition check failed:");
+            Log.d(TAG, "  isListening: " + isListening);
+            Log.d(TAG, "  isInitialized: " + isInitialized);
+            Log.d(TAG, "  currentModel != null: " + (currentModel != null));
             return;
         }
         
         // Check for audio recording permission
+        Log.d(TAG, "Checking RECORD_AUDIO permission...");
         if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) 
             != PackageManager.PERMISSION_GRANTED) {
-            Log.e(TAG, "RECORD_AUDIO permission not granted");
+            Log.e(TAG, "❌ RECORD_AUDIO permission not granted");
             if (recognitionListener != null) {
                 recognitionListener.onError("Microphone permission required for real-time analysis");
             }
             return;
         }
+        Log.d(TAG, "✅ RECORD_AUDIO permission granted");
         
         try {
+            Log.d(TAG, "Creating VOSK Recognizer...");
             // Create recognizer for real-time processing
             recognizer = new Recognizer(currentModel, SAMPLE_RATE);
+            Log.d(TAG, "✅ VOSK Recognizer created successfully");
+            
+            Log.d(TAG, "Initializing AudioRecord...");
+            Log.d(TAG, "AudioSource: VOICE_COMMUNICATION");
+            Log.d(TAG, "Sample Rate: " + SAMPLE_RATE);
+            Log.d(TAG, "Buffer Size: " + BUFFER_SIZE);
             
             // Initialize AudioRecord
             audioRecord = new AudioRecord(
@@ -944,25 +963,46 @@ public class VoskSpeechRecognizer {
                 BUFFER_SIZE
             );
             
+            Log.d(TAG, "AudioRecord created, checking state...");
             if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
-                Log.e(TAG, "AudioRecord initialization failed");
+                Log.e(TAG, "❌ AudioRecord initialization failed");
+                Log.e(TAG, "AudioRecord state: " + audioRecord.getState());
+                Log.e(TAG, "Expected state: " + AudioRecord.STATE_INITIALIZED);
                 if (recognitionListener != null) {
                     recognitionListener.onError("Failed to initialize audio recording");
                 }
                 return;
             }
+            Log.d(TAG, "✅ AudioRecord initialized successfully");
             
+            Log.d(TAG, "Starting AudioRecord recording...");
             isListening = true;
             audioRecord.startRecording();
+            Log.d(TAG, "✅ AudioRecord recording started");
             
+            Log.d(TAG, "Starting audio processing thread...");
             // Start audio processing thread
             audioThread = new Thread(this::processAudioData);
             audioThread.start();
+            Log.d(TAG, "✅ Audio processing thread started");
             
-            Log.d(TAG, "Real-time listening started for language: " + currentLanguage);
+            Log.d(TAG, "🎤 Real-time listening started for language: " + currentLanguage);
+            Log.d(TAG, "=== VOSK START LISTENING SUCCESS ===");
             
+        } catch (SecurityException e) {
+            Log.e(TAG, "❌ SECURITY EXCEPTION in VOSK startListening: " + e.getMessage());
+            if (recognitionListener != null) {
+                recognitionListener.onError("Security exception: " + e.getMessage());
+            }
+            stopListening();
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "❌ ILLEGAL ARGUMENT EXCEPTION in VOSK startListening: " + e.getMessage());
+            if (recognitionListener != null) {
+                recognitionListener.onError("Invalid audio configuration: " + e.getMessage());
+            }
+            stopListening();
         } catch (Exception e) {
-            Log.e(TAG, "Failed to start listening", e);
+            Log.e(TAG, "❌ GENERAL EXCEPTION in VOSK startListening: " + e.getClass().getSimpleName() + " - " + e.getMessage());
             if (recognitionListener != null) {
                 recognitionListener.onError("Failed to start listening: " + e.getMessage());
             }
@@ -1008,27 +1048,48 @@ public class VoskSpeechRecognizer {
      * Process audio data in real-time
      */
     private void processAudioData() {
+        Log.d(TAG, "=== VOSK AUDIO PROCESSING THREAD STARTED ===");
         byte[] buffer = new byte[BUFFER_SIZE];
+        int totalBytesProcessed = 0;
+        int audioFrameCount = 0;
         
         while (isListening && audioRecord != null) {
             try {
                 int bytesRead = audioRecord.read(buffer, 0, buffer.length);
+                audioFrameCount++;
+                
+                if (audioFrameCount % 100 == 0) { // Log every 100 frames to avoid spam
+                    Log.d(TAG, "Audio frame " + audioFrameCount + ", bytes read: " + bytesRead);
+                }
                 
                 if (bytesRead > 0 && recognizer != null) {
+                    totalBytesProcessed += bytesRead;
+                    
                     if (recognizer.acceptWaveForm(buffer, bytesRead)) {
                         // Final result
+                        Log.d(TAG, "🎯 VOSK Final result available");
                         String result = recognizer.getFinalResult();
                         processFinalResult(result);
                     } else {
                         // Partial result
                         String partial = recognizer.getPartialResult();
+                        if (partial != null && !partial.trim().isEmpty() && !partial.equals("{}")) {
+                            Log.d(TAG, "🎤 VOSK Partial result available");
+                        }
                         processPartialResult(partial);
                     }
+                } else if (bytesRead <= 0) {
+                    if (audioFrameCount <= 10) { // Only log first few failures
+                        Log.w(TAG, "No audio data read, bytesRead: " + bytesRead);
+                    }
+                } else if (recognizer == null) {
+                    Log.e(TAG, "❌ Recognizer is null in processAudioData");
+                    break;
                 }
                 
             } catch (Exception e) {
                 if (isListening) {
-                    Log.e(TAG, "Error processing audio data", e);
+                    Log.e(TAG, "❌ Error processing audio data", e);
                     if (recognitionListener != null) {
                         recognitionListener.onError("Audio processing error: " + e.getMessage());
                     }
@@ -1036,6 +1097,10 @@ public class VoskSpeechRecognizer {
                 break;
             }
         }
+        
+        Log.d(TAG, "=== VOSK AUDIO PROCESSING THREAD ENDED ===");
+        Log.d(TAG, "Total audio frames processed: " + audioFrameCount);
+        Log.d(TAG, "Total bytes processed: " + totalBytesProcessed);
     }
     
     /**

@@ -74,6 +74,15 @@ public class EnhancedCallDetector {
     }
     
     private void setupVoskListener() {
+        debugLog("=== SETTING UP VOSK LISTENER ===");
+        debugLog("voskRecognizer: " + (voskRecognizer != null ? "available" : "null"));
+        
+        if (voskRecognizer == null) {
+            debugLog("❌ Cannot setup VOSK listener - voskRecognizer is null");
+            return;
+        }
+        
+        debugLog("Creating VoskRecognitionListener...");
         voskRecognizer.setRecognitionListener(new VoskSpeechRecognizer.VoskRecognitionListener() {
             @Override
             public void onPartialResult(String partialText, String language) {
@@ -149,24 +158,31 @@ public class EnhancedCallDetector {
             
             @Override
             public void onError(String error) {
+                debugLog("❌ VOSK recognition error: " + error);
                 Log.e(TAG, "VOSK recognition error: " + error);
             }
             
             @Override
             public void onInitializationComplete(boolean success) {
+                debugLog("🎯 VOSK initialization in call detector: " + success);
                 Log.d(TAG, "VOSK initialization in call detector: " + success);
             }
             
             @Override
             public void onModelDownloadProgress(String language, int progress) {
+                debugLog("📥 Model download progress for " + language + ": " + progress + "%");
                 Log.d(TAG, "Model download progress for " + language + ": " + progress + "%");
             }
             
             @Override
             public void onModelDownloadComplete(String language, boolean success) {
+                debugLog("✅ Model download complete for " + language + ": " + success);
                 Log.d(TAG, "Model download complete for " + language + ": " + success);
             }
         });
+        
+        debugLog("✅ VOSK listener setup complete");
+        debugLog("=== END VOSK LISTENER SETUP ===");
     }
     
     /**
@@ -365,13 +381,17 @@ public class EnhancedCallDetector {
         
         // Start recording
         debugLog("Attempting to start recording...");
-        if (startRecording()) {
+        boolean recordingStarted = startRecording();
+        if (recordingStarted) {
             debugLog("✅ Recording started successfully - starting real-time analysis");
-            // Start real-time risk analysis
-            startRealTimeAnalysis(phoneNumber);
         } else {
-            debugLog("❌ Recording failed to start");
+            debugLog("❌ Recording failed to start - BUT still starting VOSK analysis");
+            showToast("⚠️ Recording unavailable - VOSK speech analysis still active");
         }
+        
+        // CRITICAL: Start VOSK analysis regardless of recording status
+        debugLog("Starting real-time analysis regardless of recording status...");
+        startRealTimeAnalysis(phoneNumber);
         debugLog("=== END CALL ANSWERED ===");
     }
 
@@ -409,34 +429,79 @@ public class EnhancedCallDetector {
     }
 
     private boolean startRecording() {
+        debugLog("=== START RECORDING ATTEMPT ===");
+        debugLog("isRecording: " + isRecording);
+        debugLog("currentRecordingPath: " + currentRecordingPath);
+        
         if (isRecording || currentRecordingPath == null) {
+            debugLog("❌ Recording precondition failed - already recording or no path");
             return false;
         }
 
         try {
+            debugLog("Creating MediaRecorder...");
             mediaRecorder = new MediaRecorder();
             
             // Configure for call recording
+            debugLog("Configuring MediaRecorder for call recording...");
+            debugLog("Setting AudioSource to VOICE_CALL...");
             mediaRecorder.setAudioSource(MediaRecorder.AudioSource.VOICE_CALL);
+            debugLog("Setting OutputFormat to MPEG_4...");
             mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+            debugLog("Setting AudioEncoder to AAC...");
             mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+            debugLog("Setting AudioSamplingRate to 44100...");
             mediaRecorder.setAudioSamplingRate(44100);
+            debugLog("Setting AudioEncodingBitRate to 128000...");
             mediaRecorder.setAudioEncodingBitRate(128000);
+            debugLog("Setting OutputFile to: " + currentRecordingPath);
             mediaRecorder.setOutputFile(currentRecordingPath);
 
+            debugLog("Calling mediaRecorder.prepare()...");
             mediaRecorder.prepare();
+            debugLog("MediaRecorder prepare() successful");
+            
+            debugLog("Calling mediaRecorder.start()...");
             mediaRecorder.start();
+            debugLog("MediaRecorder start() successful");
+            
             isRecording = true;
             
+            debugLog("✅ Recording started successfully: " + currentRecordingPath);
             Log.d(TAG, "Recording started: " + currentRecordingPath);
             
             if (listener != null) {
                 listener.onRecordingStatusChanged(true, currentRecordingPath);
             }
             
+            debugLog("=== END START RECORDING (SUCCESS) ===");
+            return true;
+            
+        } catch (SecurityException e) {
+            debugLog("❌ SECURITY EXCEPTION in startRecording: " + e.getMessage());
+            debugLog("This usually means VOICE_CALL recording is not permitted");
+            Log.e(TAG, "Security exception starting recording", e);
+        } catch (IllegalStateException e) {
+            debugLog("❌ ILLEGAL STATE EXCEPTION in startRecording: " + e.getMessage());
+            debugLog("This usually means MediaRecorder is in wrong state");
+            Log.e(TAG, "Illegal state exception starting recording", e);
+        } catch (IOException e) {
+            debugLog("❌ IO EXCEPTION in startRecording: " + e.getMessage());
+            debugLog("This usually means file/path issues");
+            Log.e(TAG, "IO exception starting recording", e);
+        } catch (Exception e) {
+            debugLog("❌ GENERAL EXCEPTION in startRecording: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+            Log.e(TAG, "Unexpected exception starting recording", e);
+        }
+        
+        debugLog("=== END START RECORDING (FAILED) ===");
+        return false;
+            
             return true;
             
         } catch (Exception e) {
+            debugLog("❌ Recording failed with exception: " + e.getMessage());
+            debugLog("Exception type: " + e.getClass().getSimpleName());
             Log.e(TAG, "Failed to start recording", e);
             showToast("⚠️ Recording failed - continuing with basic monitoring");
             
@@ -447,6 +512,7 @@ public class EnhancedCallDetector {
                 } catch (Exception ignored) {}
                 mediaRecorder = null;
             }
+            debugLog("=== END RECORDING ATTEMPT (FAILED) ===");
             return false;
         }
     }
