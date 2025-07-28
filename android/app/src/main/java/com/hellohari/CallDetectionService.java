@@ -10,8 +10,6 @@ import android.content.Intent;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.IBinder;
-import android.telephony.PhoneStateListener;
-import android.telephony.TelephonyManager;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -27,8 +25,6 @@ public class CallDetectionService extends Service {
     private static final String CHANNEL_ID = "CallDetectionChannel";
     private static final int NOTIFICATION_ID = 1001;
     
-    private TelephonyManager telephonyManager;
-    private CallStateListener callStateListener;
     private MediaRecorder mediaRecorder;
     private String currentRecordingPath;
     private MultiLanguageScamDetector scamDetector;
@@ -44,10 +40,9 @@ public class CallDetectionService extends Service {
         
         // Initialize components
         scamDetector = new MultiLanguageScamDetector(this);
-        telephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
         
-        // DO NOT start PhoneStateListener here - let EnhancedCallDetector handle it
-        // This was causing conflicts with EnhancedCallDetector's BroadcastReceiver
+        // EnhancedCallDetector handles all call state detection
+        // This service now only provides foreground notification and recording support
         Log.d(TAG, "Service initialized - EnhancedCallDetector will handle call states");
     }
     
@@ -211,35 +206,4 @@ public class CallDetectionService extends Service {
     /**
      * Listener for call state changes
      */
-    private class CallStateListener extends PhoneStateListener {
-        private boolean wasRinging = false;
-        private String incomingNumber = null;
-        
-        @Override
-        public void onCallStateChanged(int state, String phoneNumber) {
-            switch (state) {
-                case TelephonyManager.CALL_STATE_RINGING:
-                    Log.d(TAG, "Incoming call from: " + phoneNumber);
-                    wasRinging = true;
-                    incomingNumber = phoneNumber;
-                    break;
-                    
-                case TelephonyManager.CALL_STATE_OFFHOOK:
-                    if (wasRinging) {
-                        Log.d(TAG, "Call answered, starting recording");
-                        startRecording(incomingNumber);
-                    }
-                    break;
-                    
-                case TelephonyManager.CALL_STATE_IDLE:
-                    if (isRecording) {
-                        Log.d(TAG, "Call ended, stopping recording");
-                        stopRecording();
-                    }
-                    wasRinging = false;
-                    incomingNumber = null;
-                    break;
-            }
-        }
-    }
 }

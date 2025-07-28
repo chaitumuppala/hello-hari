@@ -49,9 +49,14 @@ public class EnhancedCallDetector {
 
     // Helper method for comprehensive debug logging
     private void debugLog(String message) {
-        Log.d(TAG, message);
-        if (listener != null) {
-            listener.onDebugLog(message);
+        try {
+            Log.d(TAG, message);
+            if (listener != null) {
+                listener.onDebugLog(message);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in debugLog: " + e.getMessage());
+            // Don't let logging errors crash the app
         }
     }
 
@@ -190,51 +195,56 @@ public class EnhancedCallDetector {
      * This prevents Timer backup analysis from overriding VOSK detections
      */
     private void updateRiskScore(int newRiskScore, String analysis, String source) {
-        long currentTime = System.currentTimeMillis();
-        
-        // ENHANCED DEBUG LOGGING
-        debugLog("=== RISK SCORE UPDATE ATTEMPT ===");
-        debugLog("Source: " + source);
-        debugLog("New Score: " + newRiskScore + "%");
-        debugLog("Current Max Score: " + maxRiskScore + "%");
-        debugLog("Analysis: " + analysis);
-        debugLog("Time since last high risk: " + (currentTime - lastHighRiskTime) + "ms");
-        
-        // Always update if it's higher risk
-        if (newRiskScore > maxRiskScore) {
-            debugLog("🔥 UPDATING TO HIGHER SCORE: " + newRiskScore + "% (was " + maxRiskScore + "%)");
-            maxRiskScore = newRiskScore;
-            lastHighRiskAnalysis = analysis;
-            lastHighRiskTime = currentTime;
+        try {
+            long currentTime = System.currentTimeMillis();
             
-            debugLog("NEW HIGH RISK: " + newRiskScore + "% from " + source + " - " + analysis);
+            // ENHANCED DEBUG LOGGING
+            debugLog("=== RISK SCORE UPDATE ATTEMPT ===");
+            debugLog("Source: " + source);
+            debugLog("New Score: " + newRiskScore + "%");
+            debugLog("Current Max Score: " + maxRiskScore + "%");
+            debugLog("Analysis: " + analysis);
+            debugLog("Time since last high risk: " + (currentTime - lastHighRiskTime) + "ms");
             
-            if (listener != null) {
-                listener.onRiskLevelChanged(newRiskScore, analysis + " [" + source + "]");
-                debugLog("✅ LISTENER NOTIFIED with " + newRiskScore + "%");
+            // Always update if it's higher risk
+            if (newRiskScore > maxRiskScore) {
+                debugLog("🔥 UPDATING TO HIGHER SCORE: " + newRiskScore + "% (was " + maxRiskScore + "%)");
+                maxRiskScore = newRiskScore;
+                lastHighRiskAnalysis = analysis;
+                lastHighRiskTime = currentTime;
+                
+                debugLog("NEW HIGH RISK: " + newRiskScore + "% from " + source + " - " + analysis);
+                
+                if (listener != null) {
+                    listener.onRiskLevelChanged(newRiskScore, analysis + " [" + source + "]");
+                    debugLog("✅ LISTENER NOTIFIED with " + newRiskScore + "%");
+                }
+                
+                // Show appropriate alerts
+                if (newRiskScore > 80) {
+                    showToast("🚨 CRITICAL SCAM: " + analysis.substring(0, Math.min(30, analysis.length())));
+                } else if (newRiskScore > 60) {
+                    showToast("⚠️ HIGH RISK: " + analysis.substring(0, Math.min(25, analysis.length())));
+                } else if (newRiskScore > 40) {
+                    showToast("⚡ SUSPICIOUS: " + analysis.substring(0, Math.min(20, analysis.length())));
+                }
             }
-            
-            // Show appropriate alerts
-            if (newRiskScore > 80) {
-                showToast("🚨 CRITICAL SCAM: " + analysis.substring(0, Math.min(30, analysis.length())));
-            } else if (newRiskScore > 60) {
-                showToast("⚠️ HIGH RISK: " + analysis.substring(0, Math.min(25, analysis.length())));
-            } else if (newRiskScore > 40) {
-                showToast("⚡ SUSPICIOUS: " + analysis.substring(0, Math.min(20, analysis.length())));
+            // For lower scores, only update if no high risk detected in last 30 seconds
+            else if (currentTime - lastHighRiskTime > 30000) {
+                debugLog("📉 LOWER SCORE UPDATE: " + newRiskScore + "% (no high risk in 30s)");
+                if (listener != null) {
+                    listener.onRiskLevelChanged(newRiskScore, analysis + " [" + source + "]");
+                    debugLog("✅ LISTENER NOTIFIED with lower score: " + newRiskScore + "%");
+                }
+            } else {
+                // Just log but don't override UI
+                debugLog("🚫 SCORE REJECTED: " + newRiskScore + "% from " + source + " (preserving higher score " + maxRiskScore + "%)");
             }
-        } 
-        // For lower scores, only update if no high risk detected in last 30 seconds
-        else if (currentTime - lastHighRiskTime > 30000) {
-            debugLog("📉 LOWER SCORE UPDATE: " + newRiskScore + "% (no high risk in 30s)");
-            if (listener != null) {
-                listener.onRiskLevelChanged(newRiskScore, analysis + " [" + source + "]");
-                debugLog("✅ LISTENER NOTIFIED with lower score: " + newRiskScore + "%");
-            }
-        } else {
-            // Just log but don't override UI
-            debugLog("🚫 SCORE REJECTED: " + newRiskScore + "% from " + source + " (preserving higher score " + maxRiskScore + "%)");
+            debugLog("=== END RISK SCORE UPDATE ===");
+        } catch (Exception e) {
+            debugLog("❌ Exception in updateRiskScore: " + e.getMessage());
+            Log.e(TAG, "Exception in updateRiskScore", e);
         }
-        Log.d(TAG, "=== END RISK SCORE UPDATE ===");
     }
     
     public void setCallDetectionListener(CallDetectionListener listener) {
