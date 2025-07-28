@@ -753,21 +753,36 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
     }
     
     private void startProtectionMonitor() {
-        stopProtectionMonitor(); // Stop any existing monitor
-        
-        protectionMonitor = new Timer("ProtectionMonitor");
-        protectionMonitor.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                mainHandler.post(() -> {
-                    if (isProtectionActive) {
-                        updateSystemStatus(); // This will check and auto-recover if needed
+        try {
+            stopProtectionMonitor(); // Stop any existing monitor
+            
+            protectionMonitor = new Timer("ProtectionMonitor");
+            protectionMonitor.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    try {
+                        mainHandler.post(() -> {
+                            try {
+                                if (isProtectionActive) {
+                                    updateSystemStatus(); // This will check and auto-recover if needed
+                                }
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error in protection monitor UI update - continuing protection: " + e.getMessage());
+                                // Continue protection even if UI update fails
+                            }
+                        });
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error in protection monitor task - continuing protection: " + e.getMessage());
+                        // Continue protection even if handler post fails
                     }
-                });
-            }
-        }, 10000, 10000); // Check every 10 seconds
-        
-        Log.d(TAG, "Protection monitor started");
+                }
+            }, 10000, 10000); // Check every 10 seconds
+            
+            Log.d(TAG, "Protection monitor started with enhanced crash protection");
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting protection monitor: " + e.getMessage(), e);
+            // Protection can continue without monitor
+        }
     }
     
     private void stopProtectionMonitor() {
@@ -779,37 +794,82 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
     }
     
     private void updateSystemStatus() {
-        // Check if protection should be active but call detector is not monitoring
-        if (isProtectionActive && callDetector != null && !callDetector.isMonitoring()) {
-            addToCallLog("⚠️ PROTECTION FAILURE DETECTED - Auto-recovering...");
-            Log.w(TAG, "Protection failure detected - attempting auto-recovery");
+        try {
+            // Check actual protection state from EnhancedCallDetector
+            boolean actualProtectionState = (callDetector != null && callDetector.isMonitoring());
             
-            // Auto-restart protection
-            try {
-                callDetector.startCallDetection();
-                addToCallLog("✅ Protection auto-recovery successful");
-            } catch (Exception e) {
-                addToCallLog("❌ Protection auto-recovery failed: " + e.getMessage());
-                Log.e(TAG, "Auto-recovery failed", e);
-                // Set protection to inactive since recovery failed
-                isProtectionActive = false;
+            // Sync MainActivity's state with actual protection state
+            if (isProtectionActive && !actualProtectionState) {
+                addToCallLog("⚠️ PROTECTION FAILURE DETECTED - Auto-recovering...");
+                Log.w(TAG, "Protection failure detected - attempting auto-recovery");
+                
+                // Auto-restart protection
+                try {
+                    boolean restartResult = callDetector.startCallDetection();
+                    if (restartResult) {
+                        // Use handler to check after short delay instead of blocking thread
+                        mainHandler.postDelayed(() -> {
+                            try {
+                                boolean actualState = callDetector.isMonitoring();
+                                if (actualState) {
+                                    addToCallLog("✅ Protection auto-recovery successful");
+                                } else {
+                                    // One more retry after short delay
+                                    mainHandler.postDelayed(() -> {
+                                        try {
+                                            boolean finalState = callDetector.isMonitoring();
+                                            if (finalState) {
+                                                addToCallLog("✅ Protection auto-recovery successful (delayed)");
+                                            } else {
+                                                addToCallLog("❌ Protection auto-recovery failed - detector not monitoring after restart");
+                                                isProtectionActive = false;
+                                            }
+                                        } catch (Exception e) {
+                                            Log.e(TAG, "Error in delayed recovery check", e);
+                                        }
+                                    }, 200);
+                                }
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error in recovery check", e);
+                            }
+                        }, 100);
+                    } else {
+                        addToCallLog("❌ Protection auto-recovery failed - startCallDetection returned false");
+                        isProtectionActive = false; // Only set false if recovery truly failed
+                    }
+                } catch (Exception e) {
+                    addToCallLog("❌ Protection auto-recovery failed: " + e.getMessage());
+                    Log.e(TAG, "Auto-recovery failed", e);
+                    isProtectionActive = false; // Only set false if recovery truly failed
+                }
+            } else if (!isProtectionActive && actualProtectionState) {
+                // Protection is actually running but UI thinks it's not - sync states
+                Log.i(TAG, "Protection was actually active - syncing UI state");
+                isProtectionActive = true;
+                addToCallLog("✅ Protection status synchronized - Protection is active");
             }
-        }
-        
-        if (isProtectionActive) {
-            statusIndicator.setTextColor(Color.parseColor("#10B981"));
-            protectionStatusText.setText("Protection Active");
-            mainActionButton.setText("Stop Protection");
-            mainActionButton.setBackgroundColor(Color.parseColor("#EF4444"));
-        } else {
-            statusIndicator.setTextColor(Color.parseColor("#EF4444"));
-            protectionStatusText.setText("Protection Inactive");
-            mainActionButton.setText("Start AI Scam Protection");
             
-            GradientDrawable background = new GradientDrawable();
-            background.setColor(Color.parseColor("#10B981"));
-            background.setCornerRadius(8);
-            mainActionButton.setBackground(background);
+            // Update UI based on actual state
+            if (isProtectionActive && actualProtectionState) {
+                statusIndicator.setTextColor(Color.parseColor("#10B981"));
+                protectionStatusText.setText("Protection Active");
+                mainActionButton.setText("Stop Protection");
+                mainActionButton.setBackgroundColor(Color.parseColor("#EF4444"));
+                addToCallLog("Protection Active: " + actualProtectionState); // Debug logging
+            } else {
+                statusIndicator.setTextColor(Color.parseColor("#EF4444"));
+                protectionStatusText.setText("Protection Inactive");
+                mainActionButton.setText("Start AI Scam Protection");
+                
+                GradientDrawable background = new GradientDrawable();
+                background.setColor(Color.parseColor("#10B981"));
+                background.setCornerRadius(8);
+                mainActionButton.setBackground(background);
+                addToCallLog("Protection Active: " + actualProtectionState); // Debug logging
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in updateSystemStatus - continuing protection: " + e.getMessage(), e);
+            // Don't change protection state if status update fails
         }
     }
     
@@ -876,33 +936,46 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
     
     @Override
     public void onCallStateChanged(String state, String phoneNumber) {
-        Log.d(TAG, "Call state changed: " + state + " for number: " + phoneNumber);
-        
-        // Handle different call states
-        switch (state) {
-            case "INCOMING_CALL_STARTED":
-                onIncomingCallStarted(phoneNumber, System.currentTimeMillis() + "");
-                break;
-            case "INCOMING_CALL_ENDED":
-                onIncomingCallEnded(phoneNumber, System.currentTimeMillis() + "");
-                break;
-            case "OUTGOING_CALL_STARTED":
-                onOutgoingCallStarted(phoneNumber, System.currentTimeMillis() + "");
-                break;
-            case "OUTGOING_CALL_ENDED":
-                onOutgoingCallEnded(phoneNumber, System.currentTimeMillis() + "");
-                break;
-            case "MISSED_CALL":
-                onMissedCall(phoneNumber, System.currentTimeMillis() + "");
-                break;
-            case "CALL_STARTED":
-                onCallStarted(phoneNumber);
-                break;
-            case "CALL_ENDED":
-                onCallEnded(phoneNumber);
-                break;
-            default:
-                Log.w(TAG, "Unknown call state: " + state);
+        try {
+            Log.d(TAG, "Call state changed: " + state + " for number: " + phoneNumber);
+            
+            // Verify protection is still active before processing call
+            verifyProtectionState();
+            
+            // Handle different call states
+            switch (state) {
+                case "INCOMING_CALL_STARTED":
+                    onIncomingCallStarted(phoneNumber, System.currentTimeMillis() + "");
+                    break;
+                case "INCOMING_CALL_ENDED":
+                    onIncomingCallEnded(phoneNumber, System.currentTimeMillis() + "");
+                    break;
+                case "OUTGOING_CALL_STARTED":
+                    onOutgoingCallStarted(phoneNumber, System.currentTimeMillis() + "");
+                    break;
+                case "OUTGOING_CALL_ENDED":
+                    onOutgoingCallEnded(phoneNumber, System.currentTimeMillis() + "");
+                    break;
+                case "MISSED_CALL":
+                    onMissedCall(phoneNumber, System.currentTimeMillis() + "");
+                    break;
+                case "CALL_STARTED":
+                    onCallStarted(phoneNumber);
+                    break;
+                case "CALL_ENDED":
+                    onCallEnded(phoneNumber);
+                    break;
+                default:
+                    Log.w(TAG, "Unknown call state: " + state);
+            }
+            
+            // Verify protection is still active after processing call
+            verifyProtectionState();
+            
+        } catch (Exception e) {
+            Log.e(TAG, "MainActivity callback crash prevented in onCallStateChanged: " + e.getMessage(), e);
+            // Ensure protection stays active even if callback fails
+            verifyProtectionState();
         }
     }
     
@@ -910,83 +983,138 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
     
     @Override
     public void onRecordingStatusChanged(boolean isRecording, String filePath) {
-        Log.d(TAG, "Recording status changed: " + isRecording + " - " + filePath);
-        if (isRecording) {
-            addToCallLog("Started recording call audio...");
-        } else {
-            addToCallLog("Stopped recording call audio");
-            if (filePath != null) {
-                addToCallLog("Recording saved: " + filePath);
+        try {
+            Log.d(TAG, "Recording status changed: " + isRecording + " - " + filePath);
+            if (isRecording) {
+                addToCallLog("Started recording call audio...");
+            } else {
+                addToCallLog("Stopped recording call audio");
+                if (filePath != null) {
+                    addToCallLog("Recording saved: " + filePath);
+                }
             }
+        } catch (Exception e) {
+            Log.e(TAG, "MainActivity callback crash prevented in onRecordingStatusChanged: " + e.getMessage(), e);
+            // Continue protection even if UI callback fails
         }
     }
     
     @Override
     public void onRiskLevelChanged(int riskScore, String analysis) {
-        Log.d(TAG, "Risk level changed: " + riskScore + "% - " + analysis);
-        addToCallLog("Risk Analysis: " + riskScore + "% - " + analysis);
-        updateRiskLevel(riskScore, analysis);
-        
-        // Show alerts for high risk
-        if (riskScore > 70) {
-            addToCallLog("🚨 HIGH RISK DETECTED: " + analysis);
-        } else if (riskScore > 50) {
-            addToCallLog("⚠️ MEDIUM RISK DETECTED: " + analysis);
+        try {
+            Log.d(TAG, "Risk level changed: " + riskScore + "% - " + analysis);
+            
+            // Verify protection is still active when risk detected
+            verifyProtectionState();
+            
+            addToCallLog("Risk Analysis: " + riskScore + "% - " + analysis);
+            updateRiskLevel(riskScore, analysis);
+            
+            // Show alerts for high risk
+            if (riskScore > 70) {
+                addToCallLog("🚨 HIGH RISK DETECTED: " + analysis);
+            } else if (riskScore > 50) {
+                addToCallLog("⚠️ MEDIUM RISK DETECTED: " + analysis);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "MainActivity callback crash prevented in onRiskLevelChanged: " + e.getMessage(), e);
+            // Ensure protection stays active even if callback fails
+            verifyProtectionState();
         }
     }
     
     @Override
     public void onDebugLog(String message) {
-        // Bridge debug messages from EnhancedCallDetector to app's log system
-        Log.d(TAG, "Debug: " + message);
-        addToCallLog("DEBUG: " + message);
+        try {
+            // Bridge debug messages from EnhancedCallDetector to app's log system
+            Log.d(TAG, "Debug: " + message);
+            addToCallLog("DEBUG: " + message);
+        } catch (Exception e) {
+            Log.e(TAG, "MainActivity callback crash prevented in onDebugLog: " + e.getMessage(), e);
+            // Continue protection even if UI callback fails
+        }
     }
     
     // Helper methods for different call states (no longer @Override)
     
     public void onCallStarted(String phoneNumber) {
-        addToCallLog("Call started: " + phoneNumber);
-        startCallRecording(phoneNumber);
+        try {
+            addToCallLog("Call started: " + phoneNumber);
+            startCallRecording(phoneNumber);
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onCallStarted: " + e.getMessage(), e);
+            // Continue protection even if call start handling fails
+        }
     }
     
     public void onCallEnded(String phoneNumber) {
-        addToCallLog("Call ended: " + phoneNumber);
-        if (currentRecordingPath != null) {
-            analyzeRecordingForScamsAI(currentRecordingPath, phoneNumber);
+        try {
+            addToCallLog("Call ended: " + phoneNumber);
+            if (currentRecordingPath != null) {
+                analyzeRecordingForScamsAI(currentRecordingPath, phoneNumber);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onCallEnded: " + e.getMessage(), e);
+            // Continue protection even if call end handling fails
         }
     }
     
     public void onIncomingCallStarted(String number, String time) {
-        Log.d(TAG, "Incoming call started: " + number + " at " + time);
-        addToCallLog("Incoming call: " + number);
-        startCallRecording(number);
+        try {
+            Log.d(TAG, "Incoming call started: " + number + " at " + time);
+            addToCallLog("Incoming call: " + number);
+            startCallRecording(number);
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onIncomingCallStarted: " + e.getMessage(), e);
+            // Continue protection even if incoming call handling fails
+        }
     }
     
     public void onIncomingCallEnded(String number, String time) {
-        Log.d(TAG, "Incoming call ended: " + number + " at " + time);
-        addToCallLog("Call ended: " + number);
-        if (currentRecordingPath != null) {
-            analyzeRecordingForScamsAI(currentRecordingPath, number);
+        try {
+            Log.d(TAG, "Incoming call ended: " + number + " at " + time);
+            addToCallLog("Call ended: " + number);
+            if (currentRecordingPath != null) {
+                analyzeRecordingForScamsAI(currentRecordingPath, number);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onIncomingCallEnded: " + e.getMessage(), e);
+            // Continue protection even if incoming call end handling fails
         }
     }
     
     public void onOutgoingCallStarted(String number, String time) {
-        Log.d(TAG, "Outgoing call started: " + number + " at " + time);
-        addToCallLog("Outgoing call: " + number);
-        startCallRecording(number);
+        try {
+            Log.d(TAG, "Outgoing call started: " + number + " at " + time);
+            addToCallLog("Outgoing call: " + number);
+            startCallRecording(number);
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onOutgoingCallStarted: " + e.getMessage(), e);
+            // Continue protection even if outgoing call handling fails
+        }
     }
     
     public void onOutgoingCallEnded(String number, String time) {
-        Log.d(TAG, "Outgoing call ended: " + number + " at " + time);
-        addToCallLog("Call ended: " + number);
-        if (currentRecordingPath != null) {
-            analyzeRecordingForScamsAI(currentRecordingPath, number);
+        try {
+            Log.d(TAG, "Outgoing call ended: " + number + " at " + time);
+            addToCallLog("Call ended: " + number);
+            if (currentRecordingPath != null) {
+                analyzeRecordingForScamsAI(currentRecordingPath, number);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onOutgoingCallEnded: " + e.getMessage(), e);
+            // Continue protection even if outgoing call end handling fails
         }
     }
     
     public void onMissedCall(String number, String time) {
-        Log.d(TAG, "Missed call: " + number + " at " + time);
-        addToCallLog("Missed call: " + number);
+        try {
+            Log.d(TAG, "Missed call: " + number + " at " + time);
+            addToCallLog("Missed call: " + number);
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onMissedCall: " + e.getMessage(), e);
+            // Continue protection even if missed call handling fails
+        }
     }
     
     private void startCallRecording(String phoneNumber) {
@@ -1000,79 +1128,121 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
             addToCallLog("Recording to: " + currentRecordingPath);
             
         } catch (Exception e) {
-            Log.e(TAG, "Recording error", e);
+            Log.e(TAG, "Recording error: " + e.getMessage(), e);
             addToCallLog("Recording error: " + e.getMessage());
+            // Continue protection even if recording fails
         }
     }
     
     private void analyzeRecordingForScamsAI(String recordingPath, String phoneNumber) {
-        if (!isVoskInitialized || voskRecognizer == null) {
-            addToCallLog("VOSK not available, using fallback analysis");
-            performBasicFallbackAnalysis(recordingPath, phoneNumber);
-            return;
-        }
-        
-        addToCallLog("Analyzing call with VOSK AI...");
-        
         try {
+            if (!isVoskInitialized || voskRecognizer == null) {
+                addToCallLog("VOSK not available, using fallback analysis");
+                performBasicFallbackAnalysis(recordingPath, phoneNumber);
+                return;
+            }
+            
+            addToCallLog("Analyzing call with VOSK AI...");
+            
             // Use VOSK to analyze the recording
             voskRecognizer.recognizeMultiLanguage(recordingPath);
             
         } catch (Exception e) {
-            Log.e(TAG, "AI analysis error", e);
+            Log.e(TAG, "AI analysis error: " + e.getMessage(), e);
             addToCallLog("AI analysis error: " + e.getMessage());
             performBasicFallbackAnalysis(recordingPath, phoneNumber);
+            // Continue protection even if AI analysis fails
         }
     }
     
     private void performBasicFallbackAnalysis(String recordingPath, String phoneNumber) {
-        addToCallLog("Performing fallback analysis...");
-        
-        // Basic analysis without AI
-        int riskScore = 15; // Default low risk
-        String analysisMessage = "Basic metadata analysis - No AI transcription available";
-        
-        updateRiskLevel(riskScore, analysisMessage);
-        addToCallLog("Fallback analysis complete - Risk: " + riskScore + "%");
+        try {
+            addToCallLog("Performing fallback analysis...");
+            
+            // Basic analysis without AI
+            int riskScore = 15; // Default low risk
+            String analysisMessage = "Basic metadata analysis - No AI transcription available";
+            
+            updateRiskLevel(riskScore, analysisMessage);
+            addToCallLog("Fallback analysis complete - Risk: " + riskScore + "%");
+        } catch (Exception e) {
+            Log.e(TAG, "Error in fallback analysis: " + e.getMessage(), e);
+            // Continue protection even if fallback analysis fails
+        }
     }
     
     private void updateRiskLevel(int riskScore, String message) {
-        riskMeter.setProgress(riskScore);
-        riskLevelText.setText(message + " - Risk: " + riskScore + "%");
-        
-        // Update risk meter color
-        int color;
-        if (riskScore < 30) {
-            color = Color.parseColor("#10B981"); // Green
-        } else if (riskScore < 70) {
-            color = Color.parseColor("#F59E0B"); // Orange
-        } else {
-            color = Color.parseColor("#EF4444"); // Red
+        try {
+            // Check if UI elements are available
+            if (riskMeter != null) {
+                riskMeter.setProgress(riskScore);
+            }
+            
+            if (riskLevelText != null) {
+                riskLevelText.setText(message + " - Risk: " + riskScore + "%");
+            }
+            
+            // Update risk meter color
+            int color;
+            if (riskScore < 30) {
+                color = Color.parseColor("#10B981"); // Green
+            } else if (riskScore < 70) {
+                color = Color.parseColor("#F59E0B"); // Orange
+            } else {
+                color = Color.parseColor("#EF4444"); // Red
+            }
+            
+            if (riskMeter != null && riskMeter.getProgressDrawable() != null) {
+                riskMeter.getProgressDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
+            }
+            
+            if (riskLevelText != null) {
+                riskLevelText.setTextColor(color);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating risk level UI: " + e.getMessage(), e);
+            // Risk level update failed, but protection continues
         }
-        
-        riskMeter.getProgressDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
-        riskLevelText.setTextColor(color);
     }
     
     private void addToCallLog(String message) {
-        String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-        String logEntry = timestamp + " | " + message + "\n";
-        
-        callLogs.add(logEntry);
-        
-        runOnUiThread(() -> {
-            if (callLogText != null) {
-                StringBuilder fullLog = new StringBuilder();
-                for (String log : callLogs) {
-                    fullLog.append(log);
-                }
-                callLogText.setText(fullLog.toString());
-                
-                callLogScrollView.post(() -> callLogScrollView.fullScroll(View.FOCUS_DOWN));
+        try {
+            String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
+            String logEntry = timestamp + " | " + message + "\n";
+            
+            callLogs.add(logEntry);
+            
+            // Only update UI if activity is active and UI elements exist
+            if (!isFinishing() && !isDestroyed()) {
+                runOnUiThread(() -> {
+                    try {
+                        if (callLogText != null && callLogScrollView != null) {
+                            StringBuilder fullLog = new StringBuilder();
+                            for (String log : callLogs) {
+                                fullLog.append(log);
+                            }
+                            callLogText.setText(fullLog.toString());
+                            
+                            callLogScrollView.post(() -> {
+                                try {
+                                    callLogScrollView.fullScroll(View.FOCUS_DOWN);
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error scrolling call log: " + e.getMessage());
+                                }
+                            });
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error updating call log UI: " + e.getMessage());
+                    }
+                });
             }
-        });
-        
-        Log.d(TAG, message);
+            
+            Log.d(TAG, message);
+        } catch (Exception e) {
+            Log.e(TAG, "Error in addToCallLog: " + e.getMessage(), e);
+            // Always log to system even if UI fails
+            Log.d(TAG, message);
+        }
     }
     
     private void createFallbackUI() {
@@ -1406,6 +1576,36 @@ public class MainActivity extends AppCompatActivity implements EnhancedCallDetec
         
         // Reset risk level
         updateRiskLevel(0, "No active calls - Risk: 0%");
+    }
+    
+    // === PROTECTION STATE VERIFICATION ===
+    
+    private void verifyProtectionState() {
+        try {
+            if (callDetector != null) {
+                boolean actualMonitoring = callDetector.isMonitoring();
+                if (isProtectionActive && !actualMonitoring) {
+                    Log.w(TAG, "Protection state mismatch detected - UI thinks active but detector not monitoring");
+                    addToCallLog("🔄 Protection state verification - restarting detector");
+                    
+                    // Attempt to restart call detection
+                    if (callDetector.startCallDetection()) {
+                        Log.i(TAG, "Protection detector restarted successfully");
+                        addToCallLog("✅ Protection detector restarted successfully");
+                    } else {
+                        Log.e(TAG, "Failed to restart protection detector");
+                        addToCallLog("❌ Failed to restart protection detector");
+                    }
+                } else if (!isProtectionActive && actualMonitoring) {
+                    Log.i(TAG, "Protection was running but UI showed inactive - syncing states");
+                    isProtectionActive = true;
+                    addToCallLog("✅ Protection state synchronized - detector was still active");
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in protection state verification: " + e.getMessage(), e);
+            // Continue protection even if verification fails
+        }
     }
     
     // === DEBUG HELPER METHODS ===

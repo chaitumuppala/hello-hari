@@ -254,7 +254,8 @@ public class EnhancedCallDetector {
     public boolean startCallDetection() {
         if (isMonitoring) {
             Log.d(TAG, "Enhanced call detection already running");
-            return false;
+            debugLog("✅ Call detection already active - returning success");
+            return true;  // Return true since protection is already active
         }
 
         try {
@@ -273,20 +274,33 @@ public class EnhancedCallDetector {
                             debugLog("🚨 RAW PHONE STATE: " + state + ", Number: " + phoneNumber);
                             Log.d(TAG, "Phone state changed: " + state + ", Number: " + phoneNumber);
                             
-                            // Handle different call states with recording
-                            handleCallStateChangeWithRecording(state, phoneNumber);
+                            // Handle different call states with recording - PROTECTED
+                            try {
+                                handleCallStateChangeWithRecording(state, phoneNumber);
+                            } catch (Exception e) {
+                                debugLog("❌ Exception in handleCallStateChangeWithRecording: " + e.getMessage());
+                                Log.e(TAG, "Exception in handleCallStateChangeWithRecording - continuing protection", e);
+                                // Continue protection even if call handling fails
+                            }
                             
-                            // Notify listener
-                            if (listener != null) {
-                                listener.onCallStateChanged(state, phoneNumber);
+                            // Notify listener - PROTECTED
+                            try {
+                                if (listener != null) {
+                                    listener.onCallStateChanged(state, phoneNumber);
+                                }
+                            } catch (Exception e) {
+                                debugLog("❌ Exception in MainActivity callback: " + e.getMessage());
+                                Log.e(TAG, "Exception in MainActivity callback - continuing protection", e);
+                                // Continue protection even if MainActivity callback fails
                             }
                         } else {
                             debugLog("🚨 NON-PHONE BROADCAST: " + action);
                         }
                     } catch (Exception e) {
-                        debugLog("❌ CRITICAL: Exception in call receiver: " + e.getMessage());
-                        Log.e(TAG, "Exception in call receiver - protection may have stopped", e);
-                        // Don't let exceptions crash the receiver
+                        debugLog("❌ CRITICAL: Exception in broadcast receiver: " + e.getMessage());
+                        Log.e(TAG, "Exception in broadcast receiver - PROTECTION CONTINUES", e);
+                        // Never let exceptions stop the broadcast receiver
+                        // Protection must continue regardless of any failures
                     }
                 }
             };
@@ -296,12 +310,23 @@ public class EnhancedCallDetector {
             filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY - 1); // Higher priority to get calls first
             
             debugLog("Registering broadcast receiver with high priority...");
-            context.registerReceiver(callReceiver, filter);
-            isMonitoring = true;
-            
-            Log.d(TAG, "Enhanced call detection started successfully");
-            showToast("🎤 Hello Hari: Advanced call monitoring started");
-            return true;
+            try {
+                context.registerReceiver(callReceiver, filter);
+                isMonitoring = true;
+                debugLog("✅ Broadcast receiver registered successfully");
+                Log.d(TAG, "Enhanced call detection started successfully");
+                showToast("🎤 Hello Hari: Advanced call monitoring started");
+                return true;
+            } catch (Exception e) {
+                debugLog("❌ CRITICAL: Failed to register broadcast receiver: " + e.getMessage());
+                Log.e(TAG, "Failed to register broadcast receiver", e);
+                showToast("Failed to register call monitoring: " + e.getMessage());
+                
+                // Clean up on failure
+                callReceiver = null;
+                isMonitoring = false;
+                return false;
+            }
             
         } catch (Exception e) {
             Log.e(TAG, "Failed to start enhanced call detection", e);
@@ -320,7 +345,16 @@ public class EnhancedCallDetector {
             // Stop any ongoing recording
             stopRecording();
             
-            context.unregisterReceiver(callReceiver);
+            debugLog("Attempting to unregister broadcast receiver...");
+            try {
+                context.unregisterReceiver(callReceiver);
+                debugLog("✅ Broadcast receiver unregistered successfully");
+            } catch (Exception e) {
+                debugLog("⚠️ Warning: Exception during receiver unregistration: " + e.getMessage());
+                Log.w(TAG, "Exception during receiver unregistration (may already be unregistered)", e);
+                // Continue cleanup even if unregister fails
+            }
+            
             callReceiver = null;
             isMonitoring = false;
             
@@ -341,7 +375,19 @@ public class EnhancedCallDetector {
     }
     
     public boolean isMonitoring() {
-        return isMonitoring;
+        // Check both flag and receiver state for maximum reliability
+        boolean flagState = isMonitoring;
+        boolean receiverState = (callReceiver != null);
+        
+        if (flagState && !receiverState) {
+            // Flag says monitoring but receiver is null - inconsistent state
+            Log.w(TAG, "Inconsistent monitoring state detected - flag: " + flagState + ", receiver: " + receiverState);
+            debugLog("❌ INCONSISTENT STATE: isMonitoring=" + flagState + " but callReceiver=" + receiverState);
+            isMonitoring = false; // Sync the flag
+            return false;
+        }
+        
+        return flagState;
     }
     
     public boolean isRecording() {
@@ -620,8 +666,16 @@ public class EnhancedCallDetector {
         if (voskRecognizer != null && voskRecognizer.isInitialized()) {
             debugLog("✅ VOSK is initialized - starting real-time speech recognition");
             Log.d(TAG, "✅ VOSK is initialized - starting real-time speech recognition");
-            voskRecognizer.startListening();
-            debugLog("🎤 VOSK startListening() called - speech recognition should now be active");
+            
+            try {
+                voskRecognizer.startListening();
+                debugLog("🎤 VOSK startListening() called successfully - speech recognition should now be active");
+                Log.d(TAG, "🎤 VOSK startListening() called successfully - speech recognition should now be active");
+            } catch (Exception e) {
+                debugLog("❌ CRITICAL: VOSK startListening() failed: " + e.getMessage());
+                Log.e(TAG, "VOSK startListening() failed - continuing with timer analysis only", e);
+                // Continue with timer-based analysis even if VOSK fails
+            }
         } else {
             debugLog("❌ VOSK not available, using simulated analysis");
             Log.w(TAG, "❌ VOSK not available, using simulated analysis");
