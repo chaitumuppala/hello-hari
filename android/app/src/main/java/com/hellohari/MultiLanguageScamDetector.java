@@ -378,6 +378,43 @@ public class MultiLanguageScamDetector {
         put("debit card block ho gaya", 82);
         put("internet banking suspended", 85);
         put("mobile banking issue", 78);
+        
+        // === ACCOUNT DEACTIVATION SCAMS (HIGH RISK) ===
+        put("account deactivated", 92);
+        put("your account has been deactivated", 92);
+        put("account will be deactivated", 90);
+        put("account deactivation process", 90);
+        put("bank account deactivated", 95);
+        put("savings account deactivated", 95);
+        put("current account deactivated", 95);
+        put("account band ho gaya", 90);
+        put("account deactivate ho gaya", 90);
+        put("aapka account deactivate", 90);
+        put("account block ho gaya hai", 88);
+        put("account temporarily deactivated", 85);
+        put("account permanently deactivated", 95);
+        
+        // === PIN/PASSWORD SHARING REQUESTS (CRITICAL RISK) ===
+        put("share pin", 95);
+        put("share your pin", 95);
+        put("share the pin", 95);
+        put("pin share karo", 95);
+        put("pin share kariye", 95);
+        put("atm pin share", 98);
+        put("atm pin batao", 98);
+        put("debit card pin", 95);
+        put("credit card pin", 95);
+        put("upi pin share", 95);
+        put("mobile banking pin", 95);
+        put("internet banking pin", 95);
+        put("pin verification required", 90);
+        put("confirm your pin", 90);
+        put("verify your pin", 90);
+        put("pin confirm karo", 90);
+        put("pin verify karo", 90);
+        put("security pin batao", 92);
+        put("transaction pin share", 95);
+        put("mpin share karo", 95);
         put("paytm account problem", 75);
         put("phonepe verification", 72);
         put("google pay security", 75);

@@ -9,6 +9,8 @@ import android.util.Log;
 import android.widget.Toast;
 import android.media.MediaRecorder;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -782,7 +784,19 @@ public class EnhancedCallDetector {
     }
 
     private void showToast(String message) {
-        Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+        try {
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                // Already on UI thread
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+            } else {
+                // Post to UI thread
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+                });
+            }
+        } catch (Exception e) {
+            Log.d(TAG, "❌ Exception in showToast: " + e.getMessage());
+        }
     }
     
     // Inner class for call recording analysis
