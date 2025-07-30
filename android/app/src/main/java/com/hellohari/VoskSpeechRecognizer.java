@@ -950,30 +950,64 @@ public class VoskSpeechRecognizer {
             Log.d(TAG, "✅ VOSK Recognizer created successfully");
             
             Log.d(TAG, "Initializing AudioRecord...");
-            Log.d(TAG, "AudioSource: VOICE_COMMUNICATION");
-            Log.d(TAG, "Sample Rate: " + SAMPLE_RATE);
-            Log.d(TAG, "Buffer Size: " + BUFFER_SIZE);
             
-            // Initialize AudioRecord
-            audioRecord = new AudioRecord(
-                MediaRecorder.AudioSource.VOICE_COMMUNICATION, // Better for call audio
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                BUFFER_SIZE
-            );
+            // Try multiple audio sources for better call audio capture
+            int[] audioSources = {
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION, // Best for calls
+                MediaRecorder.AudioSource.MIC,                // Standard microphone
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,  // Voice recognition
+                MediaRecorder.AudioSource.DEFAULT             // System default
+            };
             
-            Log.d(TAG, "AudioRecord created, checking state...");
-            if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
-                Log.e(TAG, "❌ AudioRecord initialization failed");
-                Log.e(TAG, "AudioRecord state: " + audioRecord.getState());
-                Log.e(TAG, "Expected state: " + AudioRecord.STATE_INITIALIZED);
+            String[] sourceNames = {
+                "VOICE_COMMUNICATION", "MIC", "VOICE_RECOGNITION", "DEFAULT"
+            };
+            
+            AudioRecord testRecord = null;
+            int workingSourceIndex = -1;
+            
+            // Test each audio source
+            for (int i = 0; i < audioSources.length; i++) {
+                try {
+                    Log.d(TAG, "Testing AudioSource: " + sourceNames[i]);
+                    testRecord = new AudioRecord(
+                        audioSources[i],
+                        SAMPLE_RATE,
+                        AudioFormat.CHANNEL_IN_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT,
+                        BUFFER_SIZE
+                    );
+                    
+                    if (testRecord.getState() == AudioRecord.STATE_INITIALIZED) {
+                        Log.d(TAG, "✅ " + sourceNames[i] + " source works!");
+                        workingSourceIndex = i;
+                        break;
+                    } else {
+                        Log.w(TAG, "❌ " + sourceNames[i] + " failed, state: " + testRecord.getState());
+                        testRecord.release();
+                        testRecord = null;
+                    }
+                } catch (Exception e) {
+                    Log.w(TAG, "❌ " + sourceNames[i] + " exception: " + e.getMessage());
+                    if (testRecord != null) {
+                        testRecord.release();
+                        testRecord = null;
+                    }
+                }
+            }
+            
+            if (testRecord == null || workingSourceIndex == -1) {
+                Log.e(TAG, "❌ No working audio source found!");
                 if (recognitionListener != null) {
-                    recognitionListener.onError("Failed to initialize audio recording");
+                    recognitionListener.onError("Failed to initialize any audio source");
                 }
                 return;
             }
-            Log.d(TAG, "✅ AudioRecord initialized successfully");
+            
+            audioRecord = testRecord;
+            Log.d(TAG, "✅ Using AudioSource: " + sourceNames[workingSourceIndex]);
+            Log.d(TAG, "Sample Rate: " + SAMPLE_RATE);
+            Log.d(TAG, "Buffer Size: " + BUFFER_SIZE);
             
             Log.d(TAG, "Starting AudioRecord recording...");
             isListening = true;
@@ -1052,14 +1086,36 @@ public class VoskSpeechRecognizer {
         byte[] buffer = new byte[BUFFER_SIZE];
         int totalBytesProcessed = 0;
         int audioFrameCount = 0;
+        int consecutiveZeroReads = 0;
+        long lastLogTime = System.currentTimeMillis();
         
         while (isListening && audioRecord != null) {
             try {
                 int bytesRead = audioRecord.read(buffer, 0, buffer.length);
                 audioFrameCount++;
                 
-                if (audioFrameCount % 100 == 0) { // Log every 100 frames to avoid spam
-                    Log.d(TAG, "Audio frame " + audioFrameCount + ", bytes read: " + bytesRead);
+                // Enhanced logging for debugging
+                long currentTime = System.currentTimeMillis();
+                if (bytesRead <= 0) {
+                    consecutiveZeroReads++;
+                    if (consecutiveZeroReads <= 5 || consecutiveZeroReads % 50 == 0) {
+                        Log.w(TAG, "No audio data read, bytesRead: " + bytesRead + 
+                              " (consecutive zeros: " + consecutiveZeroReads + ")");
+                    }
+                } else {
+                    if (consecutiveZeroReads > 0) {
+                        Log.d(TAG, "Audio resumed after " + consecutiveZeroReads + " zero reads");
+                        consecutiveZeroReads = 0;
+                    }
+                }
+                
+                // Log every 5 seconds or every 100 frames (whichever comes first)
+                if (currentTime - lastLogTime > 5000 || audioFrameCount % 100 == 0) {
+                    Log.d(TAG, "Audio stats - Frame: " + audioFrameCount + 
+                          ", Bytes read: " + bytesRead + 
+                          ", Total processed: " + totalBytesProcessed + 
+                          ", Zero reads: " + consecutiveZeroReads);
+                    lastLogTime = currentTime;
                 }
                 
                 if (bytesRead > 0 && recognizer != null) {
@@ -1074,13 +1130,9 @@ public class VoskSpeechRecognizer {
                         // Partial result
                         String partial = recognizer.getPartialResult();
                         if (partial != null && !partial.trim().isEmpty() && !partial.equals("{}")) {
-                            Log.d(TAG, "🎤 VOSK Partial result available");
+                            Log.d(TAG, "🎤 VOSK Partial result available: " + partial);
                         }
                         processPartialResult(partial);
-                    }
-                } else if (bytesRead <= 0) {
-                    if (audioFrameCount <= 10) { // Only log first few failures
-                        Log.w(TAG, "No audio data read, bytesRead: " + bytesRead);
                     }
                 } else if (recognizer == null) {
                     Log.e(TAG, "❌ Recognizer is null in processAudioData");
