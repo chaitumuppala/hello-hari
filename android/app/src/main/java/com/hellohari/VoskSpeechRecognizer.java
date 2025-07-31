@@ -923,58 +923,119 @@ public class VoskSpeechRecognizer {
      * Start real-time audio recognition with option to force restart
      */
     public synchronized void startListening(boolean forceRestart) {
-        Log.d(TAG, "=== VOSK START LISTENING ATTEMPT ===");
-        Log.d(TAG, "isListening: " + isListening);
-        Log.d(TAG, "isInitialized: " + isInitialized);
-        Log.d(TAG, "currentModel: " + (currentModel != null ? "available" : "null"));
-        Log.d(TAG, "currentLanguage: " + currentLanguage);
-        Log.d(TAG, "forceRestart: " + forceRestart);
+        Log.d(TAG, "🚀🚀🚀 VOSK startListening(boolean) METHOD ENTRY - forceRestart: " + forceRestart);
+        Log.d(TAG, "🧵 Thread: " + Thread.currentThread().getName());
+        Log.d(TAG, "🔒 Synchronized method entered successfully");
+        
+        try {
+            Log.d(TAG, "=== VOSK START LISTENING ATTEMPT ===");
+            Log.d(TAG, "isListening: " + isListening);
+            Log.d(TAG, "isInitialized: " + isInitialized);
+            Log.d(TAG, "currentModel: " + (currentModel != null ? "available" : "null"));
+            Log.d(TAG, "currentLanguage: " + currentLanguage);
+            Log.d(TAG, "forceRestart: " + forceRestart);
+            Log.d(TAG, "✅ Initial state logging completed");
+        } catch (Exception e) {
+            Log.e(TAG, "❌ EXCEPTION during initial state logging: " + e.getMessage(), e);
+            return;
+        }
         
         // If force restart is requested and we're already listening, stop first
-        if (forceRestart && isListening) {
-            Log.d(TAG, "🔄 Force restart requested - stopping current listening session");
-            stopListening();
-            // Small delay to ensure cleanup
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                // Ignore
+        try {
+            Log.d(TAG, "🔍 Checking force restart condition...");
+            Log.d(TAG, "forceRestart: " + forceRestart + ", isListening: " + isListening);
+            
+            if (forceRestart && isListening) {
+                Log.d(TAG, "🔄 Force restart requested - stopping current listening session");
+                Log.d(TAG, "📞 Calling stopListening()...");
+                stopListening();
+                Log.d(TAG, "✅ stopListening() completed");
+                
+                // Small delay to ensure cleanup
+                try {
+                    Log.d(TAG, "⏳ Waiting 100ms for cleanup...");
+                    Thread.sleep(100);
+                    Log.d(TAG, "✅ Cleanup delay completed");
+                } catch (InterruptedException e) {
+                    Log.w(TAG, "⚠️ Cleanup delay interrupted: " + e.getMessage());
+                }
+            } else {
+                Log.d(TAG, "ℹ️ No force restart needed (forceRestart: " + forceRestart + ", isListening: " + isListening + ")");
             }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ EXCEPTION during force restart section: " + e.getMessage(), e);
+            return;
         }
         
         // Check preconditions (skip isListening check if we just force-stopped)
-        if ((!forceRestart && isListening) || !isInitialized || currentModel == null) {
-            Log.w(TAG, "❌ Cannot start listening - preconditions not met");
-            Log.d(TAG, "❌ Precondition check failed:");
-            Log.d(TAG, "❌   isListening: " + isListening + " (forceRestart: " + forceRestart + ")");
-            Log.d(TAG, "❌   isInitialized: " + isInitialized);
-            Log.d(TAG, "❌   currentModel != null: " + (currentModel != null));
-            Log.d(TAG, "❌ EXITING startListening() due to failed preconditions");
+        try {
+            Log.d(TAG, "🔍 Starting precondition checks...");
+            Log.d(TAG, "Current isListening: " + isListening);
+            Log.d(TAG, "Current isInitialized: " + isInitialized);
+            Log.d(TAG, "Current currentModel != null: " + (currentModel != null));
+            
+            boolean condition1 = (!forceRestart && isListening);
+            boolean condition2 = !isInitialized;
+            boolean condition3 = currentModel == null;
+            
+            Log.d(TAG, "Condition 1 (!forceRestart && isListening): " + condition1);
+            Log.d(TAG, "Condition 2 (!isInitialized): " + condition2);
+            Log.d(TAG, "Condition 3 (currentModel == null): " + condition3);
+            
+            if (condition1 || condition2 || condition3) {
+                Log.w(TAG, "❌ Cannot start listening - preconditions not met");
+                Log.d(TAG, "❌ Precondition check failed:");
+                Log.d(TAG, "❌   isListening: " + isListening + " (forceRestart: " + forceRestart + ")");
+                Log.d(TAG, "❌   isInitialized: " + isInitialized);
+                Log.d(TAG, "❌   currentModel != null: " + (currentModel != null));
+                Log.d(TAG, "❌ EXITING startListening() due to failed preconditions");
+                return;
+            }
+            
+            Log.d(TAG, "✅ Preconditions passed - proceeding with audio setup");
+            Log.d(TAG, "✅ isListening: " + isListening + ", isInitialized: " + isInitialized + ", modelAvailable: " + (currentModel != null));
+        } catch (Exception e) {
+            Log.e(TAG, "❌ EXCEPTION during precondition check: " + e.getMessage(), e);
             return;
         }
-        
-        Log.d(TAG, "✅ Preconditions passed - proceeding with audio setup");
-        Log.d(TAG, "✅ isListening: " + isListening + ", isInitialized: " + isInitialized + ", modelAvailable: " + (currentModel != null));
         
         // Check for audio recording permission
-        Log.d(TAG, "🔍 Checking RECORD_AUDIO permission...");
-        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) 
-            != PackageManager.PERMISSION_GRANTED) {
-            Log.e(TAG, "❌ RECORD_AUDIO permission not granted");
-            if (recognitionListener != null) {
-                recognitionListener.onError("Microphone permission required for real-time analysis");
+        try {
+            Log.d(TAG, "🔍 Checking RECORD_AUDIO permission...");
+            Log.d(TAG, "Context: " + (context != null ? "available" : "null"));
+            
+            if (context == null) {
+                Log.e(TAG, "❌ Context is null - cannot check permission");
+                return;
             }
+            
+            int permissionResult = ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO);
+            Log.d(TAG, "Permission check result: " + permissionResult + " (GRANTED=" + PackageManager.PERMISSION_GRANTED + ")");
+            
+            if (permissionResult != PackageManager.PERMISSION_GRANTED) {
+                Log.e(TAG, "❌ RECORD_AUDIO permission not granted");
+                if (recognitionListener != null) {
+                    recognitionListener.onError("Microphone permission required for real-time analysis");
+                }
+                return;
+            }
+            Log.d(TAG, "✅ RECORD_AUDIO permission granted - proceeding with VOSK setup");
+        } catch (Exception e) {
+            Log.e(TAG, "❌ EXCEPTION during permission check: " + e.getMessage(), e);
             return;
         }
-        Log.d(TAG, "✅ RECORD_AUDIO permission granted - proceeding with VOSK setup");
         
         try {
             Log.d(TAG, "🎙️ Creating VOSK Recognizer...");
+            Log.d(TAG, "Current model status: " + (currentModel != null ? "available" : "null"));
+            Log.d(TAG, "Sample rate: " + SAMPLE_RATE);
+            
             // Create recognizer for real-time processing
             recognizer = new Recognizer(currentModel, SAMPLE_RATE);
             Log.d(TAG, "✅ VOSK Recognizer created successfully");
             
             Log.d(TAG, "🔧 Initializing AudioRecord with multi-source testing...");
+            Log.d(TAG, "About to test " + 4 + " different audio sources...");
             
             // Try multiple audio sources for better call audio capture
             int[] audioSources = {
@@ -992,10 +1053,13 @@ public class VoskSpeechRecognizer {
             int workingSourceIndex = -1;
             
             Log.d(TAG, "🎯 Starting audio source testing loop...");
+            Log.d(TAG, "BUFFER_SIZE: " + BUFFER_SIZE + ", SAMPLE_RATE: " + SAMPLE_RATE);
+            
             // Test each audio source
             for (int i = 0; i < audioSources.length; i++) {
                 try {
-                    Log.d(TAG, "🔍 Testing AudioSource [" + (i+1) + "/" + audioSources.length + "]: " + sourceNames[i]);
+                    Log.d(TAG, "🔍 Testing AudioSource [" + (i+1) + "/" + audioSources.length + "]: " + sourceNames[i] + " (value=" + audioSources[i] + ")");
+                    
                     testRecord = new AudioRecord(
                         audioSources[i],
                         SAMPLE_RATE,
@@ -1004,68 +1068,97 @@ public class VoskSpeechRecognizer {
                         BUFFER_SIZE
                     );
                     
+                    Log.d(TAG, "📱 AudioRecord created for " + sourceNames[i]);
                     int recordState = testRecord.getState();
                     Log.d(TAG, "📊 AudioRecord state for " + sourceNames[i] + ": " + recordState + " (INITIALIZED=" + AudioRecord.STATE_INITIALIZED + ")");
                     
                     if (recordState == AudioRecord.STATE_INITIALIZED) {
-                        Log.d(TAG, "✅ SUCCESS! " + sourceNames[i] + " source works!");
+                        Log.d(TAG, "✅ SUCCESS! " + sourceNames[i] + " source works! Setting as working source.");
                         workingSourceIndex = i;
+                        Log.d(TAG, "Working source index set to: " + workingSourceIndex);
                         break;
                     } else {
                         Log.w(TAG, "❌ " + sourceNames[i] + " failed, state: " + testRecord.getState());
                         testRecord.release();
                         testRecord = null;
+                        Log.d(TAG, "Released failed AudioRecord for " + sourceNames[i]);
                     }
                 } catch (Exception e) {
-                    Log.w(TAG, "❌ " + sourceNames[i] + " exception: " + e.getMessage());
+                    Log.w(TAG, "❌ " + sourceNames[i] + " exception: " + e.getMessage(), e);
                     if (testRecord != null) {
-                        testRecord.release();
-                        testRecord = null;
+                        try {
+                            testRecord.release();
+                            testRecord = null;
+                            Log.d(TAG, "Released AudioRecord after exception for " + sourceNames[i]);
+                        } catch (Exception releaseEx) {
+                            Log.e(TAG, "Failed to release AudioRecord: " + releaseEx.getMessage());
+                        }
                     }
                 }
             }
             
+            Log.d(TAG, "🎯 Audio source testing completed. Results:");
+            Log.d(TAG, "testRecord: " + (testRecord != null ? "available" : "null"));
+            Log.d(TAG, "workingSourceIndex: " + workingSourceIndex);
+            
             if (testRecord == null || workingSourceIndex == -1) {
                 Log.e(TAG, "❌ No working audio source found!");
+                Log.e(TAG, "All " + audioSources.length + " audio sources failed initialization");
                 if (recognitionListener != null) {
                     recognitionListener.onError("Failed to initialize any audio source");
                 }
                 return;
             }
             
+            Log.d(TAG, "✅ Audio source validation successful!");
             audioRecord = testRecord;
-            Log.d(TAG, "✅ Using AudioSource: " + sourceNames[workingSourceIndex]);
-            Log.d(TAG, "Sample Rate: " + SAMPLE_RATE);
-            Log.d(TAG, "Buffer Size: " + BUFFER_SIZE);
+            Log.d(TAG, "✅ Using AudioSource: " + sourceNames[workingSourceIndex] + " (index " + workingSourceIndex + ")");
+            Log.d(TAG, "✅ Sample Rate: " + SAMPLE_RATE);
+            Log.d(TAG, "✅ Buffer Size: " + BUFFER_SIZE);
             
-            Log.d(TAG, "Starting AudioRecord recording...");
+            Log.d(TAG, "🎬 Starting AudioRecord recording...");
             isListening = true;
+            Log.d(TAG, "Set isListening = true");
             audioRecord.startRecording();
-            Log.d(TAG, "✅ AudioRecord recording started");
+            Log.d(TAG, "✅ AudioRecord.startRecording() called successfully");
             
-            Log.d(TAG, "Starting audio processing thread...");
+            // Verify recording state
+            int recordingState = audioRecord.getRecordingState();
+            Log.d(TAG, "📊 AudioRecord recording state: " + recordingState + " (RECORDING=" + AudioRecord.RECORDSTATE_RECORDING + ")");
+            
+            Log.d(TAG, "🚀 Starting audio processing thread...");
+            Log.d(TAG, "About to create new Thread with processAudioData target...");
+            
             // Start audio processing thread
             audioThread = new Thread(this::processAudioData);
+            Log.d(TAG, "Thread created. About to start...");
+            
             audioThread.start();
-            Log.d(TAG, "✅ Audio processing thread started");
+            Log.d(TAG, "✅ Audio processing thread started successfully");
+            Log.d(TAG, "Thread state: " + audioThread.getState());
+            Log.d(TAG, "Thread name: " + audioThread.getName());
             
             Log.d(TAG, "🎤 Real-time listening started for language: " + currentLanguage);
             Log.d(TAG, "=== VOSK START LISTENING SUCCESS ===");
             
         } catch (SecurityException e) {
-            Log.e(TAG, "❌ SECURITY EXCEPTION in VOSK startListening: " + e.getMessage());
+            Log.e(TAG, "❌ SECURITY EXCEPTION in VOSK startListening: " + e.getMessage(), e);
+            Log.e(TAG, "Security exception details: " + e.getClass().getName());
             if (recognitionListener != null) {
                 recognitionListener.onError("Security exception: " + e.getMessage());
             }
             stopListening();
         } catch (IllegalArgumentException e) {
-            Log.e(TAG, "❌ ILLEGAL ARGUMENT EXCEPTION in VOSK startListening: " + e.getMessage());
+            Log.e(TAG, "❌ ILLEGAL ARGUMENT EXCEPTION in VOSK startListening: " + e.getMessage(), e);
+            Log.e(TAG, "IllegalArgument exception details: " + e.getClass().getName());
             if (recognitionListener != null) {
                 recognitionListener.onError("Invalid audio configuration: " + e.getMessage());
             }
             stopListening();
         } catch (Exception e) {
-            Log.e(TAG, "❌ GENERAL EXCEPTION in VOSK startListening: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+            Log.e(TAG, "❌ GENERAL EXCEPTION in VOSK startListening: " + e.getClass().getSimpleName() + " - " + e.getMessage(), e);
+            Log.e(TAG, "Exception type: " + e.getClass().getName());
+            Log.e(TAG, "Stack trace: ", e);
             if (recognitionListener != null) {
                 recognitionListener.onError("Failed to start listening: " + e.getMessage());
             }
@@ -1112,11 +1205,29 @@ public class VoskSpeechRecognizer {
      */
     private void processAudioData() {
         Log.d(TAG, "=== VOSK AUDIO PROCESSING THREAD STARTED ===");
+        Log.d(TAG, "🧵 Thread: " + Thread.currentThread().getName());
+        Log.d(TAG, "🎙️ AudioRecord status: " + (audioRecord != null ? "available" : "null"));
+        Log.d(TAG, "🎯 isListening: " + isListening);
+        Log.d(TAG, "📏 Buffer size: " + BUFFER_SIZE);
+        Log.d(TAG, "🎛️ Recognizer status: " + (recognizer != null ? "available" : "null"));
+        
+        if (audioRecord == null) {
+            Log.e(TAG, "❌ AudioRecord is null in processAudioData thread!");
+            return;
+        }
+        
+        if (recognizer == null) {
+            Log.e(TAG, "❌ VOSK Recognizer is null in processAudioData thread!");
+            return;
+        }
+        
         byte[] buffer = new byte[BUFFER_SIZE];
         int totalBytesProcessed = 0;
         int audioFrameCount = 0;
         int consecutiveZeroReads = 0;
         long lastLogTime = System.currentTimeMillis();
+        
+        Log.d(TAG, "🚀 Starting main audio processing loop...");
         
         while (isListening && audioRecord != null) {
             try {

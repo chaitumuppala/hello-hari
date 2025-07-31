@@ -673,12 +673,21 @@ public class EnhancedCallDetector {
                 // Force restart VOSK to ensure call-optimized audio sources are tested
                 debugLog("🔄 Force restarting VOSK for call - testing audio sources optimized for call audio");
                 Log.d(TAG, "🔄 Force restarting VOSK for call - testing audio sources optimized for call audio");
+                debugLog("📋 About to call voskRecognizer.startListening(true)...");
+                Log.d(TAG, "📋 About to call voskRecognizer.startListening(true)...");
+                
                 voskRecognizer.startListening(true);  // Force restart to test audio sources
+                
                 debugLog("🎤 VOSK startListening(true) called successfully - speech recognition should now be active with call-optimized audio");
                 Log.d(TAG, "🎤 VOSK startListening(true) called successfully - speech recognition should now be active with call-optimized audio");
             } catch (Exception e) {
-                debugLog("❌ CRITICAL: VOSK startListening() failed: " + e.getMessage());
-                Log.e(TAG, "VOSK startListening() failed - continuing with timer analysis only", e);
+                debugLog("❌ CRITICAL: VOSK startListening() failed with exception: " + e.getClass().getSimpleName());
+                debugLog("❌ Exception message: " + e.getMessage());
+                debugLog("❌ Exception cause: " + (e.getCause() != null ? e.getCause().toString() : "null"));
+                Log.e(TAG, "❌ VOSK startListening() failed with exception: " + e.getClass().getSimpleName(), e);
+                Log.e(TAG, "❌ Exception message: " + e.getMessage());
+                Log.e(TAG, "❌ Exception cause: " + (e.getCause() != null ? e.getCause().toString() : "null"));
+                e.printStackTrace(); // Full stack trace
                 // Continue with timer-based analysis even if VOSK fails
             }
         } else {
