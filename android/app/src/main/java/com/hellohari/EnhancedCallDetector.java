@@ -670,9 +670,12 @@ public class EnhancedCallDetector {
             Log.d(TAG, "✅ VOSK is initialized - starting real-time speech recognition");
             
             try {
-                voskRecognizer.startListening();
-                debugLog("🎤 VOSK startListening() called successfully - speech recognition should now be active");
-                Log.d(TAG, "🎤 VOSK startListening() called successfully - speech recognition should now be active");
+                // Force restart VOSK to ensure call-optimized audio sources are tested
+                debugLog("🔄 Force restarting VOSK for call - testing audio sources optimized for call audio");
+                Log.d(TAG, "🔄 Force restarting VOSK for call - testing audio sources optimized for call audio");
+                voskRecognizer.startListening(true);  // Force restart to test audio sources
+                debugLog("🎤 VOSK startListening(true) called successfully - speech recognition should now be active with call-optimized audio");
+                Log.d(TAG, "🎤 VOSK startListening(true) called successfully - speech recognition should now be active with call-optimized audio");
             } catch (Exception e) {
                 debugLog("❌ CRITICAL: VOSK startListening() failed: " + e.getMessage());
                 Log.e(TAG, "VOSK startListening() failed - continuing with timer analysis only", e);

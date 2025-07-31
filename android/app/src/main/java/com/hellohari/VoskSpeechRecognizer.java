@@ -916,16 +916,37 @@ public class VoskSpeechRecognizer {
      * Start real-time audio recognition
      */
     public synchronized void startListening() {
+        startListening(false);
+    }
+    
+    /**
+     * Start real-time audio recognition with option to force restart
+     */
+    public synchronized void startListening(boolean forceRestart) {
         Log.d(TAG, "=== VOSK START LISTENING ATTEMPT ===");
         Log.d(TAG, "isListening: " + isListening);
         Log.d(TAG, "isInitialized: " + isInitialized);
         Log.d(TAG, "currentModel: " + (currentModel != null ? "available" : "null"));
         Log.d(TAG, "currentLanguage: " + currentLanguage);
+        Log.d(TAG, "forceRestart: " + forceRestart);
         
-        if (isListening || !isInitialized || currentModel == null) {
-            Log.w(TAG, "Cannot start listening - already listening or not initialized");
+        // If force restart is requested and we're already listening, stop first
+        if (forceRestart && isListening) {
+            Log.d(TAG, "🔄 Force restart requested - stopping current listening session");
+            stopListening();
+            // Small delay to ensure cleanup
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                // Ignore
+            }
+        }
+        
+        // Check preconditions (skip isListening check if we just force-stopped)
+        if ((!forceRestart && isListening) || !isInitialized || currentModel == null) {
+            Log.w(TAG, "Cannot start listening - preconditions not met");
             Log.d(TAG, "Precondition check failed:");
-            Log.d(TAG, "  isListening: " + isListening);
+            Log.d(TAG, "  isListening: " + isListening + " (forceRestart: " + forceRestart + ")");
             Log.d(TAG, "  isInitialized: " + isInitialized);
             Log.d(TAG, "  currentModel != null: " + (currentModel != null));
             return;
