@@ -944,16 +944,20 @@ public class VoskSpeechRecognizer {
         
         // Check preconditions (skip isListening check if we just force-stopped)
         if ((!forceRestart && isListening) || !isInitialized || currentModel == null) {
-            Log.w(TAG, "Cannot start listening - preconditions not met");
-            Log.d(TAG, "Precondition check failed:");
-            Log.d(TAG, "  isListening: " + isListening + " (forceRestart: " + forceRestart + ")");
-            Log.d(TAG, "  isInitialized: " + isInitialized);
-            Log.d(TAG, "  currentModel != null: " + (currentModel != null));
+            Log.w(TAG, "❌ Cannot start listening - preconditions not met");
+            Log.d(TAG, "❌ Precondition check failed:");
+            Log.d(TAG, "❌   isListening: " + isListening + " (forceRestart: " + forceRestart + ")");
+            Log.d(TAG, "❌   isInitialized: " + isInitialized);
+            Log.d(TAG, "❌   currentModel != null: " + (currentModel != null));
+            Log.d(TAG, "❌ EXITING startListening() due to failed preconditions");
             return;
         }
         
+        Log.d(TAG, "✅ Preconditions passed - proceeding with audio setup");
+        Log.d(TAG, "✅ isListening: " + isListening + ", isInitialized: " + isInitialized + ", modelAvailable: " + (currentModel != null));
+        
         // Check for audio recording permission
-        Log.d(TAG, "Checking RECORD_AUDIO permission...");
+        Log.d(TAG, "🔍 Checking RECORD_AUDIO permission...");
         if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) 
             != PackageManager.PERMISSION_GRANTED) {
             Log.e(TAG, "❌ RECORD_AUDIO permission not granted");
@@ -962,15 +966,15 @@ public class VoskSpeechRecognizer {
             }
             return;
         }
-        Log.d(TAG, "✅ RECORD_AUDIO permission granted");
+        Log.d(TAG, "✅ RECORD_AUDIO permission granted - proceeding with VOSK setup");
         
         try {
-            Log.d(TAG, "Creating VOSK Recognizer...");
+            Log.d(TAG, "🎙️ Creating VOSK Recognizer...");
             // Create recognizer for real-time processing
             recognizer = new Recognizer(currentModel, SAMPLE_RATE);
             Log.d(TAG, "✅ VOSK Recognizer created successfully");
             
-            Log.d(TAG, "Initializing AudioRecord...");
+            Log.d(TAG, "🔧 Initializing AudioRecord with multi-source testing...");
             
             // Try multiple audio sources for better call audio capture
             int[] audioSources = {
@@ -987,10 +991,11 @@ public class VoskSpeechRecognizer {
             AudioRecord testRecord = null;
             int workingSourceIndex = -1;
             
+            Log.d(TAG, "🎯 Starting audio source testing loop...");
             // Test each audio source
             for (int i = 0; i < audioSources.length; i++) {
                 try {
-                    Log.d(TAG, "Testing AudioSource: " + sourceNames[i]);
+                    Log.d(TAG, "🔍 Testing AudioSource [" + (i+1) + "/" + audioSources.length + "]: " + sourceNames[i]);
                     testRecord = new AudioRecord(
                         audioSources[i],
                         SAMPLE_RATE,
@@ -999,8 +1004,11 @@ public class VoskSpeechRecognizer {
                         BUFFER_SIZE
                     );
                     
-                    if (testRecord.getState() == AudioRecord.STATE_INITIALIZED) {
-                        Log.d(TAG, "✅ " + sourceNames[i] + " source works!");
+                    int recordState = testRecord.getState();
+                    Log.d(TAG, "📊 AudioRecord state for " + sourceNames[i] + ": " + recordState + " (INITIALIZED=" + AudioRecord.STATE_INITIALIZED + ")");
+                    
+                    if (recordState == AudioRecord.STATE_INITIALIZED) {
+                        Log.d(TAG, "✅ SUCCESS! " + sourceNames[i] + " source works!");
                         workingSourceIndex = i;
                         break;
                     } else {
