@@ -90,6 +90,8 @@ public class VoskSpeechRecognizer {
         this.context = context;
         this.downloadExecutor = Executors.newFixedThreadPool(3);
         Log.d(TAG, "VoskSpeechRecognizer initialized with runtime model downloading");
+        Log.e(TAG, "VOSK CONSTRUCTOR: Instance created with hashcode: " + this.hashCode());
+        Log.e("EnhancedCallDetector", "VOSK CONSTRUCTOR: Instance created with hashcode: " + this.hashCode());
     }
     
     public void setRecognitionListener(VoskRecognitionListener listener) {
@@ -923,6 +925,17 @@ public class VoskSpeechRecognizer {
      * Start real-time audio recognition with option to force restart
      */
     public synchronized void startListening(boolean forceRestart) {
+        Log.e(TAG, "XXXXXXXXXXXXX VOSK METHOD ENTRY TEST XXXXXXXXXXXXX");
+        Log.e("EnhancedCallDetector", "XXXXXXXXXXXXX VOSK METHOD ENTRY WITH CALL DETECTOR TAG XXXXXXXXXXXXX");
+        Log.e("HelloHari", "XXXXXXXXXXXXX VOSK METHOD ENTRY WITH HELLOHRI TAG XXXXXXXXXXXXX");
+        System.out.println("SYSTEM OUT: VOSK METHOD ENTRY TEST");
+        android.util.Log.e("SYSTEM_LOG", "ANDROID UTIL LOG: VOSK METHOD ENTRY");
+        
+        // Stack trace to see who called this method
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        Log.e(TAG, "VOSK CALLED FROM: " + (stackTrace.length > 3 ? stackTrace[3].toString() : "unknown"));
+        Log.e("EnhancedCallDetector", "VOSK CALLED FROM: " + (stackTrace.length > 3 ? stackTrace[3].toString() : "unknown"));
+        
         Log.d(TAG, "🚀🚀🚀 VOSK startListening(boolean) METHOD ENTRY - forceRestart: " + forceRestart);
         Log.d(TAG, "🧵 Thread: " + Thread.currentThread().getName());
         Log.d(TAG, "🔒 Synchronized method entered successfully");

@@ -676,6 +676,19 @@ public class EnhancedCallDetector {
                 debugLog("📋 About to call voskRecognizer.startListening(true)...");
                 Log.d(TAG, "📋 About to call voskRecognizer.startListening(true)...");
                 
+                // Instance verification checks
+                Log.e(TAG, "VOSK INSTANCE CHECK: " + (voskRecognizer != null ? "NOT NULL" : "NULL"));
+                Log.e(TAG, "VOSK CLASS: " + (voskRecognizer != null ? voskRecognizer.getClass().getName() : "null"));
+                Log.e(TAG, "VOSK HASHCODE: " + (voskRecognizer != null ? voskRecognizer.hashCode() : "null"));
+                
+                // Method verification using reflection
+                try {
+                    java.lang.reflect.Method method = voskRecognizer.getClass().getMethod("startListening", boolean.class);
+                    Log.e(TAG, "METHOD FOUND: " + method.toString());
+                } catch (Exception reflectEx) {
+                    Log.e(TAG, "METHOD REFLECTION FAILED: " + reflectEx.getMessage());
+                }
+                
                 voskRecognizer.startListening(true);  // Force restart to test audio sources
                 
                 debugLog("🎤 VOSK startListening(true) called successfully - speech recognition should now be active with call-optimized audio");
