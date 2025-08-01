@@ -676,6 +676,25 @@ public class EnhancedCallDetector {
                 debugLog("📋 About to call voskRecognizer.startListening(true)...");
                 Log.d(TAG, "📋 About to call voskRecognizer.startListening(true)...");
                 
+                // CRITICAL DIAGNOSTIC - MUST APPEAR IN LOGS
+                Log.e(TAG, "=============== VOSK DIAGNOSTIC START ===============");
+                Log.e(TAG, "VOSK NULL CHECK: " + (voskRecognizer == null ? "NULL!" : "NOT NULL"));
+                if (voskRecognizer != null) {
+                    Log.e(TAG, "VOSK CLASS: " + voskRecognizer.getClass().getSimpleName());
+                    Log.e(TAG, "VOSK HASH: " + voskRecognizer.hashCode());
+                    
+                    // Test if method exists
+                    try {
+                        java.lang.reflect.Method method = voskRecognizer.getClass().getDeclaredMethod("startListening", boolean.class);
+                        Log.e(TAG, "METHOD EXISTS: " + method.getName());
+                    } catch (Exception e) {
+                        Log.e(TAG, "METHOD NOT FOUND: " + e.getMessage());
+                    }
+                } else {
+                    Log.e(TAG, "VOSK IS NULL - CANNOT CALL METHOD!");
+                }
+                Log.e(TAG, "=============== VOSK DIAGNOSTIC END ===============");
+                
                 // Instance verification checks
                 Log.e(TAG, "VOSK INSTANCE CHECK: " + (voskRecognizer != null ? "NOT NULL" : "NULL"));
                 Log.e(TAG, "VOSK CLASS: " + (voskRecognizer != null ? voskRecognizer.getClass().getName() : "null"));
