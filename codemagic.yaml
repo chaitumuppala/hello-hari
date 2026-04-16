@@ -29,20 +29,6 @@ workflows:
           echo "✅ Enhanced call monitoring"
           echo "✅ Post-call analysis reports"
           
-      - name: Exclude React Native modules (Pure Android Build)
-        script: |
-          echo "=== EXCLUDING REACT NATIVE MODULES FOR PHASE 2 ==="
-          mkdir -p temp_excluded
-          
-          # Move React Native specific files out of the way
-          mv android/app/src/main/java/com/hellohari/CallDetectorModule.java temp_excluded/ 2>/dev/null || echo "CallDetectorModule.java not found"
-          mv android/app/src/main/java/com/hellohari/PermissionModule.java temp_excluded/ 2>/dev/null || echo "PermissionModule.java not found"
-          mv android/app/src/main/java/com/hellohari/CallDetectorPackage.java temp_excluded/ 2>/dev/null || echo "CallDetectorPackage.java not found"
-          mv android/app/src/main/java/com/hellohari/AudioRecorderModule.java temp_excluded/ 2>/dev/null || echo "AudioRecorderModule.java not found"
-          
-          # Keep SimpleCallDetector for Phase 1 compatibility but will be replaced by Enhanced
-          echo "React Native modules excluded - building pure Android with enhanced features"
-          
       - name: Verify Phase 2 Source Files
         script: |
           echo "=== VERIFYING PHASE 2 SOURCE FILES ==="
