@@ -1,55 +1,226 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:background="@color/bg_primary"
+    android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/titleTextView"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Hello Hari - Scam Detection"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="16dp"/>
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:paddingTop="32dp"
+        android:paddingBottom="24dp">
 
-    <TextView
-        android:id="@+id/statusTextView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Initializing..."
-        android:textSize="16sp"
-        android:layout_marginBottom="16dp"/>
-
-    <Button
-        android:id="@+id/startServiceButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Start Call Detection"
-        android:layout_marginBottom="8dp"/>
-
-    <Button
-        android:id="@+id/analyzeButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Analyze Last Recording"
-        android:layout_marginBottom="16dp"/>
-
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
+        <!-- Header -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Scam Call Detector"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:letterSpacing="-0.02" />
 
         <TextView
-            android:id="@+id/resultTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Put the call on speaker and press record"
+            android:textSize="13sp"
+            android:textColor="@color/text_muted"
+            android:layout_marginTop="4dp" />
+
+        <!-- Shield indicator area -->
+        <FrameLayout
+            android:layout_width="220dp"
+            android:layout_height="220dp"
+            android:layout_marginTop="32dp"
+            android:layout_marginBottom="8dp"
+            android:layout_gravity="center_horizontal">
+
+            <!-- Glow ring (background circle) -->
+            <View
+                android:id="@+id/shieldRing"
+                android:layout_width="200dp"
+                android:layout_height="200dp"
+                android:layout_gravity="center"
+                android:background="@drawable/shield_ring_safe" />
+
+            <!-- Inner circle with icon + label -->
+            <LinearLayout
+                android:id="@+id/shieldInner"
+                android:layout_width="180dp"
+                android:layout_height="180dp"
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/shield_circle">
+
+                <TextView
+                    android:id="@+id/shieldIcon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🛡️"
+                    android:textSize="42sp" />
+
+                <TextView
+                    android:id="@+id/shieldLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="SAFE"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:letterSpacing="0.06"
+                    android:layout_marginTop="4dp" />
+
+                <TextView
+                    android:id="@+id/shieldScore"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Sub-text under shield -->
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ready to analyze"
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginBottom="20dp" />
+
+        <!-- Engine badge -->
+        <TextView
+            android:id="@+id/engineBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textColor="@color/text_muted"
+            android:background="@drawable/badge_bg"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone" />
+
+        <!-- Language selector + record button -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="No analysis results yet."
-            android:textSize="16sp"
-            android:padding="8dp"
-            android:background="#EEEEEE"/>
-    </ScrollView>
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
 
-</LinearLayout>
+            <Spinner
+                android:id="@+id/languageSpinner"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="@drawable/spinner_bg"
+                android:popupBackground="@color/bg_surface"
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp" />
+
+            <View
+                android:layout_width="10dp"
+                android:layout_height="0dp" />
+
+            <Button
+                android:id="@+id/recordButton"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:text="Start Recording"
+                android:textColor="#FFFFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:background="@drawable/button_start"
+                android:stateListAnimator="@null" />
+        </LinearLayout>
+
+        <!-- Server URL input -->
+        <EditText
+            android:id="@+id/serverUrlInput"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:hint="Backend URL (e.g. http://192.168.1.5:8000)"
+            android:textSize="13sp"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted"
+            android:background="@drawable/spinner_bg"
+            android:paddingLeft="14dp"
+            android:paddingRight="14dp"
+            android:inputType="textUri"
+            android:singleLine="true"
+            android:importantForAutofill="no"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Scam explanation card (hidden by default) -->
+        <LinearLayout
+            android:id="@+id/alertCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/alert_card_bg"
+            android:padding="16dp"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/alertTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:id="@+id/alertExplanation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="6dp" />
+        </LinearLayout>
+
+        <!-- Matched pattern pills container -->
+        <com.google.android.flexbox.FlexboxLayout
+            android:id="@+id/pillContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone" />
+
+        <!-- Transcription log (most recent at top) -->
+        <TextView
+            android:id="@+id/transcriptHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Live Transcription"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_muted"
+            android:letterSpacing="0.04"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/transcriptList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            android:visibility="gone" />
+
+    </LinearLayout>
+</ScrollView>

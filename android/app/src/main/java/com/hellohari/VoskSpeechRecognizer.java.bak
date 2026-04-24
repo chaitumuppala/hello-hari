@@ -486,18 +486,54 @@ public class VoskSpeechRecognizer {
     }
     
     /**
-     * Recognize with multiple languages (tries each available model)
+     * Recognize with multiple languages (tries each available model).
+     *
+     * Loads each model synchronously within a single background task so that
+     * the model is ready before recognition begins (avoids the race condition
+     * of calling async switchLanguage + async recognizeFile in a loop).
      */
     public void recognizeMultiLanguage(String audioFilePath) {
         String[] languages = {"en", "hi", "te"};
-        
-        for (String lang : languages) {
-            if (isModelAvailable(lang)) {
-                Log.d(TAG, "Attempting recognition with " + lang + " model");
-                switchLanguage(lang);
-                recognizeFile(audioFilePath);
+
+        downloadExecutor.execute(() -> {
+            for (String lang : languages) {
+                if (isModelAvailable(lang)) {
+                    try {
+                        Log.d(TAG, "Loading model for " + lang + " before recognition");
+                        loadModel(lang);
+                        Log.d(TAG, "Starting recognition with " + lang + " model");
+
+                        Recognizer recognizer = new Recognizer(currentModel, 16000);
+                        FileInputStream audioFile = new FileInputStream(audioFilePath);
+                        byte[] buffer = new byte[4096];
+                        int bytesRead;
+
+                        while ((bytesRead = audioFile.read(buffer)) != -1) {
+                            if (recognizer.acceptWaveForm(buffer, bytesRead)) {
+                                String result = recognizer.getResult();
+                                if (recognitionListener != null) {
+                                    recognitionListener.onPartialResult(extractText(result), lang);
+                                }
+                            }
+                        }
+
+                        String finalResult = recognizer.getFinalResult();
+                        if (recognitionListener != null) {
+                            recognitionListener.onFinalResult(extractText(finalResult), lang, 0.85f);
+                        }
+
+                        audioFile.close();
+                        recognizer.close();
+                        Log.d(TAG, "Recognition completed for " + lang);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Recognition failed for " + lang, e);
+                        if (recognitionListener != null) {
+                            recognitionListener.onError("Recognition failed for " + lang + ": " + e.getMessage());
+                        }
+                    }
+                }
             }
-        }
+        });
     }
     
     /**
@@ -505,14 +541,8 @@ public class VoskSpeechRecognizer {
      */
     private String extractText(String jsonResult) {
         try {
-            // Simple JSON parsing for "text" field
-            int start = jsonResult.indexOf("\"text\"") + 7;
-            int textStart = jsonResult.indexOf("\"", start) + 1;
-            int textEnd = jsonResult.indexOf("\"", textStart);
-            
-            if (textStart > 0 && textEnd > textStart) {
-                return jsonResult.substring(textStart, textEnd).trim();
-            }
+            org.json.JSONObject json = new org.json.JSONObject(jsonResult);
+            return json.optString("text", "").trim();
         } catch (Exception e) {
             Log.w(TAG, "Failed to parse VOSK result: " + jsonResult);
         }

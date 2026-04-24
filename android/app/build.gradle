@@ -11,11 +11,6 @@ android {
         targetSdkVersion 33
         versionCode 1
         versionName "1.0"
-        
-        // NDK configuration for VOSK
-        ndk {
-            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
-        }
     }
     
     buildTypes {
@@ -30,15 +25,7 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
     
-    // Enable Java 8+ language features
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-    
     packagingOptions {
-        pickFirst '**/libc++_shared.so'
-        pickFirst '**/libjsc.so'
         exclude 'META-INF/DEPENDENCIES'
         exclude 'META-INF/LICENSE'
         exclude 'META-INF/LICENSE.txt'
@@ -52,14 +39,12 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     
-    // VOSK Dependencies for Runtime Model Download
-    implementation 'com.alphacephei:vosk-android:0.3.47'
-    implementation 'net.java.dev.jna:jna:5.13.0@aar'
-    
-    // Network and JSON handling for model downloads
-    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
-    implementation 'org.json:json:20210307'
-    
-    // For background downloads
-    implementation 'androidx.work:work-runtime:2.8.1'
+    // WebSocket streaming to hello-hari-recorder backend
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+
+    // FlexboxLayout for scam pattern pills
+    implementation 'com.google.android.flexbox:flexbox:3.0.0'
+
+    // RecyclerView for transcript list
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
 }

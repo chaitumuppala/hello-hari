@@ -1,20 +1,16 @@
 package com.hellohari;
 
 import android.content.Context;
-import android.content.Intent;
-import android.media.MediaMetadataRetriever;
-import android.os.Bundle;
-import android.speech.RecognitionListener;
-import android.speech.RecognizerIntent;
-import android.speech.SpeechRecognizer;
 import android.util.Log;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 public class MultiLanguageScamDetector {
     private static final String TAG = "MultiLangScamDetector";
     private Context context;
+
+    // JSON-driven engine (single source of truth, shared with hello-hari-recorder).
+    // Loaded lazily; when available, all analysis delegates to it.
+    private ScamPatternEngine patternEngine;
     
     // === DIGITAL ARREST SCAMS (HIGHEST RISK - ₹1,935 crore threat) ===
     private static final Map<String, Integer> DIGITAL_ARREST_PATTERNS = new HashMap<String, Integer>() {{
@@ -484,6 +480,13 @@ public class MultiLanguageScamDetector {
 
     public MultiLanguageScamDetector(Context context) {
         this.context = context;
+        try {
+            this.patternEngine = ScamPatternEngine.getInstance(context);
+            Log.i(TAG, "ScamPatternEngine loaded — schema=" + patternEngine.getSchemaVersion()
+                    + " phrases=" + patternEngine.getPatternCount());
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to load ScamPatternEngine — using legacy hardcoded patterns", e);
+        }
     }
 
     public ScamAnalysisResult analyzeRecording(String audioFilePath) {
@@ -536,45 +539,11 @@ public class MultiLanguageScamDetector {
     }
     
     private String transcribeAudioWithLanguage(String audioFilePath, String languageCode) {
-        try {
-            // Enhanced simulation with realistic scam patterns for testing
-            String[] scamSamples = {
-                "Your account will be suspended please verify immediately or face legal action",
-                "आपका खाता बंद हो जाएगा तुरंत verify करें police station jaana hoga arrest warrant",
-                "మీ ఖాతా మూసివేయబడుతుంది వెంటనే verify చేయండి arrest warrant వచ్చింది court lo",
-                "This is Mumbai police cyber cell you are under digital arrest stay on video call",
-                "Main TRAI se bol raha hun aapka SIM band hone wala hai 22 complaints",
-                "FedEx se call kar rahe drugs found in your parcel 140 grams narcotics thailand",
-                "Bank manager calling account hack ho gaya virus detect security breach",
-                "Guaranteed crypto returns 10x profit join VIP group limited time offer expires",
-                "Hello beta serious trouble accident hospital money needed urgent don't tell parents",
-                "I love you different from others god brought us together visa money needed"
-            };
-            
-            String[] legitimateSamples = {
-                "Hello this is John calling about your insurance renewal policy update",
-                "हैलो मैं आपके बारे में बात करना चाहता हूं insurance के बारे में renewal",
-                "Hi this is a follow up call regarding your recent purchase thank you",
-                "Namaste bank se call kar raha hun loan approval ke liye documents",
-                "Good morning calling from hospital appointment reminder tomorrow",
-                "मैं आपकी कार सर्विस के बारे में बात करना चाहता हूं next week",
-                "Hello delivery update your order will arrive tomorrow evening",
-                "School se call kar rahe admission process ke liye meeting"
-            };
-            
-            Random random = new Random();
-            boolean isScam = random.nextDouble() < 0.7; // 70% chance scam for comprehensive testing
-            
-            if (isScam) {
-                return scamSamples[random.nextInt(scamSamples.length)];
-            } else {
-                return legitimateSamples[random.nextInt(legitimateSamples.length)];
-            }
-            
-        } catch (Exception e) {
-            Log.e(TAG, "Transcription failed for " + languageCode, e);
-            return null;
-        }
+        // Real transcription is handled by AsrManager (WebSocket to backend
+        // or Google SpeechRecognizer). This legacy method returns null.
+        Log.d(TAG, "transcribeAudioWithLanguage called for " + languageCode
+                + " — use AsrManager instead; returning null");
+        return null;
     }
     
     private float calculateTranscriptionQuality(String transcript) {
@@ -602,101 +571,101 @@ public class MultiLanguageScamDetector {
     }
     
     private ScamAnalysisResult analyzeTranscriptionForScams(MultiLanguageTranscription transcription) {
-        int totalRiskScore = 0;
-        List<String> detectedPatterns = new ArrayList<>();
         List<String> detectedLanguages = new ArrayList<>();
         String primaryLanguage = "Unknown";
         float maxConfidence = 0.0f;
-        Map<String, Integer> categoryRisks = new HashMap<>();
-        
-        // Analyze each transcription result
+
+        // Collect best transcript across all language attempts
+        StringBuilder combinedText = new StringBuilder();
         for (TranscriptionResult result : transcription.getResults()) {
             if (result.getQuality() > maxConfidence) {
                 maxConfidence = result.getQuality();
                 primaryLanguage = result.getLanguageName();
             }
-            
             detectedLanguages.add(result.getLanguageName());
-            String transcript = result.getTranscript().toLowerCase();
-            
-            // Check all pattern categories
-            int categoryScore = 0;
-            
-            // Digital Arrest patterns (highest priority)
-            categoryScore = checkPatterns(transcript, DIGITAL_ARREST_PATTERNS, detectedPatterns, "DIGITAL_ARREST");
-            categoryRisks.put("DIGITAL_ARREST", categoryScore);
-            totalRiskScore += categoryScore;
-            
-            // TRAI/Telecom patterns
-            categoryScore = checkPatterns(transcript, TRAI_PATTERNS, detectedPatterns, "TRAI_SCAM");
-            categoryRisks.put("TRAI_SCAM", categoryScore);
-            totalRiskScore += categoryScore;
-            
-            // Courier/Package patterns
-            categoryScore = checkPatterns(transcript, COURIER_PATTERNS, detectedPatterns, "COURIER_SCAM");
-            categoryRisks.put("COURIER_SCAM", categoryScore);
-            totalRiskScore += categoryScore;
-            
-            // Investment/Crypto patterns
-            categoryScore = checkPatterns(transcript, INVESTMENT_PATTERNS, detectedPatterns, "INVESTMENT_FRAUD");
-            categoryRisks.put("INVESTMENT_FRAUD", categoryScore);
-            totalRiskScore += categoryScore;
-            
-            // Family Emergency patterns
-            categoryScore = checkPatterns(transcript, FAMILY_EMERGENCY_PATTERNS, detectedPatterns, "FAMILY_EMERGENCY");
-            categoryRisks.put("FAMILY_EMERGENCY", categoryScore);
-            totalRiskScore += categoryScore;
-            
-            // Romance Scam patterns
-            categoryScore = checkPatterns(transcript, ROMANCE_PATTERNS, detectedPatterns, "ROMANCE_SCAM");
-            categoryRisks.put("ROMANCE_SCAM", categoryScore);
-            totalRiskScore += categoryScore;
-            
-            // Language-specific patterns
-            if ("Hindi".equals(result.getLanguageName())) {
-                categoryScore = checkPatterns(transcript, HINDI_ADVANCED_PATTERNS, detectedPatterns, "HINDI_SCAM");
-                categoryRisks.put("HINDI_SCAM", categoryScore);
-                totalRiskScore += categoryScore;
-            } else if ("Telugu".equals(result.getLanguageName())) {
-                categoryScore = checkPatterns(transcript, TELUGU_ADVANCED_PATTERNS, detectedPatterns, "TELUGU_SCAM");
-                categoryRisks.put("TELUGU_SCAM", categoryScore);
-                totalRiskScore += categoryScore;
-            }
-            
-            // Mixed language patterns (always check)
-            categoryScore = checkPatterns(transcript, HINGLISH_PATTERNS, detectedPatterns, "HINGLISH_SCAM");
-            categoryRisks.put("HINGLISH_SCAM", categoryScore);
-            totalRiskScore += categoryScore;
-            
-            // Check urgency and authority indicators
-            totalRiskScore += checkUrgencyIndicators(transcript, detectedPatterns);
-            totalRiskScore += checkAuthorityIndicators(transcript, detectedPatterns);
-            totalRiskScore += checkFinancialRiskTerms(transcript, detectedPatterns);
-            totalRiskScore += checkTechSupportTerms(transcript, detectedPatterns);
-            
-            // Weight by transcription quality
-            totalRiskScore = (int)(totalRiskScore * result.getQuality());
+            if (combinedText.length() > 0) combinedText.append(' ');
+            combinedText.append(result.getTranscript());
         }
-        
-        // Boost score if multiple languages detected (often indicates scam)
-        if (detectedLanguages.size() > 1) {
-            totalRiskScore += 15;
-            detectedPatterns.add("MULTI-LANG: Multiple languages detected (+15)");
+
+        String fullText = combinedText.toString().trim();
+        if (fullText.isEmpty()) {
+            return new ScamAnalysisResult(0, new ArrayList<>(),
+                    "No transcription available", primaryLanguage, detectedLanguages);
         }
-        
-        // Determine primary threat category
-        String primaryThreat = determinePrimaryThreat(categoryRisks);
-        
-        // Cap the score at 100
+
+        // Delegate to ScamPatternEngine (JSON-driven, parity with Python backend)
+        if (patternEngine != null) {
+            ScamPatternEngine.Result r = patternEngine.analyze(fullText);
+            return new ScamAnalysisResult(
+                    r.getRiskScore(),
+                    r.getDebugDetails(),
+                    r.getExplanation(),
+                    primaryLanguage,
+                    detectedLanguages);
+        }
+
+        // Fallback: legacy hardcoded analysis (ScamPatternEngine unavailable)
+        return analyzeTextLegacy(fullText, primaryLanguage, detectedLanguages);
+    }
+
+    /**
+     * Legacy hardcoded pattern analysis — used only when ScamPatternEngine
+     * fails to load (e.g. missing patterns.json asset).
+     */
+    private ScamAnalysisResult analyzeTextLegacy(String text, String primaryLanguage, List<String> detectedLanguages) {
+        int totalRiskScore = 0;
+        List<String> detectedPatterns = new ArrayList<>();
+        Map<String, Integer> categoryRisks = new HashMap<>();
+        String lowerText = text.toLowerCase();
+        int categoryScore;
+
+        categoryScore = checkPatterns(lowerText, DIGITAL_ARREST_PATTERNS, detectedPatterns, "DIGITAL_ARREST");
+        categoryRisks.put("DIGITAL_ARREST", categoryScore);
+        totalRiskScore += categoryScore;
+
+        categoryScore = checkPatterns(lowerText, TRAI_PATTERNS, detectedPatterns, "TRAI_SCAM");
+        categoryRisks.put("TRAI_SCAM", categoryScore);
+        totalRiskScore += categoryScore;
+
+        categoryScore = checkPatterns(lowerText, COURIER_PATTERNS, detectedPatterns, "COURIER_SCAM");
+        categoryRisks.put("COURIER_SCAM", categoryScore);
+        totalRiskScore += categoryScore;
+
+        categoryScore = checkPatterns(lowerText, INVESTMENT_PATTERNS, detectedPatterns, "INVESTMENT_FRAUD");
+        categoryRisks.put("INVESTMENT_FRAUD", categoryScore);
+        totalRiskScore += categoryScore;
+
+        categoryScore = checkPatterns(lowerText, FAMILY_EMERGENCY_PATTERNS, detectedPatterns, "FAMILY_EMERGENCY");
+        categoryRisks.put("FAMILY_EMERGENCY", categoryScore);
+        totalRiskScore += categoryScore;
+
+        // Always check all language-specific patterns (code-switched speech)
+        categoryScore = checkPatterns(lowerText, HINDI_ADVANCED_PATTERNS, detectedPatterns, "HINDI_SCAM");
+        categoryRisks.put("HINDI_SCAM", categoryScore);
+        totalRiskScore += categoryScore;
+
+        categoryScore = checkPatterns(lowerText, TELUGU_ADVANCED_PATTERNS, detectedPatterns, "TELUGU_SCAM");
+        categoryRisks.put("TELUGU_SCAM", categoryScore);
+        totalRiskScore += categoryScore;
+
+        categoryScore = checkPatterns(lowerText, HINGLISH_PATTERNS, detectedPatterns, "HINGLISH_SCAM");
+        categoryRisks.put("HINGLISH_SCAM", categoryScore);
+        totalRiskScore += categoryScore;
+
+        totalRiskScore += checkUrgencyIndicators(lowerText, detectedPatterns);
+        totalRiskScore += checkAuthorityIndicators(lowerText, detectedPatterns);
+        totalRiskScore += checkFinancialRiskTerms(lowerText, detectedPatterns);
+        totalRiskScore += checkTechSupportTerms(lowerText, detectedPatterns);
+
         totalRiskScore = Math.min(100, totalRiskScore);
-        
+
+        String primaryThreat = determinePrimaryThreat(categoryRisks);
         return new ScamAnalysisResult(
-            totalRiskScore,
-            detectedPatterns,
-            generateAnalysisMessage(totalRiskScore, detectedPatterns, primaryLanguage, primaryThreat, categoryRisks),
-            primaryLanguage,
-            detectedLanguages
-        );
+                totalRiskScore,
+                detectedPatterns,
+                generateAnalysisMessage(totalRiskScore, detectedPatterns, primaryLanguage, primaryThreat, categoryRisks),
+                primaryLanguage,
+                detectedLanguages);
     }
     
     private int checkPatterns(String transcript, Map<String, Integer> patterns, List<String> detected, String category) {
@@ -829,6 +798,10 @@ public class MultiLanguageScamDetector {
     
     // Public method to get pattern count for statistics
     public int getPatternCount() {
+        if (patternEngine != null) {
+            return patternEngine.getPatternCount();
+        }
+        // Fallback: count legacy hardcoded patterns
         return DIGITAL_ARREST_PATTERNS.size() + 
                TRAI_PATTERNS.size() + 
                COURIER_PATTERNS.size() + 
@@ -898,61 +871,6 @@ public class MultiLanguageScamDetector {
     }
 
     
-/**
- * REAL VOSK INTEGRATION - This will replace the simulation above
- */
-public void analyzeWithVosk(String audioFilePath, VoskSpeechRecognizer voskRecognizer) {
-    if (voskRecognizer == null || !voskRecognizer.isInitialized()) {
-        Log.w(TAG, "VOSK not available, using simulation");
-        return;
-    }
-    
-    // Set up VOSK recognition listener
-    voskRecognizer.setRecognitionListener(new VoskSpeechRecognizer.VoskRecognitionListener() {
-        @Override
-        public void onPartialResult(String partialText, String language) {
-            Log.d(TAG, "VOSK Partial (" + language + "): " + partialText);
-        }
-        
-        @Override
-        public void onFinalResult(String finalText, String language, float confidence) {
-            Log.d(TAG, "VOSK Final (" + language + "): " + finalText + " (confidence: " + confidence + ")");
-            
-            // Analyze the real transcription with our scam patterns
-            ScamAnalysisResult result = analyzeTranscriptionForScams(
-                new MultiLanguageTranscription(java.util.Arrays.asList(
-                    new TranscriptionResult(finalText, getLanguageName(language), language, confidence)
-                ))
-            );
-            
-            Log.d(TAG, "VOSK Analysis Complete - Risk Score: " + result.getRiskScore() + "%");
-        }
-        
-        @Override
-        public void onError(String error) {
-            Log.e(TAG, "VOSK Recognition Error: " + error);
-        }
-        
-        @Override
-        public void onInitializationComplete(boolean success) {
-            Log.d(TAG, "VOSK Initialization: " + (success ? "SUCCESS" : "FAILED"));
-        }
-        
-        @Override
-        public void onModelDownloadProgress(String language, int progress) {
-            Log.d(TAG, "VOSK Model Download Progress - " + language + ": " + progress + "%");
-        }
-        
-        @Override
-        public void onModelDownloadComplete(String language, boolean success) {
-            Log.d(TAG, "VOSK Model Download Complete - " + language + ": " + (success ? "SUCCESS" : "FAILED"));
-        }
-    });
-    
-    // Start multi-language recognition
-    voskRecognizer.recognizeMultiLanguage(audioFilePath);
-}
-
 private String getLanguageName(String languageCode) {
     switch (languageCode) {
         case "hi": return "Hindi";
@@ -964,12 +882,13 @@ private String getLanguageName(String languageCode) {
 // Legacy methods for CallDetectionService compatibility
 public int processRecording(String recordingPath) {
     Log.d(TAG, "Processing recording: " + recordingPath);
-    // Simulate basic analysis for legacy compatibility
-    if (recordingPath != null && recordingPath.length() > 0) {
-        // Return a moderate risk score for now
-        return 35;
+    if (recordingPath == null || recordingPath.isEmpty()) {
+        return 0;
     }
-    return 15;
+    // Without a real transcript (requires VOSK), we can only report that
+    // the recording exists.  Return 0 so the caller doesn't raise a false
+    // alarm.  Use analyzeText() once a transcript is available.
+    return 0;
 }
 
 public String getRiskAssessment(int riskScore) {
@@ -987,38 +906,20 @@ public ScamAnalysisResult analyzeText(String text) {
     if (text == null || text.trim().isEmpty()) {
         return new ScamAnalysisResult(0, new ArrayList<>(), "No text provided", "Unknown", new ArrayList<>());
     }
-    
-    int riskScore = 0;
-    List<String> detectedPatterns = new ArrayList<>();
-    
-    String lowerText = text.toLowerCase().trim();
-    
-    // Check Digital Arrest patterns (highest priority)
-    riskScore += checkPatterns(lowerText, DIGITAL_ARREST_PATTERNS, detectedPatterns, "DIGITAL_ARREST");
-    
-    // Check other pattern categories
-    riskScore += checkPatterns(lowerText, TRAI_PATTERNS, detectedPatterns, "TRAI_SCAM");
-    riskScore += checkPatterns(lowerText, COURIER_PATTERNS, detectedPatterns, "COURIER_SCAM");
-    riskScore += checkPatterns(lowerText, INVESTMENT_PATTERNS, detectedPatterns, "INVESTMENT_FRAUD");
-    riskScore += checkPatterns(lowerText, FAMILY_EMERGENCY_PATTERNS, detectedPatterns, "FAMILY_EMERGENCY");
-    riskScore += checkPatterns(lowerText, ROMANCE_PATTERNS, detectedPatterns, "ROMANCE_SCAM");
-    riskScore += checkPatterns(lowerText, HINDI_ADVANCED_PATTERNS, detectedPatterns, "HINDI_SCAM");
-    riskScore += checkPatterns(lowerText, TELUGU_ADVANCED_PATTERNS, detectedPatterns, "TELUGU_SCAM");
-    riskScore += checkPatterns(lowerText, HINGLISH_PATTERNS, detectedPatterns, "HINGLISH_SCAM");
-    
-    // Check indicators
-    riskScore += checkUrgencyIndicators(lowerText, detectedPatterns);
-    riskScore += checkAuthorityIndicators(lowerText, detectedPatterns);
-    riskScore += checkFinancialRiskTerms(lowerText, detectedPatterns);
-    riskScore += checkTechSupportTerms(lowerText, detectedPatterns);
-    
-    // Cap the risk score at 100
-    riskScore = Math.min(riskScore, 100);
-    
-    String riskLevel = getRiskAssessment(riskScore);
-    String analysisMessage = generateAnalysisMessage(riskScore, detectedPatterns, "Text Analysis", "TEXT_ANALYSIS", new HashMap<>());
-    
-    return new ScamAnalysisResult(riskScore, detectedPatterns, analysisMessage, "Text Analysis", Arrays.asList("Mixed"));
+
+    // Delegate to JSON-driven engine for parity with Python backend
+    if (patternEngine != null) {
+        ScamPatternEngine.Result r = patternEngine.analyze(text);
+        return new ScamAnalysisResult(
+                r.getRiskScore(),
+                r.getDebugDetails(),
+                r.getExplanation(),
+                "Text Analysis",
+                Arrays.asList("Mixed"));
+    }
+
+    // Fallback: legacy hardcoded analysis
+    return analyzeTextLegacy(text, "Text Analysis", Arrays.asList("Mixed"));
 }
 
 // Overloaded method accepting language hint, returns int risk score (used by MainActivity)

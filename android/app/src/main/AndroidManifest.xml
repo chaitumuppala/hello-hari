@@ -37,7 +37,7 @@
         android:theme="@style/AppTheme">
         
         <activity
-            android:name=".MainActivity"
+            android:name=".MainActivityNew"
             android:exported="true"
             android:screenOrientation="portrait"
             android:configChanges="orientation|keyboardHidden"
@@ -58,11 +58,6 @@
         <!-- Add network security configuration -->
         <meta-data
             android:name="android.webkit.WebView.MetricsOptOut"
-            android:value="true" />
-            
-        <!-- Specify that app uses VOSK and speech models -->
-        <meta-data
-            android:name="com.hellohari.UsesSpeechRecognition"
             android:value="true" />
     </application>
 </manifest>

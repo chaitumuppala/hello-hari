@@ -11,9 +11,9 @@ public class CallReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        if (intent.getAction().equals(TelephonyManager.ACTION_PHONE_STATE_CHANGED)) {
+        if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(intent.getAction())) {
             String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
-            if (state.equals(TelephonyManager.EXTRA_STATE_RINGING)) {
+            if (TelephonyManager.EXTRA_STATE_RINGING.equals(state)) {
                 String number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
                 Log.d(TAG, "Incoming call from: " + number);
                 // We'll handle the call here once permissions are working

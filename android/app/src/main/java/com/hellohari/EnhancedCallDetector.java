@@ -380,39 +380,15 @@ public class EnhancedCallDetector {
         }
         
         public int performRealTimeAnalysis(int analysisCount, String phoneNumber) {
-            // Simulate real-time pattern detection
-            int baseRisk = analyzePhoneNumber(phoneNumber);
-            
-            // Simulate escalating risk detection during call
-            if (analysisCount > 3) {
-                baseRisk += 10; // Longer calls might reveal more patterns
-            }
-            if (analysisCount > 6) {
-                baseRisk += 15; // Extended calls increase suspicion
-            }
-            
-            // Add some randomness to simulate pattern detection
-            baseRisk += (int)(Math.random() * 20);
-            
-            return Math.min(baseRisk, 100);
+            // Without a transcript, we can only use phone-number heuristics.
+            // Real-time audio analysis requires VOSK integration.
+            return analyzePhoneNumber(phoneNumber);
         }
         
         public int analyzeFinalRecording(String recordingPath, String phoneNumber) {
-            // Simulate comprehensive post-call analysis
-            int risk = analyzePhoneNumber(phoneNumber);
-            
-            // Simulate audio pattern analysis
-            if (recordingPath != null) {
-                // In production, this would analyze actual audio for:
-                // - Voice stress patterns
-                // - Background noise analysis
-                // - Speech pattern recognition
-                // - Known scam phrase detection
-                
-                risk += (int)(Math.random() * 30); // Simulate analysis results
-            }
-            
-            return Math.min(risk, 100);
+            // Without a real ASR transcript, return the phone-number heuristic
+            // only. Do not fabricate a score.
+            return analyzePhoneNumber(phoneNumber);
         }
         
         public String getRiskAnalysisText(int riskScore, int analysisCount) {

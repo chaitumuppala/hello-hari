@@ -102,7 +102,7 @@ public class CallDetectionService extends Service {
     }
     
     private Notification createNotification(String contentText) {
-        Intent notificationIntent = new Intent(this, MainActivity.class);
+        Intent notificationIntent = new Intent(this, MainActivityNew.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
         
@@ -150,7 +150,8 @@ public class CallDetectionService extends Service {
             Log.d(TAG, "Started recording: " + currentRecordingPath);
             
             // Update notification
-            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            NotificationManager notificationManager =
+                    (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             notificationManager.notify(NOTIFICATION_ID, createNotification("Recording call from " + phoneNumber));
             
         } catch (IOException e) {
@@ -177,7 +178,8 @@ public class CallDetectionService extends Service {
             analyzeRecording(currentRecordingPath);
             
             // Update notification
-            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            NotificationManager notificationManager =
+                    (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             notificationManager.notify(NOTIFICATION_ID, createNotification("Monitoring calls"));
             
         } catch (Exception e) {
@@ -229,7 +231,7 @@ public class CallDetectionService extends Service {
     private void showScamWarningNotification(int riskScore) {
         String risk = scamDetector.getRiskAssessment(riskScore);
         
-        Intent notificationIntent = new Intent(this, MainActivity.class);
+        Intent notificationIntent = new Intent(this, MainActivityNew.class);
         notificationIntent.putExtra("recording_path", currentRecordingPath);
         
         PendingIntent pendingIntent = PendingIntent.getActivity(
@@ -244,7 +246,8 @@ public class CallDetectionService extends Service {
                 .setAutoCancel(true)
                 .build();
         
-        NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        NotificationManager notificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.notify(2000, notification);
     }
     
