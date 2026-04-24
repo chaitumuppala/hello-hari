@@ -1021,4 +1021,10 @@ public ScamAnalysisResult analyzeText(String text) {
     return new ScamAnalysisResult(riskScore, detectedPatterns, analysisMessage, "Text Analysis", Arrays.asList("Mixed"));
 }
 
+// Overloaded method accepting language hint, returns int risk score (used by MainActivity)
+public int analyzeText(String text, String languageHint) {
+    ScamAnalysisResult result = analyzeText(text);
+    return result.getRiskScore();
+}
+
 }

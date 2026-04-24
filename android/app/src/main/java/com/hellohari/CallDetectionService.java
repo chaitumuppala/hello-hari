@@ -26,16 +26,16 @@ public class CallDetectionService extends Service {
     private static final String TAG = "CallDetectionService";
     private static final String CHANNEL_ID = "CallDetectionChannel";
     private static final int NOTIFICATION_ID = 1001;
-    private static final int SCAM_ALERT_ID = 2000;
     
     private TelephonyManager telephonyManager;
     private CallStateListener callStateListener;
     private MediaRecorder mediaRecorder;
     private String currentRecordingPath;
     private MultiLanguageScamDetector scamDetector;
-    private RealTimeScamAnalyzer realTimeAnalyzer;
+    // New JSON-driven engine — shared with hello-hari-recorder backend.
+    // Loaded lazily; used for any real transcript that reaches this service.
+    private ScamPatternEngine patternEngine;
     private boolean isRecording = false;
-    private int lastLiveRiskPercent = 0;
     
     @Override
     public void onCreate() {
@@ -47,6 +47,15 @@ public class CallDetectionService extends Service {
         
         // Initialize components
         scamDetector = new MultiLanguageScamDetector(this);
+        try {
+            patternEngine = ScamPatternEngine.getInstance(this);
+            Log.i(TAG, "ScamPatternEngine ready — schema=" + patternEngine.getSchemaVersion()
+                    + " phrases=" + patternEngine.getPatternCount()
+                    + " generated=" + patternEngine.getGeneratedAt());
+        } catch (Exception e) {
+            // Non-fatal: legacy detector still works. Log loudly so we notice.
+            Log.e(TAG, "Failed to load patterns.json — falling back to legacy detector only", e);
+        }
         telephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
         callStateListener = new CallStateListener();
         
@@ -71,7 +80,6 @@ public class CallDetectionService extends Service {
         
         // Stop recording if in progress
         stopRecording();
-        stopRealTimeAnalysis();
         
         // Stop listening for call state changes
         telephonyManager.listen(callStateListener, PhoneStateListener.LISTEN_NONE);
@@ -190,6 +198,33 @@ public class CallDetectionService extends Service {
             }
         }
     }
+
+    /**
+     * Analyze a transcribed call using the shared pattern engine.
+     *
+     * Call this whenever a real transcript becomes available (e.g. from VOSK,
+     * IndicConformer over WebSocket, or any future on-device ASR). The result
+     * uses the exact same algorithm and data bundle as the hello-hari-recorder
+     * backend, so scores are directly comparable.
+     *
+     * @param transcript transcribed call text (any supported language)
+     * @return engine result, or {@code null} if the engine failed to load
+     */
+    public ScamPatternEngine.Result analyzeTranscript(String transcript) {
+        if (patternEngine == null) {
+            Log.w(TAG, "analyzeTranscript called but pattern engine is not loaded");
+            return null;
+        }
+        ScamPatternEngine.Result result = patternEngine.analyze(transcript);
+        Log.i(TAG, "patternEngine: score=" + result.getRiskScore()
+                + " scam=" + result.isScam()
+                + " matches=" + result.getMatchedPatterns().size()
+                + " — " + result.getExplanation());
+        if (result.isScam()) {
+            showScamWarningNotification(result.getRiskScore());
+        }
+        return result;
+    }
     
     private void showScamWarningNotification(int riskScore) {
         String risk = scamDetector.getRiskAssessment(riskScore);
@@ -213,78 +248,6 @@ public class CallDetectionService extends Service {
         notificationManager.notify(2000, notification);
     }
     
-    private void startRealTimeAnalysis() {
-        if (realTimeAnalyzer != null && realTimeAnalyzer.isStreaming()) {
-            return;
-        }
-        realTimeAnalyzer = new RealTimeScamAnalyzer(this);
-        realTimeAnalyzer.setListener(new RealTimeScamAnalyzer.AnalysisListener() {
-            @Override
-            public void onStatusChanged(String status, String error) {
-                Log.d(TAG, "RealTime status: " + status + (error != null ? " — " + error : ""));
-            }
-
-            @Override
-            public void onAnalysisResult(RealTimeScamAnalyzer.AnalysisResult result) {
-                lastLiveRiskPercent = result.getRiskPercent();
-                Log.d(TAG, String.format(
-                        "Live analysis | risk=%d%% | scam=%s | text=%s",
-                        lastLiveRiskPercent, result.isScam,
-                        result.transcript.length() > 80
-                                ? result.transcript.substring(0, 80) + "..."
-                                : result.transcript));
-
-                // Update ongoing call notification with live risk
-                String notifText = result.isScam
-                        ? "⚠ SCAM SUSPECTED — Risk " + lastLiveRiskPercent + "%"
-                        : "Analyzing call — Risk " + lastLiveRiskPercent + "%";
-                NotificationManager nm = getSystemService(NotificationManager.class);
-                nm.notify(NOTIFICATION_ID, createNotification(notifText));
-
-                // High-risk alert
-                if (result.isScam && lastLiveRiskPercent >= 60) {
-                    showLiveScamAlert(result);
-                }
-            }
-        });
-        // Default to Hindi; user can extend to detect active language later.
-        realTimeAnalyzer.start("hi");
-    }
-
-    private void stopRealTimeAnalysis() {
-        if (realTimeAnalyzer != null) {
-            realTimeAnalyzer.stop();
-            realTimeAnalyzer = null;
-        }
-    }
-
-    private void showLiveScamAlert(RealTimeScamAnalyzer.AnalysisResult result) {
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(
-                this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
-
-        String patterns = result.matchedPatterns.length > 0
-                ? String.join(", ",
-                        java.util.Arrays.copyOfRange(result.matchedPatterns, 0,
-                                Math.min(3, result.matchedPatterns.length)))
-                : "Suspicious language detected";
-
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("⚠ Possible Scam Call")
-                .setContentText("Risk " + result.getRiskPercent() + "% — " + patterns)
-                .setStyle(new NotificationCompat.BigTextStyle()
-                        .bigText("Risk " + result.getRiskPercent() + "%\nIndicators: " + patterns
-                                + "\n\nBe cautious. Do not share OTPs, card numbers, or personal info."))
-                .setSmallIcon(R.drawable.ic_warning)
-                .setContentIntent(pendingIntent)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setAutoCancel(true)
-                .build();
-
-        NotificationManager nm = getSystemService(NotificationManager.class);
-        nm.notify(SCAM_ALERT_ID, notification);
-    }
-
     /**
      * Listener for call state changes
      */
@@ -303,9 +266,8 @@ public class CallDetectionService extends Service {
                     
                 case TelephonyManager.CALL_STATE_OFFHOOK:
                     if (wasRinging) {
-                        Log.d(TAG, "Call answered, starting recording + real-time analysis");
+                        Log.d(TAG, "Call answered, starting recording");
                         startRecording(incomingNumber);
-                        startRealTimeAnalysis();
                     }
                     break;
                     
@@ -314,8 +276,6 @@ public class CallDetectionService extends Service {
                         Log.d(TAG, "Call ended, stopping recording");
                         stopRecording();
                     }
-                    stopRealTimeAnalysis();
-                    lastLiveRiskPercent = 0;
                     wasRinging = false;
                     incomingNumber = null;
                     break;
