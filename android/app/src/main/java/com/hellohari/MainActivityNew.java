@@ -206,6 +206,15 @@ public class MainActivityNew extends AppCompatActivity {
         recordButton.setBackgroundResource(R.drawable.button_start);
         languageSpinner.setEnabled(true);
         serverUrlInput.setEnabled(true);
+
+        // Reset shield to idle state
+        setShieldState("🛡️", "SAFE", -1);
+        shieldRing.setBackgroundResource(R.drawable.shield_ring_safe);
+        int count = transcripts.size();
+        statusText.setText(count > 0
+                ? "Analysis complete — " + count + " chunk" + (count != 1 ? "s" : "")
+                : "Ready to analyze");
+        engineBadge.setVisibility(View.GONE);
     }
 
     // --- AsrManager listener ---

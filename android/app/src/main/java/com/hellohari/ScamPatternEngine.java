@@ -466,6 +466,11 @@ public final class ScamPatternEngine {
         private final List<String> matchedPatterns;
         private final String explanation;
         private final List<String> debugDetails;
+        // Narrative state machine fields
+        private String narrativePhase = "IDLE";
+        private String narrativeArchetype = null;
+        private String narrativePhaseLabel = "";
+        private int narrativePhaseScore = 0;
 
         public Result(boolean isScam, int riskScore, double riskFraction,
                       List<String> matchedPatterns, String explanation,
@@ -484,5 +489,19 @@ public final class ScamPatternEngine {
         public List<String> getMatchedPatterns()  { return matchedPatterns; }
         public String getExplanation()            { return explanation; }
         public List<String> getDebugDetails()     { return debugDetails; }
+        public String getNarrativePhase()          { return narrativePhase; }
+        public String getNarrativeArchetype()      { return narrativeArchetype; }
+        public String getNarrativePhaseLabel()     { return narrativePhaseLabel; }
+        public int getNarrativePhaseScore()        { return narrativePhaseScore; }
+
+        /** Set narrative fields (called after NarrativeTracker.advance). */
+        public void setNarrative(NarrativeTracker.NarrativeResult nr) {
+            if (nr != null) {
+                this.narrativePhase = nr.phase;
+                this.narrativeArchetype = nr.bestArchetype;
+                this.narrativePhaseLabel = nr.phaseLabel;
+                this.narrativePhaseScore = nr.phaseScore;
+            }
+        }
     }
 }
